@@ -95,6 +95,22 @@ enum ShellIntegration {
     add-zsh-hook preexec _termite_preexec
     _termite_report_pwd
 
+    # 终端内联看图(iTerm2 OSC 1337 协议,Termite 原生渲染),用法:imgcat 图.png
+    imgcat() {
+      local f size
+      (( $# )) || { print -u2 "用法: imgcat <图片文件> ..."; return 1 }
+      for f in "$@"; do
+        if [[ ! -f "$f" ]]; then
+          print -u2 "imgcat: 找不到文件 $f"
+          continue
+        fi
+        size=$(stat -f%z "$f" 2>/dev/null || echo 0)
+        printf '\\e]1337;File=name=%s;size=%s;inline=1:%s\\a\\n' \\
+          "$(printf '%s' "${f:t}" | base64)" "$size" "$(base64 < "$f")"
+      done
+    }
+    alias icat=imgcat
+
     """
 
     /// bash 无 preexec,只发 D(上条退出码)/ 7(cwd)/ A(提示符);耗时统计降级
