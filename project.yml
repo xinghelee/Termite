@@ -1,0 +1,67 @@
+name: Termite
+options:
+  bundleIdPrefix: com.termite
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+
+fileGroups:
+  - project.yml
+  - DESIGN.md
+
+packages:
+  SwiftTerm:
+    # 1.12+ 引入 Metal GPU 渲染后端;1.14+ 内置 scrollback 搜索(高亮/正则)
+    url: https://github.com/migueldeicaza/SwiftTerm.git
+    from: 1.14.0
+
+targets:
+  Termite:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Termite
+    dependencies:
+      - package: SwiftTerm
+    scheme:
+      configVariants: []
+      testTargets:
+        - TermiteTests
+    info:
+      path: Termite/Info.plist
+      properties:
+        CFBundleDisplayName: Termite
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHighResolutionCapable: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.termite.app
+        SWIFT_VERSION: "5.0"
+        # 终端不能开沙箱(需要完整文件系统/进程权限),也不加 entitlements。
+        # 用稳定开发证书签名(而非 ad-hoc),避免每次重建被系统当陌生 app。
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 99LYH6FNPS
+        ENABLE_HARDENED_RUNTIME: false
+        DEAD_CODE_STRIPPING: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  TermiteTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: TermiteTests
+    dependencies:
+      - target: Termite
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: true
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Termite.app/Contents/MacOS/Termite
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 99LYH6FNPS
