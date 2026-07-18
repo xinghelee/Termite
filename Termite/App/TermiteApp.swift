@@ -1,7 +1,27 @@
 import SwiftUI
 
+/// 退出确认:有命令在跑时 ⌘Q 先弹确认(设置里的「关闭确认」总开关控制)
+final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MainActor.assumeIsolated {
+            let confirmEnabled = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
+            let running = SessionManagerRegistry.shared.allSessions.filter(\.runningCommand).count
+            guard confirmEnabled, running > 0 else { return .terminateNow }
+            let alert = NSAlert()
+            alert.messageText = String(localized: "退出 Termite?")
+            alert.informativeText = String(localized: "有 \(running) 个命令正在运行,退出会终止它们。")
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: String(localized: "退出"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+        }
+    }
+}
+
 @main
 struct TermiteApp: App {
+    @NSApplicationDelegateAdaptor(TermiteAppDelegate.self) private var appDelegate
+
     init() {
         // 启动即强制整个 app 跟随主题深浅,避免打开时先闪一下系统浅色
         ThemeStore.shared.applyWindowChrome()
@@ -131,6 +151,28 @@ struct TerminalCommands: Commands {
                 SessionManager.shared.toggleBroadcast()
             }
             .keyboardShortcut("b", modifiers: [.command, .option])
+
+            Divider()
+
+            Button("聚焦左侧分屏") {
+                SessionManager.shared.focusNeighborPane(.left)
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+
+            Button("聚焦右侧分屏") {
+                SessionManager.shared.focusNeighborPane(.right)
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+
+            Button("聚焦上方分屏") {
+                SessionManager.shared.focusNeighborPane(.up)
+            }
+            .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+
+            Button("聚焦下方分屏") {
+                SessionManager.shared.focusNeighborPane(.down)
+            }
+            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
 
             Divider()
 

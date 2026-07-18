@@ -122,6 +122,29 @@ final class SessionManager {
         tab.focusedID = secondary.id
     }
 
+    /// ⌘⌥方向键:按几何位置把焦点移到相邻 pane
+    func focusNeighborPane(_ direction: PaneDirection) {
+        guard let tab = selectedTab else { return }
+        guard let next = tab.root.neighborLeaf(of: tab.focusedID, direction: direction) else { return }
+        tab.focusedID = next
+        session(next)?.focusTerminal()
+    }
+
+    /// 标签 chip 拖拽重排:把 id 移到 target 当前的位置
+    func moveTab(_ id: PaneTab.ID, before targetID: PaneTab.ID) {
+        guard id != targetID,
+              let from = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let tab = tabs.remove(at: from)
+        let insertAt = tabs.firstIndex(where: { $0.id == targetID }) ?? min(from, tabs.count)
+        tabs.insert(tab, at: insertAt)
+        persistOpenTabs()
+    }
+
+    /// 有命令在跑的会话数(关窗/退出确认用)
+    var runningCommandCount: Int {
+        sessions.filter(\.runningCommand).count
+    }
+
     /// 点击某个 pane 聚焦它
     func focusPane(_ sessionID: UUID) {
         guard let tab = tabs.first(where: { $0.root.leafIDs().contains(sessionID) }) else { return }

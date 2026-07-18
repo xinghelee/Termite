@@ -156,7 +156,7 @@ private struct BehaviorSettingsTab: View {
                 Toggle("粘贴保护:多行或危险命令先确认", isOn: $pasteProtection)
             }
             Section("会话") {
-                Toggle("关闭有命令在运行的分屏前需要确认", isOn: $confirmBeforeClosingTab)
+                Toggle("关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)", isOn: $confirmBeforeClosingTab)
                 Toggle("后台长命令(≥10s)完成时系统通知", isOn: $notifyLongCommand)
                 Toggle("启动时恢复上次的标签页(工作目录)", isOn: $restoreSessions)
             }

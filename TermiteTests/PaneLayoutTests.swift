@@ -78,3 +78,48 @@ final class PaneRatioTests: XCTestCase {
         XCTAssertEqual(ratio, 0.6)
     }
 }
+
+final class PaneDirectionTests: XCTestCase {
+
+    /// 布局:A | (B / C)  —— A 占左半,B 右上,C 右下
+    private func makeLayout() -> (PaneNode, UUID, UUID, UUID) {
+        let a = UUID(), b = UUID(), c = UUID()
+        var root = PaneNode.leaf(a).splitting(leaf: a, into: b, axis: .horizontal, branchID: UUID())
+        root = root.splitting(leaf: b, into: c, axis: .vertical, branchID: UUID())
+        return (root, a, b, c)
+    }
+
+    func testLeafRectsPartitionUnitSquare() {
+        let (root, a, b, c) = makeLayout()
+        let rects = root.leafRects()
+        XCTAssertEqual(rects.count, 3)
+        XCTAssertEqual(rects[a]!, CGRect(x: 0, y: 0, width: 0.5, height: 1))
+        XCTAssertEqual(rects[b]!, CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5))
+        XCTAssertEqual(rects[c]!, CGRect(x: 0.5, y: 0.5, width: 0.5, height: 0.5))
+    }
+
+    func testVerticalNeighbors() {
+        let (root, _, b, c) = makeLayout()
+        XCTAssertEqual(root.neighborLeaf(of: b, direction: .down), c)
+        XCTAssertEqual(root.neighborLeaf(of: c, direction: .up), b)
+        XCTAssertNil(root.neighborLeaf(of: b, direction: .up))
+    }
+
+    func testHorizontalNeighbors() {
+        let (root, a, b, c) = makeLayout()
+        XCTAssertEqual(root.neighborLeaf(of: b, direction: .left), a)
+        XCTAssertEqual(root.neighborLeaf(of: c, direction: .left), a)
+        let fromA = root.neighborLeaf(of: a, direction: .right)
+        XCTAssertTrue(fromA == b || fromA == c)
+        XCTAssertNil(root.neighborLeaf(of: a, direction: .left))
+    }
+
+    func testRatioAffectsRects() {
+        let a = UUID(), b = UUID(), branch = UUID()
+        var root = PaneNode.leaf(a).splitting(leaf: a, into: b, axis: .horizontal, branchID: branch)
+        root = root.settingRatio(branch: branch, ratio: 0.3)
+        let rects = root.leafRects()
+        XCTAssertEqual(rects[a]!.width, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(rects[b]!.width, 0.7, accuracy: 0.0001)
+    }
+}

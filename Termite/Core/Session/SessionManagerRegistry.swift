@@ -20,6 +20,10 @@ final class SessionManagerRegistry {
     @ObservationIgnored private let windowMap = NSMapTable<NSWindow, SessionManager>(
         keyOptions: .weakMemory, valueOptions: .weakMemory
     )
+    /// 窗口 → 关闭拦截器(强持有:NSWindow.delegate 是弱引用)
+    @ObservationIgnored private let closeInterceptors = NSMapTable<NSWindow, WindowCloseInterceptor>(
+        keyOptions: .weakMemory, valueOptions: .strongMemory
+    )
 
     private init() {
         let center = NotificationCenter.default
@@ -75,6 +79,18 @@ final class SessionManagerRegistry {
     func bind(_ manager: SessionManager, to window: NSWindow) {
         windowMap.setObject(manager, forKey: window)
         if window.isKeyWindow { activeManager = manager }
+        installCloseInterceptor(manager: manager, window: window)
+    }
+
+    /// 用 delegate 代理拦 windowShouldClose(有命令在跑先确认);其余消息原样转发给 SwiftUI 的 delegate。
+    /// bind 会被反复调用:SwiftUI 若换回自己的 delegate,这里重新包一层。
+    private func installCloseInterceptor(manager: SessionManager, window: NSWindow) {
+        if let existing = closeInterceptors.object(forKey: window), window.delegate === existing {
+            return
+        }
+        let interceptor = WindowCloseInterceptor(original: window.delegate, manager: manager)
+        closeInterceptors.setObject(interceptor, forKey: window)
+        window.delegate = interceptor
     }
 
     /// key 窗口的 manager;兜底:最早注册的,再兜底临时实例(冷路径如无窗口时的菜单标题求值,不注册不留痕)

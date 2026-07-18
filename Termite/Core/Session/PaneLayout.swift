@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// 分屏方向
@@ -87,6 +88,80 @@ indirect enum PaneNode: Identifiable, Equatable {
         if idx - 1 >= 0 { return leaves[idx - 1] }
         return nil
     }
+
+    // MARK: - 方向导航(⌘⌥方向键)
+
+    /// 各叶子的归一化布局矩形(0-1,y 向下增长与 VStack 一致;分隔条厚度忽略)
+    func leafRects(in rect: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) -> [UUID: CGRect] {
+        switch self {
+        case .leaf(let sid):
+            return [sid: rect]
+        case .branch(_, let axis, let ratio, let a, let b):
+            var result: [UUID: CGRect]
+            if axis == .horizontal {
+                let width = rect.width * ratio
+                result = a.leafRects(in: CGRect(x: rect.minX, y: rect.minY, width: width, height: rect.height))
+                result.merge(
+                    b.leafRects(in: CGRect(x: rect.minX + width, y: rect.minY, width: rect.width - width, height: rect.height))
+                ) { current, _ in current }
+            } else {
+                let height = rect.height * ratio
+                result = a.leafRects(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: height))
+                result.merge(
+                    b.leafRects(in: CGRect(x: rect.minX, y: rect.minY + height, width: rect.width, height: rect.height - height))
+                ) { current, _ in current }
+            }
+            return result
+        }
+    }
+
+    /// 按几何方向找相邻叶子:优先同轴距离最近且有垂直交叠的;打分确定性(不依赖字典遍历顺序)
+    func neighborLeaf(of target: UUID, direction: PaneDirection) -> UUID? {
+        let rects = leafRects()
+        guard let current = rects[target] else { return nil }
+        var best: (id: UUID, score: CGFloat)?
+        for (id, rect) in rects where id != target {
+            let axialDistance: CGFloat
+            let perpendicularOverlap: CGFloat
+            let perpendicularOffset: CGFloat
+            switch direction {
+            case .left:
+                guard rect.midX < current.midX - 0.0001 else { continue }
+                axialDistance = current.midX - rect.midX
+                perpendicularOverlap = Self.overlap(rect.minY, rect.maxY, current.minY, current.maxY)
+                perpendicularOffset = abs(rect.midY - current.midY)
+            case .right:
+                guard rect.midX > current.midX + 0.0001 else { continue }
+                axialDistance = rect.midX - current.midX
+                perpendicularOverlap = Self.overlap(rect.minY, rect.maxY, current.minY, current.maxY)
+                perpendicularOffset = abs(rect.midY - current.midY)
+            case .up:
+                guard rect.midY < current.midY - 0.0001 else { continue }
+                axialDistance = current.midY - rect.midY
+                perpendicularOverlap = Self.overlap(rect.minX, rect.maxX, current.minX, current.maxX)
+                perpendicularOffset = abs(rect.midX - current.midX)
+            case .down:
+                guard rect.midY > current.midY + 0.0001 else { continue }
+                axialDistance = rect.midY - current.midY
+                perpendicularOverlap = Self.overlap(rect.minX, rect.maxX, current.minX, current.maxX)
+                perpendicularOffset = abs(rect.midX - current.midX)
+            }
+            let score = axialDistance * 100 + perpendicularOffset + (perpendicularOverlap > 0 ? 0 : 10_000)
+            if best == nil || score < best!.score {
+                best = (id, score)
+            }
+        }
+        return best?.id
+    }
+
+    private static func overlap(_ aMin: CGFloat, _ aMax: CGFloat, _ bMin: CGFloat, _ bMax: CGFloat) -> CGFloat {
+        max(0, min(aMax, bMax) - max(aMin, bMin))
+    }
+}
+
+/// 分屏焦点导航方向
+enum PaneDirection {
+    case left, right, up, down
 }
 
 /// 标签页:一棵分屏树 + 当前聚焦的 pane

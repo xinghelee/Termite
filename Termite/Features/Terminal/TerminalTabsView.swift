@@ -135,6 +135,15 @@ struct TerminalTabsView: View {
                             close: { sessionManager.requestCloseTab(tab) }
                         )
                         .id(tab.id)
+                        // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
+                        .draggable(tab.id.uuidString)
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let raw = items.first, let dragged = UUID(uuidString: raw) else { return false }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                sessionManager.moveTab(dragged, before: tab.id)
+                            }
+                            return true
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
