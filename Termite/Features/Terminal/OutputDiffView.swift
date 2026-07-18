@@ -26,14 +26,13 @@ struct OutputDiffView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                // 单个 AttributedString:行不换行,横向滚动查看(LazyVStack 会把长行折成一团)
                 ScrollView([.vertical, .horizontal]) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(ops.enumerated()), id: \.offset) { _, op in
-                            diffLine(op)
-                        }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(attributedDiff)
+                        .font(.system(size: 11.5, design: .monospaced))
+                        .lineSpacing(1)
+                        .textSelection(.enabled)
+                        .padding(10)
                 }
             }
         }
@@ -89,31 +88,31 @@ struct OutputDiffView: View {
         .padding(12)
     }
 
-    @ViewBuilder
-    private func diffLine(_ op: LineDiff.Op) -> some View {
-        switch op {
-        case .same(let text):
-            row(prefix: " ", text: text, color: .secondary, background: .clear)
-        case .added(let text):
-            row(prefix: "+", text: text, color: .green, background: Color.green.opacity(0.12))
-        case .removed(let text):
-            row(prefix: "−", text: text, color: .red, background: Color.red.opacity(0.12))
+    private var attributedDiff: AttributedString {
+        var result = AttributedString()
+        for (index, op) in ops.enumerated() {
+            let prefix: String
+            let text: String
+            let color: Color
+            var background: Color?
+            switch op {
+            case .same(let line):
+                prefix = "  "; text = line; color = Color.primary.opacity(0.72); background = nil
+            case .added(let line):
+                prefix = "+ "; text = line; color = .green; background = Color.green.opacity(0.13)
+            case .removed(let line):
+                prefix = "− "; text = line; color = .red; background = Color.red.opacity(0.13)
+            }
+            var content = AttributedString(prefix + (text.isEmpty ? " " : text))
+            content.foregroundColor = color
+            if let background {
+                content.backgroundColor = background
+            }
+            result += content
+            if index < ops.count - 1 {
+                result += AttributedString("\n")
+            }
         }
-    }
-
-    private func row(prefix: String, text: String, color: Color, background: Color) -> some View {
-        HStack(spacing: 6) {
-            Text(prefix)
-                .foregroundStyle(color)
-                .frame(width: 10, alignment: .center)
-            Text(text.isEmpty ? " " : text)
-                .foregroundStyle(prefix == " " ? Color.primary.opacity(0.75) : color)
-        }
-        .font(.system(size: 11.5, design: .monospaced))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 0.5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background)
-        .textSelection(.enabled)
+        return result
     }
 }

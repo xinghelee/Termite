@@ -371,7 +371,9 @@ final class GitPanelModel {
 
 // MARK: - 子视图
 
-/// unified diff 内容:hunk 分隔条 + 双列行号 + 绿增红删(面板与放大 sheet 共用)
+/// unified diff 内容:hunk 分隔条 + 双列行号 + 绿增红删(面板与放大 sheet 共用)。
+/// 每个 hunk 渲染为单个 AttributedString 文本:行永不换行,靠横向滚动查看,
+/// (LazyVStack 在双向 ScrollView 里只给行视口宽度,会把长行折叠成一团)
 struct GitDiffContent: View {
     let hunks: [UnifiedDiff.Hunk]
     var fontSize: CGFloat = 11
@@ -380,18 +382,18 @@ struct GitDiffContent: View {
 
     var body: some View {
         ScrollView([.vertical, .horizontal]) {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(hunks) { hunk in
                     hunkHeader(hunk)
-                    ForEach(hunk.lines) { line in
-                        diffLine(line)
-                    }
+                    Text(attributedLines(of: hunk))
+                        .font(.system(size: fontSize, design: .monospaced))
+                        .lineSpacing(1)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 10)
                 }
             }
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
         }
-        .textSelection(.enabled)
     }
 
     private func hunkHeader(_ hunk: UnifiedDiff.Hunk) -> some View {
@@ -404,59 +406,50 @@ struct GitDiffContent: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            Spacer(minLength: 0)
         }
         .font(.system(size: fontSize - 1, design: .monospaced))
         .foregroundStyle(theme.accentColor.opacity(0.85))
         .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.accentSoft.opacity(0.5))
+        .padding(.vertical, 3)
+        .background(Capsule().fill(theme.accentSoft.opacity(0.5)))
+        .padding(.horizontal, 8)
     }
 
-    private func diffLine(_ line: UnifiedDiff.Line) -> some View {
-        HStack(spacing: 0) {
-            Text(line.oldNumber.map(String.init) ?? "")
-                .frame(width: fontSize * 3.4, alignment: .trailing)
-                .foregroundStyle(.tertiary)
-            Text(line.newNumber.map(String.init) ?? "")
-                .frame(width: fontSize * 3.4, alignment: .trailing)
-                .foregroundStyle(.tertiary)
-            Text(marker(for: line.kind))
-                .frame(width: fontSize * 1.4)
-                .foregroundStyle(color(for: line.kind))
-            Text(line.text.isEmpty ? " " : line.text)
-                .foregroundStyle(line.kind == .context ? Color.primary.opacity(0.72) : color(for: line.kind))
+    private func attributedLines(of hunk: UnifiedDiff.Hunk) -> AttributedString {
+        var result = AttributedString()
+        for (index, line) in hunk.lines.enumerated() {
+            var numbers = AttributedString(pad(line.oldNumber) + " " + pad(line.newNumber) + "  ")
+            numbers.foregroundColor = Color.primary.opacity(0.28)
+
+            let marker: String
+            let color: Color
+            var background: Color?
+            switch line.kind {
+            case .added:
+                marker = "+ "; color = .green; background = Color.green.opacity(0.13)
+            case .removed:
+                marker = "− "; color = .red; background = Color.red.opacity(0.13)
+            case .context:
+                marker = "  "; color = Color.primary.opacity(0.72); background = nil
+            }
+            var content = AttributedString(marker + (line.text.isEmpty ? " " : line.text))
+            content.foregroundColor = color
+            if let background {
+                numbers.backgroundColor = background
+                content.backgroundColor = background
+            }
+            result += numbers
+            result += content
+            if index < hunk.lines.count - 1 {
+                result += AttributedString("\n")
+            }
         }
-        .font(.system(size: fontSize, design: .monospaced))
-        .padding(.vertical, 0.5)
-        .padding(.trailing, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background(for: line.kind))
+        return result
     }
 
-    private func marker(for kind: UnifiedDiff.LineKind) -> String {
-        switch kind {
-        case .added: return "+"
-        case .removed: return "−"
-        case .context: return " "
-        }
-    }
-
-    private func color(for kind: UnifiedDiff.LineKind) -> Color {
-        switch kind {
-        case .added: return .green
-        case .removed: return .red
-        case .context: return .secondary
-        }
-    }
-
-    private func background(for kind: UnifiedDiff.LineKind) -> Color {
-        switch kind {
-        case .added: return Color.green.opacity(0.10)
-        case .removed: return Color.red.opacity(0.10)
-        case .context: return .clear
-        }
+    private func pad(_ number: Int?) -> String {
+        let text = number.map(String.init) ?? ""
+        return String(repeating: " ", count: max(0, 5 - text.count)) + text
     }
 }
 
