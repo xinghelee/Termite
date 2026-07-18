@@ -41,8 +41,8 @@ final class SessionManagerRegistry {
                 let registry = SessionManagerRegistry.shared
                 guard let window = note.object as? NSWindow,
                       let manager = registry.windowMap.object(forKey: window) else { return }
-                // 关窗前把布局落盘(含本窗口),然后终止其所有 shell
-                registry.persistAllOpenTabs()
+                // 关窗前把布局+屏幕内容落盘(含本窗口),然后终止其所有 shell
+                registry.persistAllOpenTabs(includeScrollback: true)
                 manager.shutdownAll()
                 registry.managers.removeAll { $0 === manager }
                 // managersByKey 保留退役条目:关窗后 SwiftUI 仍可能求值该窗口视图,
@@ -53,7 +53,7 @@ final class SessionManagerRegistry {
             }
         }
         center.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { SessionManagerRegistry.shared.persistAllOpenTabs() }
+            MainActor.assumeIsolated { SessionManagerRegistry.shared.persistAllOpenTabs(includeScrollback: true) }
         }
         center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated {
@@ -110,14 +110,41 @@ final class SessionManagerRegistry {
 
     var allSessions: [TerminalSession] { managers.flatMap(\.sessions) }
 
-    // MARK: - 打开标签持久化(跨窗口聚合)
+    // MARK: - 打开标签持久化(跨窗口聚合:布局树 + 可选 scrollback 快照)
 
-    static let openTabsKey = "session.openTabDirectories"
+    static let openTabsKey = "session.openTabDirectories" // 旧版迁移用
+    static let savedStateKey = "session.savedState"
 
-    func persistAllOpenTabs() {
-        let dirs = managers.flatMap { manager in
-            manager.tabs.compactMap { manager.session($0.root.firstLeaf)?.workingDirectory }
+    static var restoreDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Termite/restore", isDirectory: true)
+    }
+
+    /// 常规变化只存布局(cwd/分屏/比例);退出与关窗时带上 scrollback 快照
+    func persistAllOpenTabs(includeScrollback: Bool = false) {
+        let dir = Self.restoreDirectory
+        if includeScrollback {
+            try? FileManager.default.removeItem(at: dir)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         }
-        UserDefaults.standard.set(dirs, forKey: Self.openTabsKey)
+        var tabs: [WorkspaceNode] = []
+        var selectedIndex: Int?
+        for manager in managers {
+            for tab in manager.tabs {
+                if manager === activeManager, tab.id == manager.selectedTabID {
+                    selectedIndex = tabs.count
+                }
+                tabs.append(manager.encodeNode(tab.root, scrollbackDirectory: includeScrollback ? dir : nil))
+            }
+        }
+        let state = SavedAppState(tabs: tabs, selectedIndex: selectedIndex)
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        UserDefaults.standard.set(data, forKey: Self.savedStateKey)
+    }
+
+    static func loadSavedState() -> SavedAppState? {
+        guard let data = UserDefaults.standard.data(forKey: savedStateKey),
+              let state = try? JSONDecoder().decode(SavedAppState.self, from: data) else { return nil }
+        return state
     }
 }

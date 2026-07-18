@@ -181,3 +181,60 @@ final class GitGraphTests: XCTestCase {
         XCTAssertEqual(commits[0].subject, "subject here")
     }
 }
+
+final class CastFileTests: XCTestCase {
+
+    func testEventLineRoundTrip() {
+        let data = "echo \"你好\"\r\n\u{1b}[32mok\u{1b}[0m"
+        let line = CastFile.eventLine(time: 1.234, data: data)!
+        let parsed = CastFile.parse("{\"version\":2,\"width\":80,\"height\":24}\n" + line)!
+        XCTAssertEqual(parsed.events.count, 1)
+        XCTAssertEqual(parsed.events[0].data, data)
+        XCTAssertEqual(parsed.events[0].time, 1.234, accuracy: 0.001)
+    }
+
+    func testHeaderParse() {
+        let text = CastFile.headerLine(width: 126, height: 52, timestamp: Date(timeIntervalSince1970: 1000))
+        let parsed = CastFile.parse(text + "\n")!
+        XCTAssertEqual(parsed.header.width, 126)
+        XCTAssertEqual(parsed.header.height, 52)
+        XCTAssertTrue(parsed.events.isEmpty)
+    }
+
+    func testSkipsNonOutputEvents() {
+        let text = """
+        {"version":2,"width":80,"height":24}
+        [0.5,"o","hello"]
+        [0.7,"i","typed"]
+        [1.0,"o","world"]
+        """
+        let parsed = CastFile.parse(text)!
+        XCTAssertEqual(parsed.events.map(\.data), ["hello", "world"])
+    }
+}
+
+final class SavedAppStateTests: XCTestCase {
+
+    func testWorkspaceNodeDecodesWithoutScrollbackField() throws {
+        // 旧数据没有 scrollbackFile 字段也要能解
+        let old = #"{"tabs":[{"cwd":"/tmp"}],"selectedIndex":0}"#
+        let state = try JSONDecoder().decode(SavedAppState.self, from: Data(old.utf8))
+        XCTAssertEqual(state.tabs.count, 1)
+        XCTAssertNil(state.tabs[0].scrollbackFile)
+        XCTAssertEqual(state.tabs[0].firstLeafNode.cwd, "/tmp")
+    }
+
+    func testSplitTreeRoundTrip() throws {
+        let leaf1 = WorkspaceNode(cwd: "/a")
+        leaf1.scrollbackFile = "x.txt"
+        let root = WorkspaceNode(axis: "h", ratio: 0.3, first: leaf1, second: WorkspaceNode(cwd: "/b"))
+        let state = SavedAppState(tabs: [root], selectedIndex: nil)
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(SavedAppState.self, from: data)
+        XCTAssertEqual(decoded.tabs[0].axis, "h")
+        XCTAssertEqual(decoded.tabs[0].ratio, 0.3)
+        XCTAssertEqual(decoded.tabs[0].firstLeafNode.cwd, "/a")
+        XCTAssertEqual(decoded.tabs[0].firstLeafNode.scrollbackFile, "x.txt")
+        XCTAssertEqual(decoded.tabs[0].second?.cwd, "/b")
+    }
+}

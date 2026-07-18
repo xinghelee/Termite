@@ -33,4 +33,6 @@ enum SettingsKeys {
     static let quickTerminal = "app.quickTerminal"
     /// diff 视图自动换行(关闭则横向滚动看原始排版)
     static let diffWrapLines = "diff.wrapLines"
+    /// 鼠标事件上报给终端程序(vim/htop 等;按住 ⌥ 可临时用本地选择)
+    static let mouseReporting = "terminal.mouseReporting"
 }

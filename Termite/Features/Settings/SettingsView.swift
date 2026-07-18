@@ -28,8 +28,9 @@ private struct TerminalSettingsTab: View {
     @AppStorage(SettingsKeys.cursorShape) private var cursorShape = CursorPrefs.shapeBlock
     @AppStorage(SettingsKeys.cursorBlink) private var cursorBlink = true
     @AppStorage(SettingsKeys.optionAsMeta) private var optionAsMeta = true
+    @AppStorage(SettingsKeys.mouseReporting) private var mouseReporting = true
     @AppStorage(SettingsKeys.scrollbackLines) private var scrollbackLines = 10_000
-    @AppStorage(SettingsKeys.metalRenderer) private var metalRenderer = false
+    @AppStorage(SettingsKeys.metalRenderer) private var metalRenderer = true
 
     @State private var families: [String] = []
 
@@ -67,6 +68,7 @@ private struct TerminalSettingsTab: View {
             .onChange(of: cursorBlink) { _, _ in CursorPrefs.applyToAllSessions() }
 
             Section("终端") {
+                Toggle("鼠标事件上报给终端程序(vim/htop 等)", isOn: $mouseReporting)
                 Toggle("⌥ 作为 Meta 键(发 ESC 前缀)", isOn: $optionAsMeta)
                 Text("关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -76,13 +78,18 @@ private struct TerminalSettingsTab: View {
                     Text("50 000").tag(50_000)
                     Text("100 000").tag(100_000)
                 }
-                Toggle("Metal GPU 渲染(实验性)", isOn: $metalRenderer)
+                Toggle("Metal GPU 渲染", isOn: $metalRenderer)
                 Text("回滚行数与 GPU 渲染对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .onChange(of: optionAsMeta) { _, on in
                 for session in SessionManagerRegistry.shared.allSessions {
                     session.terminalView.optionAsMetaKey = on
+                }
+            }
+            .onChange(of: mouseReporting) { _, on in
+                for session in SessionManagerRegistry.shared.allSessions {
+                    session.terminalView.allowMouseReporting = on
                 }
             }
         }

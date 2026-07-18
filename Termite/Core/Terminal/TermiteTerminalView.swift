@@ -9,6 +9,8 @@ import SwiftTerm
 final class TermiteTerminalView: LocalProcessTerminalView {
     /// 所属会话(命令跟踪/广播回调);由 TerminalSession 创建时注入
     weak var session: TerminalSession?
+    /// 回放视图用:没有子进程,吞掉一切用户输入
+    var inputEnabled = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -54,6 +56,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     }
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        guard inputEnabled else { return }
         super.send(source: source, data: data)
         session?.didSendUserInput(Array(data))
     }

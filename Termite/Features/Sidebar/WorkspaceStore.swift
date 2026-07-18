@@ -19,6 +19,8 @@ final class WorkspaceNode: Codable {
     var ratio: Double?
     var first: WorkspaceNode?
     var second: WorkspaceNode?
+    /// 会话恢复:该叶子的 scrollback 快照文件名(restore 目录下;工作区模板不用)
+    var scrollbackFile: String?
 
     init(cwd: String?) {
         self.cwd = cwd
@@ -43,6 +45,18 @@ final class WorkspaceNode: Codable {
         if isLeaf { return cwd }
         return first?.firstLeafCwd ?? second?.firstLeafCwd
     }
+
+    /// 第一个叶子节点(取 scrollback 引用用)
+    var firstLeafNode: WorkspaceNode {
+        if isLeaf { return self }
+        return first?.firstLeafNode ?? second?.firstLeafNode ?? self
+    }
+}
+
+/// 整个 App 的会话恢复状态(所有窗口的标签合并)
+struct SavedAppState: Codable {
+    var tabs: [WorkspaceNode]
+    var selectedIndex: Int?
 }
 
 /// 工作区列表(侧边栏「工作区」区块数据源):持久化在 UserDefaults(JSON)

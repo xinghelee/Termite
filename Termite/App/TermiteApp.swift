@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 退出确认:有命令在跑时 ⌘Q 先弹确认(设置里的「关闭确认」总开关控制)
 final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
@@ -37,6 +38,14 @@ struct TermiteApp: App {
         .commands {
             TerminalCommands()
         }
+
+        // 会话回放:终端录像机窗口
+        WindowGroup("会话回放", id: "cast-replay", for: URL.self) { $fileURL in
+            if let fileURL {
+                CastReplayView(fileURL: fileURL)
+            }
+        }
+        .defaultSize(width: 960, height: 640)
 
         // 图形提交历史:独立窗口(可拉伸/缩放/全屏),按仓库根路径区分
         WindowGroup("提交历史", id: "git-history", for: String.self) { $repoRoot in
@@ -203,6 +212,20 @@ struct TerminalCommands: Commands {
 
             Button(SessionManager.shared.selected?.isLogging == true ? "停止记录会话" : "记录会话到文件…") {
                 SessionManager.shared.toggleSessionLogging()
+            }
+
+            Button(SessionManager.shared.selected?.isCasting == true ? "停止录制(asciinema)" : "录制会话(asciinema)…") {
+                SessionManager.shared.toggleCastRecording()
+            }
+
+            Button("回放录制文件…") {
+                let panel = NSOpenPanel()
+                panel.allowsMultipleSelection = false
+                if let castType = UTType(filenameExtension: "cast") {
+                    panel.allowedContentTypes = [castType, .json, .plainText]
+                }
+                guard panel.runModal() == .OK, let url = panel.url else { return }
+                openWindow(id: "cast-replay", value: url)
             }
         }
     }

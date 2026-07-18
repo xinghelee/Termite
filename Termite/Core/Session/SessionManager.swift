@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import UniformTypeIdentifiers
 
 /// 一个主窗口的会话管理:持有该窗口的 TerminalSession(会话池)与标签页(每个标签是一棵可无限嵌套的分屏树)。
 /// 会话生命周期跟随本对象(每窗口一个,由 SessionManagerRegistry 跟踪),不跟随视图。
@@ -91,8 +92,8 @@ final class SessionManager {
 
     /// ⌘T:新标签页。默认继承当前聚焦会话的工作目录(设置可关)。
     @discardableResult
-    func newTab(directory: String? = nil) -> TerminalSession {
-        let session = makeSession(directory: directory ?? inheritedDirectory())
+    func newTab(directory: String? = nil, scrollback: String? = nil) -> TerminalSession {
+        let session = makeSession(directory: directory ?? inheritedDirectory(), scrollback: scrollback)
         sessions.append(session)
         let tab = PaneTab(sessionID: session.id)
         tabs.append(tab)
@@ -115,8 +116,8 @@ final class SessionManager {
         return inherits ? selected?.workingDirectory : nil
     }
 
-    private func makeSession(directory: String?) -> TerminalSession {
-        let session = TerminalSession(workingDirectory: directory)
+    private func makeSession(directory: String?, scrollback: String? = nil) -> TerminalSession {
+        let session = TerminalSession(workingDirectory: directory, restoreScrollback: scrollback)
         session.manager = self
         session.onProcessExit = { [weak self, weak session] in
             guard let self, let session else { return }
@@ -284,19 +285,29 @@ final class SessionManager {
 
     /// 捕获当前所有标签的布局(分屏树 + 比例 + 各 pane cwd)
     func captureWorkspaceTabs() -> [WorkspaceNode] {
-        tabs.map { encodeNode($0.root) }
+        tabs.map { encodeNode($0.root, scrollbackDirectory: nil) }
     }
 
-    private func encodeNode(_ node: PaneNode) -> WorkspaceNode {
+    /// scrollbackDirectory 非空时,顺带把各 pane 的缓冲区快照写盘并在节点上留引用
+    func encodeNode(_ node: PaneNode, scrollbackDirectory: URL?) -> WorkspaceNode {
         switch node {
         case .leaf(let sid):
-            return WorkspaceNode(cwd: session(sid)?.workingDirectory)
+            let encoded = WorkspaceNode(cwd: session(sid)?.workingDirectory)
+            if let scrollbackDirectory,
+               let text = session(sid)?.scrollbackSnapshot() {
+                let name = UUID().uuidString + ".txt"
+                let url = scrollbackDirectory.appendingPathComponent(name)
+                if (try? text.write(to: url, atomically: true, encoding: .utf8)) != nil {
+                    encoded.scrollbackFile = name
+                }
+            }
+            return encoded
         case .branch(_, let axis, let ratio, let a, let b):
             return WorkspaceNode(
                 axis: axis == .horizontal ? "h" : "v",
                 ratio: ratio,
-                first: encodeNode(a),
-                second: encodeNode(b)
+                first: encodeNode(a, scrollbackDirectory: scrollbackDirectory),
+                second: encodeNode(b, scrollbackDirectory: scrollbackDirectory)
             )
         }
     }
@@ -304,17 +315,30 @@ final class SessionManager {
     /// 打开工作区:逐标签重建分屏布局(目录已不存在的 pane 退回默认目录)
     func openWorkspace(_ workspace: Workspace) {
         for tabNode in workspace.tabs {
-            let first = newTab(directory: validDirectory(tabNode.firstLeafCwd))
-            guard let tab = tabs.last, tab.root.leafIDs() == [first.id] else { continue }
-            buildSplits(tabNode, existingLeaf: first.id, in: tab)
-            tab.focusedID = first.id
+            openTab(from: tabNode)
         }
+    }
+
+    /// 从布局节点重建一个标签(工作区模板与会话恢复共用;节点带 scrollback 引用则回灌)
+    func openTab(from node: WorkspaceNode) {
+        let firstLeaf = node.firstLeafNode
+        let first = newTab(directory: validDirectory(firstLeaf.cwd), scrollback: restoredScrollback(firstLeaf))
+        guard let tab = tabs.last, tab.root.leafIDs() == [first.id] else { return }
+        buildSplits(node, existingLeaf: first.id, in: tab)
+        tab.focusedID = first.id
+    }
+
+    private func restoredScrollback(_ node: WorkspaceNode) -> String? {
+        guard let file = node.scrollbackFile else { return nil }
+        let url = SessionManagerRegistry.restoreDirectory.appendingPathComponent(file)
+        return try? String(contentsOf: url, encoding: .utf8)
     }
 
     /// 递归补分屏:existingLeaf 是 node 的 first-leaf 位置上已存在的会话
     private func buildSplits(_ node: WorkspaceNode, existingLeaf: UUID, in tab: PaneTab) {
         guard let axisRaw = node.axis, let a = node.first, let b = node.second else { return }
-        let secondary = makeSession(directory: validDirectory(b.firstLeafCwd))
+        let bLeaf = b.firstLeafNode
+        let secondary = makeSession(directory: validDirectory(bLeaf.cwd), scrollback: restoredScrollback(bLeaf))
         sessions.append(secondary)
         tab.root = tab.root.splitting(
             leaf: existingLeaf,
@@ -345,20 +369,51 @@ final class SessionManager {
         SessionManagerRegistry.shared.persistAllOpenTabs()
     }
 
-    /// 窗口首次出现时调用:第一个窗口恢复上次的标签页(设置可关),后续窗口开默认标签
+    /// 窗口首次出现时调用:第一个窗口恢复上次的标签页(含分屏结构与屏幕内容,设置可关),
+    /// 后续窗口开默认标签
     func restoreOrCreateInitialTabs() {
         guard !isRetired, tabs.isEmpty else { return }
         let enabled = UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true
-        let saved = UserDefaults.standard.stringArray(forKey: SessionManagerRegistry.openTabsKey) ?? []
-        if enabled, !saved.isEmpty, SessionManagerRegistry.shared.isFirst(self) {
-            for dir in saved {
-                var isDirectory: ObjCBool = false
-                let exists = FileManager.default.fileExists(atPath: dir, isDirectory: &isDirectory)
-                newTab(directory: (exists && isDirectory.boolValue) ? dir : nil)
+        guard enabled, SessionManagerRegistry.shared.isFirst(self) else {
+            newTab()
+            return
+        }
+        if let state = SessionManagerRegistry.loadSavedState(), !state.tabs.isEmpty {
+            for node in state.tabs {
+                openTab(from: node)
+            }
+            if let index = state.selectedIndex, tabs.indices.contains(index) {
+                selectedTabID = tabs[index].id
+            } else {
+                selectedTabID = tabs.first?.id
+            }
+        } else if let legacy = UserDefaults.standard.stringArray(forKey: SessionManagerRegistry.openTabsKey), !legacy.isEmpty {
+            // 旧版迁移:只有目录列表
+            for dir in legacy {
+                newTab(directory: validDirectory(dir))
             }
             selectedTabID = tabs.first?.id
         } else {
             newTab()
+        }
+    }
+
+    /// 录制当前会话为 asciinema .cast(可用任意播放器/termite 回放)
+    func toggleCastRecording() {
+        guard let session = selected else { return }
+        if session.isCasting {
+            session.stopCasting()
+            return
+        }
+        let panel = NSSavePanel()
+        if let castType = UTType(filenameExtension: "cast") {
+            panel.allowedContentTypes = [castType]
+        }
+        let stamp = Date().formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        panel.nameFieldStringValue = "termite-\(session.displayTitle)-\(stamp).cast"
+        panel.message = String(localized: "选择 asciinema 录制文件的保存位置")
+        if panel.runModal() == .OK, let url = panel.url {
+            session.startCasting(to: url)
         }
     }
 }

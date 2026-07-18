@@ -84,14 +84,14 @@ struct StatusBarView: View {
                     .buttonStyle(.plain)
                     .help("上条命令输出像 \(format.label),点击结构化查看")
                 }
-                if session.isLogging {
+                if session.isLogging || session.isCasting {
                     separatorDot
                     HStack(spacing: 3) {
                         Image(systemName: "record.circle")
-                        Text("录制中")
+                        Text(session.isCasting ? "REC" : "录制中")
                     }
                     .foregroundStyle(.red)
-                    .help(session.logURL?.path ?? "")
+                    .help((session.castURL ?? session.logURL)?.path ?? "")
                 }
 
                 Spacer()

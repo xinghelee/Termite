@@ -45,6 +45,9 @@ final class TerminalSession: Identifiable {
     /// 当前正在录制到的文件 URL(nil = 未录制)
     private(set) var logURL: URL?
     var isLogging: Bool { logURL != nil }
+    /// asciinema 录制中的 .cast 文件(nil = 未录制)
+    private(set) var castURL: URL?
+    var isCasting: Bool { castURL != nil }
 
     let shellPath: String
     var shellName: String { (shellPath as NSString).lastPathComponent }
@@ -91,25 +94,34 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var siUpper = 0
     @ObservationIgnored private var osc133 = OSC133Scanner()
     @ObservationIgnored private var logHandle: FileHandle?
+    @ObservationIgnored private var castHandle: FileHandle?
+    @ObservationIgnored private var castStartedAt: Date?
     @ObservationIgnored private var gitProbeTask: Task<Void, Never>?
     @ObservationIgnored private var gitDirtyTask: Task<Void, Never>?
     @ObservationIgnored private var lastGitDirtyProbeAt = Date.distantPast
 
-    init(workingDirectory directory: String? = nil) {
+    init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil) {
         shellPath = ShellResolver.loginShell()
         let view = TermiteTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         terminalView = view
         view.session = self
         view.font = FontPrefs.font()
         view.optionAsMetaKey = UserDefaults.standard.object(forKey: SettingsKeys.optionAsMeta) as? Bool ?? true
+        view.allowMouseReporting = UserDefaults.standard.object(forKey: SettingsKeys.mouseReporting) as? Bool ?? true
         let scrollback = UserDefaults.standard.object(forKey: SettingsKeys.scrollbackLines) as? Int ?? 10_000
         view.getTerminal().changeScrollback(scrollback)
         ThemeStore.shared.apply(to: view)
         CursorPrefs.apply(to: view)
-        if UserDefaults.standard.bool(forKey: SettingsKeys.metalRenderer) {
+        if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
             try? view.setUseMetal(true)
         }
         view.processDelegate = self
+        // 上次会话的屏幕内容:起 shell 之前灰字回灌,像 iTerm2 一样"从上次的位置继续"
+        if let restoreScrollback, !restoreScrollback.isEmpty {
+            let normalized = restoreScrollback.replacingOccurrences(of: "\n", with: "\r\n")
+            let stamp = Date().formatted(date: .omitted, time: .shortened)
+            view.feed(text: "\u{1b}[2m" + normalized + "\r\n─── 以上为上次会话内容 · \(stamp) 恢复 ───\u{1b}[0m\r\n")
+        }
         start(in: directory)
     }
 
@@ -136,6 +148,7 @@ final class TerminalSession: Identifiable {
     /// 这里像 Terminal.app 一样先对整个进程组发 SIGHUP,连同前台命令一起挂断。
     func shutdown() {
         stopLogging()
+        stopCasting()
         gitProbeTask?.cancel()
         if case .running = state {
             let pid = terminalView.process.shellPid
@@ -185,6 +198,7 @@ final class TerminalSession: Identifiable {
             hasUnseenActivity = true
         }
         appendToLog(bytes)
+        appendToCast(bytes)
         let events = osc133.scan(bytes)
         if events.isEmpty {
             terminalView.feed(byteArray: bytes)
@@ -437,6 +451,44 @@ final class TerminalSession: Identifiable {
     private func appendToLog(_ bytes: ArraySlice<UInt8>) {
         guard let logHandle, let text = String(bytes: bytes, encoding: .utf8) else { return }
         logHandle.write(Data(ANSI.strip(text).utf8))
+    }
+
+    // MARK: - asciinema 录制(.cast v2,原始转义流 + 时间戳)
+
+    @discardableResult
+    func startCasting(to url: URL) -> Bool {
+        stopCasting()
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        guard let handle = try? FileHandle(forWritingTo: url) else { return false }
+        let terminal = terminalView.getTerminal()
+        handle.write(Data((CastFile.headerLine(width: terminal.cols, height: terminal.rows, timestamp: Date()) + "\n").utf8))
+        castHandle = handle
+        castStartedAt = Date()
+        castURL = url
+        return true
+    }
+
+    func stopCasting() {
+        try? castHandle?.close()
+        castHandle = nil
+        castStartedAt = nil
+        castURL = nil
+    }
+
+    private func appendToCast(_ bytes: ArraySlice<UInt8>) {
+        guard let castHandle, let castStartedAt,
+              let text = String(bytes: bytes, encoding: .utf8),
+              let line = CastFile.eventLine(time: Date().timeIntervalSince(castStartedAt), data: text) else { return }
+        castHandle.write(Data((line + "\n").utf8))
+    }
+
+    /// 会话缓冲区尾部快照(scrollback 恢复用)
+    func scrollbackSnapshot(maxLines: Int = 2000) -> String? {
+        refreshScrollInvariantBounds()
+        let start = max(siLower, siUpper - maxLines)
+        guard siUpper > start else { return nil }
+        let text = extractText(from: start, to: siUpper)
+        return text.isEmpty ? nil : text
     }
 
     // MARK: - git 分支探测
