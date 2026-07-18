@@ -41,10 +41,23 @@ struct MainWindowView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
             }
+
+            if manager.directoryJumper.isPresented {
+                Color.black.opacity(0.28)
+                    .contentShape(Rectangle())
+                    .onTapGesture { manager.directoryJumper.dismiss() }
+                VStack {
+                    DirectoryJumperView()
+                        .padding(.top, 90)
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+            }
         }
         .environment(manager)
         .tint(theme.current.accentColor)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.palette.isPresented)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)
         .background(WindowConfigurator(
             appearanceName: theme.current.appearanceName,
             backgroundColor: theme.current.backgroundNSColor,

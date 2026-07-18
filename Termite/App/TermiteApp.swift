@@ -82,6 +82,11 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("p", modifiers: .command)
 
+            Button("跳转目录…") {
+                SessionManager.shared.directoryJumper.toggle()
+            }
+            .keyboardShortcut("o", modifiers: .command)
+
             Button("关闭分屏 / 标签页") {
                 let manager = SessionManager.shared
                 if manager.selected != nil {

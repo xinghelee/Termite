@@ -5,6 +5,9 @@ import SwiftUI
 struct StatusBarView: View {
     let session: TerminalSession
 
+    /// 结构化输出查看器弹层
+    @State private var structuredTarget: CommandRecord?
+
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     var body: some View {
@@ -53,6 +56,22 @@ struct StatusBarView: View {
                     .foregroundStyle(code == 0 ? Color.green : Color.red)
                     .help(code == 0 ? "上条命令成功" : "上条命令退出码 \(code)")
                 }
+                if !session.runningCommand,
+                   let last = session.commandHistory.last,
+                   let format = last.structured, last.hasOutput {
+                    separatorDot
+                    Button {
+                        structuredTarget = last
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: format.symbol)
+                            Text(format.label)
+                        }
+                        .foregroundStyle(theme.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("上条命令输出像 \(format.label),点击结构化查看")
+                }
                 if session.isLogging {
                     separatorDot
                     HStack(spacing: 3) {
@@ -85,6 +104,11 @@ struct StatusBarView: View {
         }
         .padding(.horizontal, 10)
         .padding(.bottom, 10)
+        .sheet(item: $structuredTarget) { record in
+            StructuredOutputView(session: session, record: record) {
+                structuredTarget = nil
+            }
+        }
     }
 
     private var separatorDot: some View {

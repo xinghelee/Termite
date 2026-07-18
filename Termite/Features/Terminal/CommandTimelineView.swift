@@ -6,7 +6,16 @@ struct CommandTimelineView: View {
     let session: TerminalSession
     let onClose: () -> Void
 
+    /// 「对比上次」弹层:当前记录 + 上一次同命令记录
+    @State private var diffTarget: DiffPair?
+
     private var theme: TerminalTheme { ThemeStore.shared.current }
+
+    struct DiffPair: Identifiable {
+        let id = UUID()
+        let current: CommandRecord
+        let previous: CommandRecord
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +54,9 @@ struct CommandTimelineView: View {
                 ScrollView {
                     LazyVStack(spacing: 4) {
                         ForEach(session.commandHistory.reversed()) { record in
-                            CommandRecordRow(record: record, session: session)
+                            CommandRecordRow(record: record, session: session) { previous in
+                                diffTarget = DiffPair(current: record, previous: previous)
+                            }
                         }
                     }
                     .padding(8)
@@ -54,12 +65,19 @@ struct CommandTimelineView: View {
         }
         .frame(width: 288)
         .background(theme.panelBackground)
+        .sheet(item: $diffTarget) { pair in
+            OutputDiffView(session: session, current: pair.current, previous: pair.previous) {
+                diffTarget = nil
+            }
+        }
     }
 }
 
 private struct CommandRecordRow: View {
     let record: CommandRecord
     let session: TerminalSession
+    /// 存在上次同命令运行时,点击「对比」回调之
+    var onDiff: (CommandRecord) -> Void
 
     @State private var hovering = false
     @State private var copiedFlash = false
@@ -94,6 +112,16 @@ private struct CommandRecordRow: View {
                     Text("已复制")
                         .foregroundStyle(theme.accentColor)
                 } else if hovering {
+                    if record.hasOutput, let previous = session.previousRun(of: record) {
+                        Button {
+                            onDiff(previous)
+                        } label: {
+                            Image(systemName: "plus.forwardslash.minus")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(theme.accentColor)
+                        .help("与上次运行的输出对比")
+                    }
                     Button {
                         flashIfCopied(session.copyOutput(of: record))
                     } label: {

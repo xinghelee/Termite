@@ -283,13 +283,46 @@ final class TerminalSession: Identifiable {
             outputEnd: end,
             exitCode: code,
             duration: duration,
-            finishedAt: Date()
+            finishedAt: Date(),
+            structured: detectStructured(start: start, end: end)
         )
         pendingPromptRow = nil
         pendingCommandText = ""
         commandHistory.append(record)
         if commandHistory.count > 200 { commandHistory.removeFirst(commandHistory.count - 200) }
         if end > start { hasCommandOutput = true }
+    }
+
+    /// 嗅探输出是否结构化数据:只看首尾几行,避免大输出全量扫描。
+    /// JSON:首行以 {/[ 起、末行以 }/] 收;CSV/TSV:前两行分隔符列数一致且 ≥2 列。
+    private func detectStructured(start: Int, end: Int) -> StructuredOutputFormat? {
+        guard end > start else { return nil }
+        let terminal = terminalView.getTerminal()
+        func text(_ row: Int) -> String {
+            terminal.getScrollInvariantLine(row: row)?.translateToString(trimRight: true) ?? ""
+        }
+        var firstIndex = start
+        while firstIndex < end, text(firstIndex).isEmpty { firstIndex += 1 }
+        guard firstIndex < end else { return nil }
+        let first = text(firstIndex).trimmingCharacters(in: .whitespaces)
+
+        if first.hasPrefix("{") || first.hasPrefix("[") {
+            var lastIndex = end - 1
+            while lastIndex > firstIndex, text(lastIndex).isEmpty { lastIndex -= 1 }
+            let last = text(lastIndex).trimmingCharacters(in: .whitespaces)
+            return (last.hasSuffix("}") || last.hasSuffix("]")) ? .json : nil
+        }
+
+        guard firstIndex + 1 < end else { return nil }
+        let second = text(firstIndex + 1)
+        guard !second.isEmpty else { return nil }
+        for (separator, format) in [("\t", StructuredOutputFormat.tsv), (",", .csv)] {
+            let columns = first.components(separatedBy: separator).count
+            if columns >= 2, second.components(separatedBy: separator).count == columns {
+                return format
+            }
+        }
+        return nil
     }
 
     /// 提取 scroll-invariant 行区间的纯文本(空行保留,尾部空行去掉)
@@ -304,14 +337,26 @@ final class TerminalSession: Identifiable {
         return lines.joined(separator: "\n")
     }
 
-    /// 复制某条命令的完整输出;返回是否成功(scrollback 修剪后可能已不可用)
-    @discardableResult
-    func copyOutput(of record: CommandRecord) -> Bool {
+    /// 某条命令的完整输出文本(scrollback 修剪后可能已不可用 → nil)
+    func outputText(of record: CommandRecord) -> String? {
         refreshScrollInvariantBounds()
         let start = max(record.outputStart, siLower)
-        guard record.outputEnd > start else { return false }
+        guard record.outputEnd > start else { return nil }
         let text = extractText(from: start, to: record.outputEnd)
-        guard !text.isEmpty else { return false }
+        return text.isEmpty ? nil : text
+    }
+
+    /// 同一条命令上一次运行的记录(输出 Diff 用)
+    func previousRun(of record: CommandRecord) -> CommandRecord? {
+        guard !record.commandText.isEmpty,
+              let index = commandHistory.firstIndex(where: { $0.id == record.id }) else { return nil }
+        return commandHistory[..<index].last { $0.commandText == record.commandText && $0.hasOutput }
+    }
+
+    /// 复制某条命令的完整输出;返回是否成功
+    @discardableResult
+    func copyOutput(of record: CommandRecord) -> Bool {
+        guard let text = outputText(of: record) else { return false }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         return true
@@ -419,6 +464,7 @@ extension TerminalSession: LocalProcessTerminalViewDelegate {
         guard path != workingDirectory else { return }
         workingDirectory = path
         probeGitBranch(path)
+        DirectoryHistory.shared.record(path: path)
         manager?.workingDirectoryChanged()
     }
 
@@ -442,9 +488,20 @@ struct CommandRecord: Identifiable, Equatable {
     let exitCode: Int?
     let duration: TimeInterval?
     let finishedAt: Date
+    /// 输出嗅探出的结构化格式(驱动状态栏「查看」按钮)
+    var structured: StructuredOutputFormat?
 
     var hasOutput: Bool { outputEnd > outputStart }
     var succeeded: Bool { (exitCode ?? 0) == 0 }
+}
+
+/// 结构化输出格式
+enum StructuredOutputFormat: String {
+    case json, csv, tsv
+
+    var separator: String { self == .tsv ? "\t" : "," }
+    var label: String { self == .json ? "JSON" : String(localized: "表格") }
+    var symbol: String { self == .json ? "curlybraces" : "tablecells" }
 }
 
 /// 直读 .git/HEAD 拿当前分支(零子进程):从 path 逐级向上找 .git。
