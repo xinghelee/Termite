@@ -18,7 +18,8 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         super.viewDidMoveToWindow()
         if window != nil, !metalConfigured {
             metalConfigured = true
-            if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
+            // 默认关:Metal 路径存在首帧空白/刷新缺陷(实验性,设置可开,即时生效)
+            if UserDefaults.standard.bool(forKey: SettingsKeys.metalRenderer) {
                 try? setUseMetal(true)
             }
         }
