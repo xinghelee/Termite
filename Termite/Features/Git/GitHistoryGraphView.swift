@@ -234,10 +234,11 @@ private struct GitGraphRowView: View {
                 RefBadge(ref: ref)
             }
 
+            // 长标题截断,不挤压右侧固定列
             Text(row.commit.subject)
                 .font(.system(size: 11.5))
                 .lineLimit(1)
-                .layoutPriority(1)
+                .truncationMode(.tail)
 
             Spacer(minLength: 8)
 
@@ -254,6 +255,8 @@ private struct GitGraphRowView: View {
             Text(row.commit.shortHash)
                 .font(.system(size: 10.5, design: .monospaced))
                 .foregroundStyle(theme.accentColor.opacity(0.85))
+                .lineLimit(1)
+                .frame(width: 84, alignment: .trailing)
         }
         .padding(.horizontal, 10)
         .frame(height: Self.rowHeight)
@@ -268,9 +271,11 @@ private struct RefBadge: View {
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     private var display: String {
-        if ref.hasPrefix("HEAD -> ") { return String(ref.dropFirst("HEAD -> ".count)) }
-        if ref.hasPrefix("tag: ") { return String(ref.dropFirst("tag: ".count)) }
-        return ref
+        var name = ref
+        if name.hasPrefix("HEAD -> ") { name = String(name.dropFirst("HEAD -> ".count)) }
+        if name.hasPrefix("tag: ") { name = String(name.dropFirst("tag: ".count)) }
+        // 字符级截断让胶囊贴内容;frame(maxWidth:) 会把胶囊撑开到上限,不能用
+        return name.count > 24 ? name.prefix(22) + "…" : name
     }
 
     private var color: Color {
@@ -284,12 +289,12 @@ private struct RefBadge: View {
         Text(display)
             .font(.system(size: 9.5, weight: .medium, design: .monospaced))
             .lineLimit(1)
+            .fixedSize()
             .padding(.horizontal, 6)
             .padding(.vertical, 1.5)
             .background(Capsule().fill(color.opacity(0.16)))
             .overlay(Capsule().stroke(color.opacity(0.45), lineWidth: 1))
             .foregroundStyle(color)
-            .frame(maxWidth: 150)
     }
 }
 

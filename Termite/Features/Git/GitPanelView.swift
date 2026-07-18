@@ -57,7 +57,8 @@ struct GitPanelView: View {
                     if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
                 }
                 .gesture(
-                    DragGesture(minimumDistance: 1)
+                    // 全局坐标系:局部坐标会随面板变宽而移动原点,形成抖动反馈循环
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
                         .onChanged { value in
                             if dragStartWidth == nil { dragStartWidth = Double(effectiveWidth) }
                             let proposed = (dragStartWidth ?? 330) - Double(value.translation.width)
@@ -461,8 +462,12 @@ struct GitDiffContent: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            ScrollView([.vertical, .horizontal]) {
-                content
+            // 双向 ScrollView 会把比视口窄的内容居中;强制至少视口尺寸 + 左上对齐
+            GeometryReader { geo in
+                ScrollView([.vertical, .horizontal]) {
+                    content
+                        .frame(minWidth: geo.size.width, minHeight: geo.size.height, alignment: .topLeading)
+                }
             }
         }
     }
