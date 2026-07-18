@@ -33,7 +33,9 @@ struct GitPanelView: View {
                 listScreen
             }
         }
-        .frame(width: 330)
+        // diff 层自动加宽(列表窄导航,diff 需要横向空间)
+        .frame(width: model.diffTarget != nil ? 560 : 330)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: model.diffTarget != nil)
         .background(theme.panelBackground)
         .task(id: session.workingDirectory) {
             await model.refresh(cwd: session.workingDirectory)
@@ -49,7 +51,7 @@ struct GitPanelView: View {
                     Divider()
                     GitDiffContent(hunks: model.diffHunks, fontSize: 12.5)
                 }
-                .frame(minWidth: 860, idealWidth: 980, minHeight: 560, idealHeight: 700)
+                .frame(minWidth: 900, idealWidth: 1080, minHeight: 620, idealHeight: 780)
                 .background(theme.panelBackground)
             }
         }
