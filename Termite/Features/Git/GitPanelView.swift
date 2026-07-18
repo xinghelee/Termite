@@ -185,6 +185,16 @@ struct GitPanelView: View {
                     revealInFinder(change)
                 } showHistory: {
                     fileHistoryTarget = change
+                } stageToggle: {
+                    Task {
+                        if change.kind == .staged {
+                            await model.unstage(change, cwd: session.workingDirectory)
+                        } else {
+                            await model.stage(change, cwd: session.workingDirectory)
+                        }
+                    }
+                } discard: {
+                    confirmDiscard(change)
                 }
             }
         }
@@ -319,6 +329,20 @@ struct GitPanelView: View {
         let url = URL(fileURLWithPath: root).appendingPathComponent(change.path)
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    /// 丢弃改动:不可撤销,先确认
+    private func confirmDiscard(_ change: GitFileChange) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "丢弃「\(change.fileName)」的改动?")
+        alert.informativeText = change.kind == .untracked
+            ? String(localized: "未跟踪文件会被直接删除,不可撤销。")
+            : String(localized: "工作区改动会还原到 HEAD 版本,不可撤销。")
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: String(localized: "丢弃"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { await model.discard(change, cwd: session.workingDirectory) }
+    }
 }
 
 // MARK: - 模型
@@ -394,6 +418,26 @@ final class GitPanelModel {
             selectedCommit = nil
             commitFiles = []
         }
+    }
+
+    // MARK: - 暂存区操作
+
+    func stage(_ change: GitFileChange, cwd: String?) async {
+        guard let root = repoRoot else { return }
+        await GitService.stage(path: change.path, in: root)
+        await refresh(cwd: cwd, force: true)
+    }
+
+    func unstage(_ change: GitFileChange, cwd: String?) async {
+        guard let root = repoRoot else { return }
+        await GitService.unstage(path: change.path, in: root)
+        await refresh(cwd: cwd, force: true)
+    }
+
+    func discard(_ change: GitFileChange, cwd: String?) async {
+        guard let root = repoRoot else { return }
+        await GitService.discard(change: change, in: root)
+        await refresh(cwd: cwd, force: true)
     }
 }
 
@@ -501,6 +545,9 @@ private struct GitFileRow: View {
     let open: () -> Void
     let revealInFinder: () -> Void
     var showHistory: () -> Void = {}
+    /// 未提交文件:悬停出 暂存(+)/ 取消暂存(−)按钮
+    var stageToggle: (() -> Void)?
+    var discard: (() -> Void)?
 
     @State private var hovering = false
 
@@ -518,6 +565,15 @@ private struct GitFileRow: View {
                     .truncationMode(.middle)
             }
             Spacer(minLength: 4)
+            if hovering, let stageToggle {
+                Button(action: stageToggle) {
+                    Image(systemName: change.kind == .staged ? "minus.circle" : "plus.circle")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(change.kind == .staged ? "取消暂存" : "暂存")
+            }
             if let added = change.added, let removed = change.removed {
                 Text("+\(added)")
                     .foregroundStyle(.green)
@@ -539,6 +595,13 @@ private struct GitFileRow: View {
             Button("复制路径") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(change.path, forType: .string)
+            }
+            if let stageToggle {
+                Divider()
+                Button(change.kind == .staged ? "取消暂存" : "暂存", action: stageToggle)
+            }
+            if let discard {
+                Button("丢弃改动…", role: .destructive, action: discard)
             }
         }
         .animation(.easeOut(duration: 0.1), value: hovering)

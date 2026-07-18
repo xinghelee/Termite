@@ -227,9 +227,8 @@ private struct GitGraphRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            GraphCanvas(row: row)
+            GraphCanvas(row: row, laneLimit: laneColumns)
                 .frame(width: CGFloat(max(laneColumns, 1)) * Self.laneWidth, height: Self.rowHeight)
-                .clipped()
 
             ForEach(row.commit.refs.prefix(3), id: \.self) { ref in
                 RefBadge(ref: ref)
@@ -295,30 +294,37 @@ private struct RefBadge: View {
 }
 
 /// 泳道图画布:直通竖线、汇入/分出曲线、提交点。颜色按泳道号取主题 ANSI 亮色。
+/// 竖线上下各越界 8pt(行间同色重叠),任何布局缝隙都不会显出断线;
+/// 超出 laneLimit 的泳道直接不画(代替裁剪,避免裁掉越界部分)。
 private struct GraphCanvas: View {
     let row: GitGraphRow
+    var laneLimit = Int.max
 
     private static let laneWidth: CGFloat = 13
+    private static let overshoot: CGFloat = 8
 
     var body: some View {
         Canvas { context, size in
             let midY = size.height / 2
+            let top = -Self.overshoot
+            let bottom = size.height + Self.overshoot
             func x(_ lane: Int) -> CGFloat { Self.laneWidth * (CGFloat(lane) + 0.5) }
             func stroke(_ path: Path, lane: Int) {
                 context.stroke(path, with: .color(laneColor(lane)), lineWidth: 1.5)
             }
 
             // 直通竖线
-            for lane in row.passThrough {
+            for lane in row.passThrough where lane < laneLimit {
                 var path = Path()
-                path.move(to: CGPoint(x: x(lane), y: 0))
-                path.addLine(to: CGPoint(x: x(lane), y: size.height))
+                path.move(to: CGPoint(x: x(lane), y: top))
+                path.addLine(to: CGPoint(x: x(lane), y: bottom))
                 stroke(path, lane: lane)
             }
+            guard row.lane < laneLimit else { return }
             // 上方来线
             if row.hasTopLine {
                 var path = Path()
-                path.move(to: CGPoint(x: x(row.lane), y: 0))
+                path.move(to: CGPoint(x: x(row.lane), y: top))
                 path.addLine(to: CGPoint(x: x(row.lane), y: midY))
                 stroke(path, lane: row.lane)
             }
@@ -326,13 +332,14 @@ private struct GraphCanvas: View {
             if row.continuesDown {
                 var path = Path()
                 path.move(to: CGPoint(x: x(row.lane), y: midY))
-                path.addLine(to: CGPoint(x: x(row.lane), y: size.height))
+                path.addLine(to: CGPoint(x: x(row.lane), y: bottom))
                 stroke(path, lane: row.lane)
             }
             // 汇入曲线(上半段:别的泳道 → dot):对称三次贝塞尔,两端切线垂直,跨多泳道也顺滑
-            for lane in row.mergesIn {
+            for lane in row.mergesIn where lane < laneLimit {
                 var path = Path()
-                path.move(to: CGPoint(x: x(lane), y: 0))
+                path.move(to: CGPoint(x: x(lane), y: top))
+                path.addLine(to: CGPoint(x: x(lane), y: 0))
                 path.addCurve(
                     to: CGPoint(x: x(row.lane), y: midY),
                     control1: CGPoint(x: x(lane), y: midY * 0.55),
@@ -341,17 +348,16 @@ private struct GraphCanvas: View {
                 stroke(path, lane: lane)
             }
             // 分出曲线(下半段:dot → 别的泳道)
-            for lane in row.branchesOut {
-                let startY = midY
-                let endY = size.height
-                let midSegY = (startY + endY) / 2
+            for lane in row.branchesOut where lane < laneLimit {
+                let midSegY = (midY + size.height) / 2
                 var path = Path()
-                path.move(to: CGPoint(x: x(row.lane), y: startY))
+                path.move(to: CGPoint(x: x(row.lane), y: midY))
                 path.addCurve(
-                    to: CGPoint(x: x(lane), y: endY),
+                    to: CGPoint(x: x(lane), y: size.height),
                     control1: CGPoint(x: x(row.lane), y: midSegY + 1),
                     control2: CGPoint(x: x(lane), y: midSegY - 1)
                 )
+                path.addLine(to: CGPoint(x: x(lane), y: bottom))
                 stroke(path, lane: lane)
             }
             // 提交点

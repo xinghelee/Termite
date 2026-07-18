@@ -83,6 +83,31 @@ enum GitService {
         return GitParse.log(text)
     }
 
+    // MARK: - 写操作(暂存区,面板按钮触发)
+
+    static func stage(path: String, in directory: String) async {
+        _ = await run(["add", "--", path], in: directory)
+    }
+
+    static func unstage(path: String, in directory: String) async {
+        _ = await run(["restore", "--staged", "--", path], in: directory)
+    }
+
+    /// 丢弃改动:未跟踪 → 删除文件;已跟踪 → 还原工作区(必要时先取消暂存)
+    static func discard(change: GitFileChange, in directory: String) async {
+        switch change.kind {
+        case .untracked:
+            _ = await run(["clean", "-f", "--", change.path], in: directory)
+        case .staged:
+            _ = await run(["restore", "--staged", "--", change.path], in: directory)
+            _ = await run(["restore", "--", change.path], in: directory)
+        case .unstaged:
+            _ = await run(["restore", "--", change.path], in: directory)
+        case .committed:
+            break
+        }
+    }
+
     /// 工作区状态(暂存/未暂存/未跟踪 + ± 行数统计)
     static func status(in directory: String) async -> GitStatusSnapshot {
         async let porcelain = run(["status", "--porcelain=v2"], in: directory)
