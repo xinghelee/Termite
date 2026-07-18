@@ -268,9 +268,10 @@ struct TerminalCommands: Commands {
                 SessionManager.shared.toggleCastRecording()
             }
 
-            Button("导出调试信息") {
-                SessionManager.shared.dumpDebugInfo()
-            }
+            // 排查用,平时注释;需要时放开 → 导出 /tmp/termite-debug-buffers.txt
+            // Button("导出调试信息") {
+            //     SessionManager.shared.dumpDebugInfo()
+            // }
 
             Button("回放录制文件…") {
                 let panel = NSOpenPanel()
