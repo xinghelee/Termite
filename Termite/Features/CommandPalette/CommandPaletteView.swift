@@ -73,6 +73,12 @@ struct CommandPaletteView: View {
             ) {
                 m.toggleSessionLogging()
             },
+            PaletteCommand(id: "history-search", title: String(localized: "搜索命令历史(跨会话)"), subtitle: "⌘⇧H", icon: "clock.arrow.circlepath") {
+                m.historySearch.toggle()
+            },
+            PaletteCommand(id: "daily-report", title: String(localized: "生成今日工作日报"), icon: "doc.text") {
+                m.dailyReportPresented = true
+            },
             PaletteCommand(id: "quick-terminal", title: String(localized: "下拉终端"), subtitle: "⌥Space", icon: "rectangle.topthird.inset.filled") {
                 QuickTerminalController.shared.toggle()
             },

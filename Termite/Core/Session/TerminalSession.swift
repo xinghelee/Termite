@@ -317,6 +317,14 @@ final class TerminalSession: Identifiable {
         commandHistory.append(record)
         if commandHistory.count > 200 { commandHistory.removeFirst(commandHistory.count - 200) }
         if end > start { hasCommandOutput = true }
+        // 跨会话历史落盘(⌘⇧H 搜索与日报的数据源)
+        CommandHistoryStore.shared.record(
+            command: record.commandText,
+            cwd: workingDirectory,
+            exitCode: code,
+            duration: duration,
+            branch: gitBranch
+        )
     }
 
     /// 嗅探输出是否结构化数据:只看首尾几行,避免大输出全量扫描。

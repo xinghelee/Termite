@@ -41,6 +41,10 @@ final class SessionManager {
     let palette = CommandPaletteController()
     /// 本窗口的 ⌘O 目录跳转器状态
     let directoryJumper = CommandPaletteController()
+    /// 本窗口的 ⌘⇧H 命令历史搜索状态
+    let historySearch = CommandPaletteController()
+    /// 日报弹层
+    var dailyReportPresented = false
 
     /// 窗口已关闭:置位后不再孵新会话(SwiftUI 关窗后仍可能重新求值该窗口的视图树)
     private(set) var isRetired = false

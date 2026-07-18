@@ -104,6 +104,15 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: .command)
 
+            Button("搜索命令历史…") {
+                SessionManager.shared.historySearch.toggle()
+            }
+            .keyboardShortcut("h", modifiers: [.command, .shift])
+
+            Button("生成今日工作日报…") {
+                SessionManager.shared.dailyReportPresented = true
+            }
+
             Button("关闭分屏 / 标签页") {
                 let manager = SessionManager.shared
                 if manager.selected != nil {

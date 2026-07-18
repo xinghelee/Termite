@@ -53,8 +53,28 @@ struct MainWindowView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
             }
+
+            if manager.historySearch.isPresented {
+                Color.black.opacity(0.28)
+                    .contentShape(Rectangle())
+                    .onTapGesture { manager.historySearch.dismiss() }
+                VStack {
+                    HistorySearchView()
+                        .padding(.top, 90)
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+            }
         }
         .environment(manager)
+        .sheet(isPresented: Binding(
+            get: { manager.dailyReportPresented },
+            set: { manager.dailyReportPresented = $0 }
+        )) {
+            DailyReportView {
+                manager.dailyReportPresented = false
+            }
+        }
         .tint(theme.current.accentColor)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.palette.isPresented)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)
