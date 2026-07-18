@@ -16,11 +16,42 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        guard window != nil, !metalConfigured else { return }
-        metalConfigured = true
-        if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
-            try? setUseMetal(true)
+        if window != nil, !metalConfigured {
+            metalConfigured = true
+            if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
+                try? setUseMetal(true)
+            }
         }
+        // 标签切换时视图此刻才挂进窗口:selectTab 里的 makeFirstResponder 那时 window 还是 nil,
+        // 在这里把键盘焦点接过来(修「恢复后切标签无法输入」)
+        if window != nil, let session, session.manager?.selected === session {
+            window?.makeFirstResponder(self)
+        }
+        syncPtyWindowSize()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        syncPtyWindowSize()
+        // Metal 下列数重算可能被排到下一渲染帧,补一次延迟同步兜底
+        DispatchQueue.main.async { [weak self] in self?.syncPtyWindowSize() }
+    }
+
+    override func layout() {
+        super.layout()
+        syncPtyWindowSize()
+    }
+
+    /// Metal 渲染路径下引擎不再回调 sizeChanged,PTY winsize 滞留在启动值
+    /// (表现:视图 126 列而 ls 只看到 84 列 → 单列输出)。尺寸稳定后手动同步,按列行数去重。
+    private var lastSyncedGrid = (cols: 0, rows: 0)
+
+    private func syncPtyWindowSize() {
+        guard process?.running == true else { return }
+        let terminal = getTerminal()
+        guard terminal.cols != lastSyncedGrid.cols || terminal.rows != lastSyncedGrid.rows else { return }
+        lastSyncedGrid = (terminal.cols, terminal.rows)
+        sizeChanged(source: self, newCols: terminal.cols, newRows: terminal.rows)
     }
 
     override init(frame: CGRect) {
