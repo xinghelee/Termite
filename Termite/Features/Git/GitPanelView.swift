@@ -164,6 +164,7 @@ struct GitPanelView: View {
                 ProgressView().controlSize(.mini)
             }
             if let root = model.repoRoot {
+                GitIdentityButton(repoRoot: root)
                 PanelIconButton(symbol: "point.3.connected.trianglepath.dotted", help: String(localized: "图形历史(SourceTree 式)")) {
                     openWindow(id: "git-history", value: root)
                 }
@@ -620,6 +621,21 @@ struct GitDiffContent: View {
     private func pad(_ number: Int?) -> String {
         let text = number.map(String.init) ?? ""
         return String(repeating: " ", count: max(0, 5 - text.count)) + text
+    }
+}
+
+/// 身份按钮(popover 编辑 user.name/email)
+private struct GitIdentityButton: View {
+    let repoRoot: String
+    @State private var showing = false
+
+    var body: some View {
+        PanelIconButton(symbol: "person.crop.circle", help: String(localized: "提交身份(user.name / email)")) {
+            showing.toggle()
+        }
+        .popover(isPresented: $showing, arrowEdge: .bottom) {
+            GitIdentityView(repoRoot: repoRoot)
+        }
     }
 }
 

@@ -11,6 +11,17 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     weak var session: TerminalSession?
     /// 回放视图用:没有子进程,吞掉一切用户输入
     var inputEnabled = true
+    /// Metal 只在视图挂进窗口后启用一次(离窗启用会渲染不刷新)
+    private var metalConfigured = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, !metalConfigured else { return }
+        metalConfigured = true
+        if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
+            try? setUseMetal(true)
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)

@@ -419,6 +419,10 @@ final class SessionManager {
             } else {
                 selectedTabID = tabs.first?.id
             }
+            // 视图挂载后把键盘焦点交给选中终端(恢复路径没有点击事件可依赖)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.selected?.focusTerminal()
+            }
         } else if let legacy = UserDefaults.standard.stringArray(forKey: SessionManagerRegistry.openTabsKey), !legacy.isEmpty {
             // 旧版迁移:只有目录列表
             for dir in legacy {

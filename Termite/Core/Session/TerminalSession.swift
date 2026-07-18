@@ -114,9 +114,8 @@ final class TerminalSession: Identifiable {
         view.getTerminal().changeScrollback(scrollback)
         ThemeStore.shared.apply(to: view)
         CursorPrefs.apply(to: view)
-        if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
-            try? view.setUseMetal(true)
-        }
+        // Metal 由 TermiteTerminalView 在挂进窗口后启用:
+        // 离窗初始化 Metal 会导致恢复的会话渲染不刷新/光标异常
         view.processDelegate = self
         // 上次会话的屏幕内容:起 shell 之前灰字回灌,像 iTerm2 一样"从上次的位置继续"
         if let restoreScrollback, !restoreScrollback.isEmpty {

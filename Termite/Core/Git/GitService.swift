@@ -107,6 +107,30 @@ enum GitService {
         }
     }
 
+    /// 当前身份:生效值 + 是否有仓库级覆盖
+    static func identity(in directory: String) async -> (name: String, email: String, hasLocal: Bool) {
+        async let name = run(["config", "user.name"], in: directory)
+        async let email = run(["config", "user.email"], in: directory)
+        async let localName = run(["config", "--local", "user.name"], in: directory)
+        let trimmedName = (await name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = (await email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = (await localName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmedName, trimmedEmail, !local.isEmpty)
+    }
+
+    /// 写身份:scope = 本仓库(--local)或全局(--global)
+    static func setIdentity(name: String, email: String, global: Bool, in directory: String) async {
+        let scope = global ? "--global" : "--local"
+        _ = await run(["config", scope, "user.name", name], in: directory)
+        _ = await run(["config", scope, "user.email", email], in: directory)
+    }
+
+    /// 清除仓库级身份覆盖,回落到全局
+    static func clearLocalIdentity(in directory: String) async {
+        _ = await run(["config", "--local", "--unset", "user.name"], in: directory)
+        _ = await run(["config", "--local", "--unset", "user.email"], in: directory)
+    }
+
     /// 本地分支列表(当前分支在最前)
     static func branches(in directory: String) async -> [String] {
         let text = await run(["branch", "--format=%(refname:short)", "--sort=-committerdate"], in: directory) ?? ""
