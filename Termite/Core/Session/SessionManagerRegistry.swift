@@ -113,6 +113,14 @@ final class SessionManagerRegistry {
     /// 「移到新窗口」的待领养标签(一次性,新窗口 manager 恢复时消费)
     @ObservationIgnored var pendingAdoptTab: (tab: PaneTab, sessions: [TerminalSession])?
 
+    /// 冷启动时经 Dock 拖放 / termite CLI 送进来的目录(窗口就绪后消费)
+    @ObservationIgnored var pendingOpenDirectories: [String] = []
+
+    func takePendingOpenDirectories() -> [String] {
+        defer { pendingOpenDirectories = [] }
+        return pendingOpenDirectories
+    }
+
     func takePendingAdoptTab() -> (tab: PaneTab, sessions: [TerminalSession])? {
         defer { pendingAdoptTab = nil }
         return pendingAdoptTab

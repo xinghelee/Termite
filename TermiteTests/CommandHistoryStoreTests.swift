@@ -57,3 +57,21 @@ final class CommandHistoryStoreTests: XCTestCase {
         XCTAssertEqual(CommandHistoryStore.stripPrompt("plaincmd"), "plaincmd")
     }
 }
+
+final class PortMonitorTests: XCTestCase {
+
+    func testParseLsofOutput() {
+        let sample = """
+        COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+        node    41234   zc   23u  IPv4 0xabcdef      0t0  TCP 127.0.0.1:5173 (LISTEN)
+        node    41234   zc   24u  IPv6 0xabcdf0      0t0  TCP [::1]:5173 (LISTEN)
+        python3 52345   zc   3u   IPv4 0xabcdf1      0t0  TCP *:8000 (LISTEN)
+        """
+        let entries = PortMonitor.parse(sample)
+        XCTAssertEqual(entries.count, 2) // IPv4/IPv6 去重
+        XCTAssertEqual(entries[0].port, 5173)
+        XCTAssertEqual(entries[0].command, "node")
+        XCTAssertEqual(entries[1].port, 8000)
+        XCTAssertEqual(entries[1].address, "*")
+    }
+}

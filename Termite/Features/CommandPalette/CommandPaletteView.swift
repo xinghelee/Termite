@@ -79,6 +79,9 @@ struct CommandPaletteView: View {
             PaletteCommand(id: "daily-report", title: String(localized: "生成今日工作日报"), icon: "doc.text") {
                 m.dailyReportPresented = true
             },
+            PaletteCommand(id: "ports", title: String(localized: "端口管理(谁占了 3000)"), icon: "network") {
+                m.portsPresented = true
+            },
             PaletteCommand(id: "quick-terminal", title: String(localized: "下拉终端"), subtitle: "⌥Space", icon: "rectangle.topthird.inset.filled") {
                 QuickTerminalController.shared.toggle()
             },

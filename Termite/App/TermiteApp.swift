@@ -3,6 +3,31 @@ import UniformTypeIdentifiers
 
 /// 退出确认:有命令在跑时 ⌘Q 先弹确认(设置里的「关闭确认」总开关控制)
 final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
+    /// Dock 拖文件夹 / `open -a Termite <dir>`(termite CLI):在该目录开新标签
+    func application(_ application: NSApplication, open urls: [URL]) {
+        MainActor.assumeIsolated {
+            let dirs = urls.compactMap { url -> String? in
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return nil }
+                // 拖的是文件就开在其所在目录
+                return isDirectory.boolValue ? url.path : url.deletingLastPathComponent().path
+            }
+            guard !dirs.isEmpty else { return }
+            let registry = SessionManagerRegistry.shared
+            if registry.managers.isEmpty {
+                // 冷启动:窗口还没建,排队给恢复流程消费
+                registry.pendingOpenDirectories.append(contentsOf: dirs)
+            } else {
+                for dir in dirs {
+                    registry.active.newTab(directory: dir)
+                }
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("main") == true }?
+                    .makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         MainActor.assumeIsolated {
             let confirmEnabled = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
@@ -111,6 +136,10 @@ struct TerminalCommands: Commands {
 
             Button("生成今日工作日报…") {
                 SessionManager.shared.dailyReportPresented = true
+            }
+
+            Button("端口管理…") {
+                SessionManager.shared.portsPresented = true
             }
 
             Button("关闭分屏 / 标签页") {

@@ -35,6 +35,13 @@ targets:
         CFBundleDisplayName: Termite
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHighResolutionCapable: true
+        # 允许 Finder/Dock 把文件夹拖到图标上(在该目录开新标签)
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Folder
+            CFBundleTypeRole: Viewer
+            LSItemContentTypes:
+              - public.folder
+              - public.volume
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.termite.app

@@ -45,6 +45,8 @@ final class SessionManager {
     let historySearch = CommandPaletteController()
     /// 日报弹层
     var dailyReportPresented = false
+    /// 端口管理弹层
+    var portsPresented = false
 
     /// 窗口已关闭:置位后不再孵新会话(SwiftUI 关窗后仍可能重新求值该窗口的视图树)
     private(set) var isRetired = false
@@ -435,6 +437,10 @@ final class SessionManager {
             selectedTabID = tabs.first?.id
         } else {
             newTab()
+        }
+        // Dock 拖放 / CLI 冷启动送进来的目录,追加为新标签并选中
+        for dir in SessionManagerRegistry.shared.takePendingOpenDirectories() {
+            newTab(directory: validDirectory(dir))
         }
     }
 

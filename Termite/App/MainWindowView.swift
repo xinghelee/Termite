@@ -75,6 +75,14 @@ struct MainWindowView: View {
                 manager.dailyReportPresented = false
             }
         }
+        .sheet(isPresented: Binding(
+            get: { manager.portsPresented },
+            set: { manager.portsPresented = $0 }
+        )) {
+            PortsView {
+                manager.portsPresented = false
+            }
+        }
         .tint(theme.current.accentColor)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.palette.isPresented)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)

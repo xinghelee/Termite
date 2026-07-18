@@ -111,6 +111,9 @@ enum ShellIntegration {
     }
     alias icat=imgcat
 
+    # 在 Termite 开新标签:termite [目录],缺省当前目录
+    termite() { open -a Termite "${1:-$PWD}" }
+
     """
 
     /// bash 无 preexec,只发 D(上条退出码)/ 7(cwd)/ A(提示符);耗时统计降级

@@ -154,6 +154,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
+    @State private var cliMessage: String?
 
     var body: some View {
         Form {
@@ -177,6 +178,21 @@ private struct BehaviorSettingsTab: View {
                             QuickTerminalController.shared.unregisterHotKey()
                         }
                     }
+            }
+            Section("命令行工具") {
+                HStack {
+                    Button("安装 termite 命令到 /usr/local/bin") {
+                        cliMessage = CLIInstaller.install()
+                    }
+                    if let cliMessage {
+                        Text(cliMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text("zsh 里已内置 termite 函数(shell 集成);此安装供 bash/fish/脚本使用。termite [目录] 在 Termite 开新标签,也可以直接把文件夹拖到 Dock 图标上。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("关于") {
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
