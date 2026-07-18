@@ -48,7 +48,16 @@ struct CommandPaletteView: View {
                 icon: "clock.arrow.circlepath",
                 isEnabled: hasSession
             ) {
-                m.isTimelineVisible.toggle()
+                m.toggleTimeline()
+            },
+            PaletteCommand(
+                id: "git-panel",
+                title: m.isGitPanelVisible ? String(localized: "关闭 Git 面板") : String(localized: "打开 Git 面板"),
+                subtitle: "⌘G",
+                icon: "arrow.trianglehead.branch",
+                isEnabled: hasSession
+            ) {
+                m.toggleGitPanel()
             },
             PaletteCommand(id: "clear", title: String(localized: "清空回滚缓冲"), subtitle: "⌘K", icon: "eraser", isEnabled: hasSession) {
                 m.selected?.clearBuffer()

@@ -136,9 +136,14 @@ struct TerminalCommands: Commands {
 
         CommandMenu("终端") {
             Button("命令时间线") {
-                SessionManager.shared.isTimelineVisible.toggle()
+                SessionManager.shared.toggleTimeline()
             }
             .keyboardShortcut("i", modifiers: .command)
+
+            Button("Git 面板") {
+                SessionManager.shared.toggleGitPanel()
+            }
+            .keyboardShortcut("g", modifiers: .command)
 
             Divider()
 

@@ -24,6 +24,18 @@ final class SessionManager {
     var searchRequestToken = 0
     /// 右侧命令时间线面板
     var isTimelineVisible = false
+    /// 右侧 Git 面板(与时间线互斥,右侧只留一个)
+    var isGitPanelVisible = false
+
+    func toggleTimeline() {
+        isTimelineVisible.toggle()
+        if isTimelineVisible { isGitPanelVisible = false }
+    }
+
+    func toggleGitPanel() {
+        isGitPanelVisible.toggle()
+        if isGitPanelVisible { isTimelineVisible = false }
+    }
     /// 本窗口的 ⌘P 命令面板状态
     let palette = CommandPaletteController()
     /// 本窗口的 ⌘O 目录跳转器状态

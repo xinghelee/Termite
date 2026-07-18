@@ -34,6 +34,14 @@ struct TerminalTabsView: View {
                         .id(session.id)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
+                    if sessionManager.isGitPanelVisible, let session = sessionManager.selected {
+                        Divider().overlay(ThemeStore.shared.current.borderColor)
+                        GitPanelView(session: session) {
+                            sessionManager.isGitPanelVisible = false
+                        }
+                        .id(session.id)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
                 if let session = sessionManager.selected {
                     StatusBarView(session: session)
@@ -177,7 +185,16 @@ struct TerminalTabsView: View {
                 tint: sessionManager.isTimelineVisible ? ThemeStore.shared.current.accentColor : nil
             ) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    sessionManager.isTimelineVisible.toggle()
+                    sessionManager.toggleTimeline()
+                }
+            }
+            PanelIconButton(
+                symbol: "arrow.trianglehead.branch",
+                help: String(localized: "Git 面板(⌘G)"),
+                tint: sessionManager.isGitPanelVisible ? ThemeStore.shared.current.accentColor : nil
+            ) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    sessionManager.toggleGitPanel()
                 }
             }
             ThemePanelButton()

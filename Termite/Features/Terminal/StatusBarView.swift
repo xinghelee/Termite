@@ -4,6 +4,7 @@ import SwiftUI
 /// 跟随当前选中会话,时钟每秒刷新。
 struct StatusBarView: View {
     let session: TerminalSession
+    @Environment(SessionManager.self) private var sessionManager
 
     /// 结构化输出查看器弹层
     @State private var structuredTarget: CommandRecord?
@@ -28,13 +29,24 @@ struct StatusBarView: View {
                 }
                 if let branch = session.gitBranch {
                     separatorDot
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.trianglehead.branch")
-                            .font(.system(size: 9))
-                        Text(branch)
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                            sessionManager.toggleGitPanel()
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.trianglehead.branch")
+                                .font(.system(size: 9))
+                            Text(branch)
+                            if let dirty = session.gitDirtyCount, dirty > 0 {
+                                Text("●\(dirty)")
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
+                        .foregroundStyle(theme.accentColor)
                     }
-                    .foregroundStyle(theme.accentColor)
-                    .help("git 分支")
+                    .buttonStyle(.plain)
+                    .help("Git 面板(⌘G)· \(session.gitDirtyCount ?? 0) 个未提交文件")
                 }
                 if session.runningCommand {
                     separatorDot

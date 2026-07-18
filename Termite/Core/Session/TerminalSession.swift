@@ -26,6 +26,8 @@ final class TerminalSession: Identifiable {
     private(set) var workingDirectory: String?
     /// 当前 cwd 的 git 分支(直读 .git/HEAD,零子进程)
     private(set) var gitBranch: String?
+    /// 未提交文件数(状态栏 ●n;非仓库为 nil)
+    private(set) var gitDirtyCount: Int?
     /// 最近一条命令的退出码(需 OSC 133 shell 集成)
     private(set) var lastExitCode: Int?
     /// 最近一条命令的耗时(OSC 133 C→D)
@@ -90,6 +92,8 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var osc133 = OSC133Scanner()
     @ObservationIgnored private var logHandle: FileHandle?
     @ObservationIgnored private var gitProbeTask: Task<Void, Never>?
+    @ObservationIgnored private var gitDirtyTask: Task<Void, Never>?
+    @ObservationIgnored private var lastGitDirtyProbeAt = Date.distantPast
 
     init(workingDirectory directory: String? = nil) {
         shellPath = ShellResolver.loginShell()
@@ -226,6 +230,10 @@ final class TerminalSession: Identifiable {
             lastCommandDuration = duration
             recordCommand(code: code, duration: duration)
             notifyIfLongCommand(code: code, duration: duration)
+            // 命令可能改了仓库状态(git/编辑器/构建都会),节流刷新脏计数
+            if gitBranch != nil, let dir = workingDirectory {
+                probeGitDirty(dir)
+            }
         }
     }
 
@@ -439,6 +447,27 @@ final class TerminalSession: Identifiable {
             let branch = await Task.detached { GitProbe.branch(at: path) }.value
             guard !Task.isCancelled else { return }
             self?.gitBranch = branch
+            if branch != nil {
+                self?.probeGitDirty(path, force: true)
+            } else {
+                self?.gitDirtyCount = nil
+            }
+        }
+    }
+
+    /// 未提交文件数探测(节流;命令结束/目录变化时刷)
+    func probeGitDirty(_ path: String, force: Bool = false) {
+        guard force || Date().timeIntervalSince(lastGitDirtyProbeAt) > 3 else { return }
+        lastGitDirtyProbeAt = Date()
+        gitDirtyTask?.cancel()
+        gitDirtyTask = Task { [weak self] in
+            let output = await GitService.run(["status", "--porcelain"], in: path)
+            guard !Task.isCancelled else { return }
+            guard let output else {
+                self?.gitDirtyCount = nil
+                return
+            }
+            self?.gitDirtyCount = output.components(separatedBy: "\n").filter { !$0.isEmpty }.count
         }
     }
 }
