@@ -8,6 +8,7 @@ struct GitPanelView: View {
 
     @State private var model = GitPanelModel()
     @State private var enlargedDiff = false
+    @State private var showingGraph = false
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
@@ -44,6 +45,13 @@ struct GitPanelView: View {
             // 命令(常见 git add/commit)结束后自动刷新
             Task { await model.refresh(cwd: session.workingDirectory) }
         }
+        .sheet(isPresented: $showingGraph) {
+            if let root = model.repoRoot {
+                GitHistoryGraphView(repoRoot: root) {
+                    showingGraph = false
+                }
+            }
+        }
         .sheet(isPresented: $enlargedDiff) {
             if let target = model.diffTarget {
                 VStack(spacing: 0) {
@@ -60,16 +68,11 @@ struct GitPanelView: View {
     // MARK: - 头部
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             if model.diffTarget != nil || model.selectedCommit != nil {
-                Button {
+                PanelIconButton(symbol: "chevron.left", help: String(localized: "返回")) {
                     withAnimation(.easeOut(duration: 0.15)) { model.goBack() }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 11, weight: .semibold))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
             }
             Label("Git", systemImage: "arrow.trianglehead.branch")
                 .font(.system(size: 12, weight: .semibold))
@@ -83,24 +86,18 @@ struct GitPanelView: View {
             if model.isRefreshing {
                 ProgressView().controlSize(.mini)
             }
-            Button {
+            if model.repoRoot != nil {
+                PanelIconButton(symbol: "point.3.connected.trianglepath.dotted", help: String(localized: "图形历史(SourceTree 式)")) {
+                    showingGraph = true
+                }
+            }
+            PanelIconButton(symbol: "arrow.clockwise", help: String(localized: "刷新")) {
                 Task { await model.refresh(cwd: session.workingDirectory, force: true) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 10, weight: .semibold))
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("刷新")
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            PanelIconButton(symbol: "xmark", help: String(localized: "关闭面板"), action: onClose)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     // MARK: - 一级:列表
@@ -237,35 +234,18 @@ struct GitPanelView: View {
             Text("−\(stats.removed)")
                 .foregroundStyle(.red)
             Spacer()
-            Button {
+            PanelIconButton(symbol: "doc.on.doc", help: String(localized: "复制整个 diff(贴给 AI / PR)")) {
                 copyDiff()
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 10))
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("复制整个 diff(贴给 AI / PR)")
             if enlarged {
-                Button {
+                PanelIconButton(symbol: "xmark", help: String(localized: "关闭")) {
                     enlargedDiff = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
                 .keyboardShortcut(.cancelAction)
             } else {
-                Button {
+                PanelIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: String(localized: "放大查看")) {
                     enlargedDiff = true
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 10))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("放大查看")
             }
         }
         .font(.system(size: 10.5).monospacedDigit())

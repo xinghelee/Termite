@@ -23,15 +23,10 @@ struct CommandTimelineView: View {
                 Label("命令时间线", systemImage: "clock.arrow.circlepath")
                     .font(.system(size: 12, weight: .semibold))
                 Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                PanelIconButton(symbol: "xmark", help: String(localized: "关闭面板"), action: onClose)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
 
             Divider().overlay(theme.borderColor)
 
