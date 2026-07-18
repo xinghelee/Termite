@@ -38,6 +38,14 @@ struct TermiteApp: App {
             TerminalCommands()
         }
 
+        // 图形提交历史:独立窗口(可拉伸/缩放/全屏),按仓库根路径区分
+        WindowGroup("提交历史", id: "git-history", for: String.self) { $repoRoot in
+            if let repoRoot {
+                GitHistoryGraphView(repoRoot: repoRoot)
+            }
+        }
+        .defaultSize(width: 1180, height: 780)
+
         Settings {
             SettingsView()
         }

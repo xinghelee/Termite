@@ -31,4 +31,6 @@ enum SettingsKeys {
     static let menuBarExtra = "app.menuBarExtra"
     /// ⌥Space 下拉终端
     static let quickTerminal = "app.quickTerminal"
+    /// diff 视图自动换行(关闭则横向滚动看原始排版)
+    static let diffWrapLines = "diff.wrapLines"
 }

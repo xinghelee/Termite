@@ -28,6 +28,12 @@ struct GitFileChange: Identifiable, Equatable {
         let dir = (path as NSString).deletingLastPathComponent
         return dir.isEmpty ? "" : dir
     }
+
+    /// 图片文件走预览而非文本 diff
+    var isImage: Bool {
+        let ext = (path as NSString).pathExtension.lowercased()
+        return ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "icns", "ico"].contains(ext)
+    }
 }
 
 struct GitStatusSnapshot: Equatable {
@@ -43,6 +49,12 @@ struct GitStatusSnapshot: Equatable {
 enum GitService {
 
     static func run(_ args: [String], in directory: String) async -> String? {
+        guard let data = await runData(args, in: directory) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// 二进制安全版(图片预览等场景)
+    static func runData(_ args: [String], in directory: String) async -> Data? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
@@ -60,9 +72,15 @@ enum GitService {
                 }
                 let data = stdout.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
-                continuation.resume(returning: String(data: data, encoding: .utf8))
+                continuation.resume(returning: process.terminationStatus == 0 || !data.isEmpty ? data : nil)
             }
         }
+    }
+
+    /// 单个文件的提交历史
+    static func fileLog(path: String, in directory: String, limit: Int = 100) async -> [GitCommit] {
+        let text = await run(["log", "-\(limit)", "--format=%h%x09%an%x09%cr%x09%s", "--", path], in: directory) ?? ""
+        return GitParse.log(text)
     }
 
     /// 工作区状态(暂存/未暂存/未跟踪 + ± 行数统计)

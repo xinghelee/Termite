@@ -4,7 +4,8 @@ import SwiftUI
 /// 右侧选中提交的文件列表 + diff 预览。
 struct GitHistoryGraphView: View {
     let repoRoot: String
-    let onClose: () -> Void
+    /// 面板 sheet 场景传关闭回调;独立窗口场景为 nil(用系统关闭按钮)
+    var onClose: (() -> Void)?
 
     @State private var rows: [GitGraphRow] = []
     @State private var selectedHash: String?
@@ -12,6 +13,10 @@ struct GitHistoryGraphView: View {
     @State private var selectedFile: GitFileChange?
     @State private var diffHunks: [UnifiedDiff.Hunk] = []
     @State private var loading = true
+    @State private var fileHistoryTarget: GitFileChange?
+    /// 全表统一泳道列数(对齐文案列,消除参差)
+    @State private var laneColumns = 1
+    @AppStorage(SettingsKeys.diffWrapLines) private var diffWrap = true
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
     private var selectedRow: GitGraphRow? { rows.first { $0.commit.hash == selectedHash } }
@@ -32,11 +37,17 @@ struct GitHistoryGraphView: View {
                 }
             }
         }
-        .frame(minWidth: 980, idealWidth: 1180, minHeight: 620, idealHeight: 780)
+        .frame(minWidth: 980, maxWidth: .infinity, minHeight: 620, maxHeight: .infinity)
         .background(theme.panelBackground)
+        .sheet(item: $fileHistoryTarget) { target in
+            FileHistoryView(repoRoot: repoRoot, change: target) {
+                fileHistoryTarget = nil
+            }
+        }
         .task {
             let commits = await GitService.graphLog(in: repoRoot)
             rows = GitGraph.computeRows(commits)
+            laneColumns = min(rows.map(\.laneCount).max() ?? 1, 14)
             loading = false
             if let first = rows.first {
                 await select(first.commit)
@@ -52,8 +63,10 @@ struct GitHistoryGraphView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
             Spacer()
-            PanelIconButton(symbol: "xmark", help: String(localized: "关闭"), action: onClose)
-                .keyboardShortcut(.cancelAction)
+            if let onClose {
+                PanelIconButton(symbol: "xmark", help: String(localized: "关闭"), action: onClose)
+                    .keyboardShortcut(.cancelAction)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -67,7 +80,8 @@ struct GitHistoryGraphView: View {
                 ForEach(rows) { row in
                     GitGraphRowView(
                         row: row,
-                        isSelected: row.commit.hash == selectedHash
+                        isSelected: row.commit.hash == selectedHash,
+                        laneColumns: laneColumns
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -94,13 +108,21 @@ struct GitHistoryGraphView: View {
                             .foregroundStyle(theme.accentColor)
                         Text(row.commit.author)
                         Text(row.commit.relativeDate)
+                        Spacer()
+                        PanelIconButton(
+                            symbol: "arrow.turn.down.left",
+                            help: String(localized: "自动换行(关闭则横向滚动)"),
+                            tint: diffWrap ? theme.accentColor : nil
+                        ) {
+                            diffWrap.toggle()
+                        }
                     }
                     .font(.system(size: 10.5, design: .monospaced))
                     .foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.vertical, 6)
                 Divider().overlay(theme.borderColor)
 
                 ScrollView {
@@ -114,8 +136,10 @@ struct GitHistoryGraphView: View {
                 .frame(maxHeight: 220)
                 Divider().overlay(theme.borderColor)
 
-                if selectedFile != nil {
-                    GitDiffContent(hunks: diffHunks, fontSize: 11)
+                if let file = selectedFile, file.isImage {
+                    ImageDiffView(change: file, commitHash: selectedHash, repoRoot: repoRoot)
+                } else if selectedFile != nil {
+                    GitDiffContent(hunks: diffHunks, fontSize: 11, wrap: diffWrap)
                 } else {
                     Text("点击上方文件查看 diff")
                         .font(.system(size: 12))
@@ -162,6 +186,13 @@ struct GitHistoryGraphView: View {
         .onTapGesture {
             Task { await showDiff(change) }
         }
+        .contextMenu {
+            Button("文件修改历史") { fileHistoryTarget = change }
+            Button("复制路径") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(change.path, forType: .string)
+            }
+        }
     }
 
     // MARK: - 数据
@@ -186,6 +217,8 @@ struct GitHistoryGraphView: View {
 private struct GitGraphRowView: View {
     let row: GitGraphRow
     let isSelected: Bool
+    /// 全表统一列数:文案列对齐
+    var laneColumns = 1
 
     static let rowHeight: CGFloat = 30
     private static let laneWidth: CGFloat = 13
@@ -195,7 +228,8 @@ private struct GitGraphRowView: View {
     var body: some View {
         HStack(spacing: 8) {
             GraphCanvas(row: row)
-                .frame(width: CGFloat(max(row.laneCount, 1)) * Self.laneWidth, height: Self.rowHeight)
+                .frame(width: CGFloat(max(laneColumns, 1)) * Self.laneWidth, height: Self.rowHeight)
+                .clipped()
 
             ForEach(row.commit.refs.prefix(3), id: \.self) { ref in
                 RefBadge(ref: ref)
@@ -295,23 +329,28 @@ private struct GraphCanvas: View {
                 path.addLine(to: CGPoint(x: x(row.lane), y: size.height))
                 stroke(path, lane: row.lane)
             }
-            // 汇入曲线(上半段:别的泳道 → dot)
+            // 汇入曲线(上半段:别的泳道 → dot):对称三次贝塞尔,两端切线垂直,跨多泳道也顺滑
             for lane in row.mergesIn {
                 var path = Path()
                 path.move(to: CGPoint(x: x(lane), y: 0))
-                path.addQuadCurve(
+                path.addCurve(
                     to: CGPoint(x: x(row.lane), y: midY),
-                    control: CGPoint(x: x(lane), y: midY)
+                    control1: CGPoint(x: x(lane), y: midY * 0.55),
+                    control2: CGPoint(x: x(row.lane), y: midY * 0.45)
                 )
                 stroke(path, lane: lane)
             }
             // 分出曲线(下半段:dot → 别的泳道)
             for lane in row.branchesOut {
+                let startY = midY
+                let endY = size.height
+                let midSegY = (startY + endY) / 2
                 var path = Path()
-                path.move(to: CGPoint(x: x(row.lane), y: midY))
-                path.addQuadCurve(
-                    to: CGPoint(x: x(lane), y: size.height),
-                    control: CGPoint(x: x(lane), y: midY)
+                path.move(to: CGPoint(x: x(row.lane), y: startY))
+                path.addCurve(
+                    to: CGPoint(x: x(lane), y: endY),
+                    control1: CGPoint(x: x(row.lane), y: midSegY + 1),
+                    control2: CGPoint(x: x(lane), y: midSegY - 1)
                 )
                 stroke(path, lane: lane)
             }

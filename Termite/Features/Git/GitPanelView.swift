@@ -8,7 +8,17 @@ struct GitPanelView: View {
 
     @State private var model = GitPanelModel()
     @State private var enlargedDiff = false
-    @State private var showingGraph = false
+    @State private var fileHistoryTarget: GitFileChange?
+    @AppStorage(SettingsKeys.diffWrapLines) private var diffWrap = true
+    /// 面板宽度(拖左缘调整,持久化)
+    @AppStorage("git.panelWidth") private var storedWidth = 330.0
+    @State private var dragStartWidth: Double?
+    @Environment(\.openWindow) private var openWindow
+
+    /// diff 层保证最少 520pt
+    private var effectiveWidth: CGFloat {
+        CGFloat(model.diffTarget != nil ? max(storedWidth, 520) : storedWidth)
+    }
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
@@ -34,10 +44,28 @@ struct GitPanelView: View {
                 listScreen
             }
         }
-        // diff 层自动加宽(列表窄导航,diff 需要横向空间)
-        .frame(width: model.diffTarget != nil ? 560 : 330)
+        .frame(width: effectiveWidth)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: model.diffTarget != nil)
         .background(theme.panelBackground)
+        // 左缘拖拽调宽
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(.clear)
+                .frame(width: 7)
+                .contentShape(Rectangle())
+                .onHover { inside in
+                    if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            if dragStartWidth == nil { dragStartWidth = Double(effectiveWidth) }
+                            let proposed = (dragStartWidth ?? 330) - Double(value.translation.width)
+                            storedWidth = min(max(proposed, 280), 980)
+                        }
+                        .onEnded { _ in dragStartWidth = nil }
+                )
+        }
         .task(id: session.workingDirectory) {
             await model.refresh(cwd: session.workingDirectory)
         }
@@ -45,22 +73,26 @@ struct GitPanelView: View {
             // 命令(常见 git add/commit)结束后自动刷新
             Task { await model.refresh(cwd: session.workingDirectory) }
         }
-        .sheet(isPresented: $showingGraph) {
-            if let root = model.repoRoot {
-                GitHistoryGraphView(repoRoot: root) {
-                    showingGraph = false
-                }
-            }
-        }
         .sheet(isPresented: $enlargedDiff) {
             if let target = model.diffTarget {
                 VStack(spacing: 0) {
                     diffHeader(target, enlarged: true)
                     Divider()
-                    GitDiffContent(hunks: model.diffHunks, fontSize: 12.5)
+                    if target.change.isImage, let root = model.repoRoot {
+                        ImageDiffView(change: target.change, commitHash: target.commit?.hash, repoRoot: root)
+                    } else {
+                        GitDiffContent(hunks: model.diffHunks, fontSize: 12.5, wrap: diffWrap)
+                    }
                 }
-                .frame(minWidth: 900, idealWidth: 1080, minHeight: 620, idealHeight: 780)
+                .frame(minWidth: 900, idealWidth: 1080, maxWidth: .infinity, minHeight: 620, idealHeight: 780, maxHeight: .infinity)
                 .background(theme.panelBackground)
+            }
+        }
+        .sheet(item: $fileHistoryTarget) { target in
+            if let root = model.repoRoot {
+                FileHistoryView(repoRoot: root, change: target) {
+                    fileHistoryTarget = nil
+                }
             }
         }
     }
@@ -86,9 +118,9 @@ struct GitPanelView: View {
             if model.isRefreshing {
                 ProgressView().controlSize(.mini)
             }
-            if model.repoRoot != nil {
+            if let root = model.repoRoot {
                 PanelIconButton(symbol: "point.3.connected.trianglepath.dotted", help: String(localized: "图形历史(SourceTree 式)")) {
-                    showingGraph = true
+                    openWindow(id: "git-history", value: root)
                 }
             }
             PanelIconButton(symbol: "arrow.clockwise", help: String(localized: "刷新")) {
@@ -151,6 +183,8 @@ struct GitPanelView: View {
                     Task { await model.showDiff(for: change, commit: nil, cwd: session.workingDirectory) }
                 } revealInFinder: {
                     revealInFinder(change)
+                } showHistory: {
+                    fileHistoryTarget = change
                 }
             }
         }
@@ -198,6 +232,8 @@ struct GitPanelView: View {
                             Task { await model.showDiff(for: change, commit: commit, cwd: session.workingDirectory) }
                         } revealInFinder: {
                             revealInFinder(change)
+                        } showHistory: {
+                            fileHistoryTarget = change
                         }
                     }
                 }
@@ -212,11 +248,13 @@ struct GitPanelView: View {
         VStack(spacing: 0) {
             diffHeader(target, enlarged: false)
             Divider().overlay(theme.borderColor)
-            if model.diffHunks.isEmpty {
+            if target.change.isImage, let root = model.repoRoot {
+                ImageDiffView(change: target.change, commitHash: target.commit?.hash, repoRoot: root)
+            } else if model.diffHunks.isEmpty {
                 emptyHint(model.isRefreshing ? "" : "没有可显示的改动(可能是二进制文件)")
                     .frame(maxHeight: .infinity)
             } else {
-                GitDiffContent(hunks: model.diffHunks, fontSize: 11)
+                GitDiffContent(hunks: model.diffHunks, fontSize: 11, wrap: diffWrap)
             }
         }
     }
@@ -234,6 +272,16 @@ struct GitPanelView: View {
             Text("−\(stats.removed)")
                 .foregroundStyle(.red)
             Spacer()
+            PanelIconButton(
+                symbol: "arrow.turn.down.left",
+                help: String(localized: "自动换行(关闭则横向滚动)"),
+                tint: diffWrap ? theme.accentColor : nil
+            ) {
+                diffWrap.toggle()
+            }
+            PanelIconButton(symbol: "clock.arrow.circlepath", help: String(localized: "这个文件的修改历史")) {
+                fileHistoryTarget = target.change
+            }
             PanelIconButton(symbol: "doc.on.doc", help: String(localized: "复制整个 diff(贴给 AI / PR)")) {
                 copyDiff()
             }
@@ -357,23 +405,37 @@ final class GitPanelModel {
 struct GitDiffContent: View {
     let hunks: [UnifiedDiff.Hunk]
     var fontSize: CGFloat = 11
+    /// 自动换行:开 = 纵向滚动内软换行;关 = 横向滚动看原始排版
+    var wrap = true
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     var body: some View {
-        ScrollView([.vertical, .horizontal]) {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(hunks) { hunk in
-                    hunkHeader(hunk)
-                    Text(attributedLines(of: hunk))
-                        .font(.system(size: fontSize, design: .monospaced))
-                        .lineSpacing(1)
-                        .textSelection(.enabled)
-                        .padding(.horizontal, 10)
-                }
+        if wrap {
+            ScrollView(.vertical) {
+                content
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, 8)
+        } else {
+            ScrollView([.vertical, .horizontal]) {
+                content
+            }
         }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(hunks) { hunk in
+                hunkHeader(hunk)
+                Text(attributedLines(of: hunk))
+                    .font(.system(size: fontSize, design: .monospaced))
+                    .lineSpacing(1)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: wrap ? .infinity : nil, alignment: .leading)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     private func hunkHeader(_ hunk: UnifiedDiff.Hunk) -> some View {
@@ -438,6 +500,7 @@ private struct GitFileRow: View {
     let change: GitFileChange
     let open: () -> Void
     let revealInFinder: () -> Void
+    var showHistory: () -> Void = {}
 
     @State private var hovering = false
 
@@ -471,6 +534,7 @@ private struct GitFileRow: View {
         .onTapGesture(perform: open)
         .contextMenu {
             Button("查看 Diff", action: open)
+            Button("文件修改历史", action: showHistory)
             Button("在 Finder 中显示", action: revealInFinder)
             Button("复制路径") {
                 NSPasteboard.general.clearContents()
