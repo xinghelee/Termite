@@ -499,6 +499,14 @@ final class TerminalSession: Identifiable {
         castHandle.write(Data((line + "\n").utf8))
     }
 
+    /// 调试:无条件取缓冲区尾部(不过 3 行阈值)
+    func debugBufferTail(lines: Int = 30) -> String {
+        refreshScrollInvariantBounds()
+        let start = max(siLower, siUpper - lines)
+        guard siUpper > start else { return "(缓冲区为空 siLower=\(siLower) siUpper=\(siUpper))" }
+        return extractText(from: start, to: siUpper)
+    }
+
     /// 会话缓冲区尾部快照(scrollback 恢复用):
     /// 只取本次会话的新内容(不含上次回灌的旧内容),不足 3 行有效内容视为"没干过事",不存
     func scrollbackSnapshot(maxLines: Int = 2000) -> String? {

@@ -444,6 +444,29 @@ final class SessionManager {
         }
     }
 
+    /// 调试:把所有会话的视图状态与缓冲区尾部导出到 /tmp(排查渲染/输入问题)
+    func dumpDebugInfo() {
+        var out = "== Termite debug \(Date()) ==\n"
+        for (tabIndex, tab) in tabs.enumerated() {
+            for sid in tab.root.leafIDs() {
+                guard let session = session(sid) else { continue }
+                let view = session.terminalView
+                let terminal = view.getTerminal()
+                out += """
+                tab#\(tabIndex) selected=\(tab.id == selectedTabID) focused=\(tab.focusedID == sid)
+                  cwd=\(session.workingDirectory ?? "-") state=\(session.state)
+                  inWindow=\(view.window != nil) frame=\(NSStringFromRect(view.frame)) superview=\(view.superview != nil)
+                  cols=\(terminal.cols) rows=\(terminal.rows) firstResponder=\(view.window?.firstResponder === view)
+                --- buffer tail ---
+                \(session.debugBufferTail())
+                ==========
+
+                """
+            }
+        }
+        try? out.write(toFile: "/tmp/termite-debug-buffers.txt", atomically: true, encoding: .utf8)
+    }
+
     /// 录制当前会话为 asciinema .cast(可用任意播放器/termite 回放)
     func toggleCastRecording() {
         guard let session = selected else { return }
