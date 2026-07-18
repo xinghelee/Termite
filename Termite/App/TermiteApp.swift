@@ -53,6 +53,13 @@ struct TermiteApp: App {
         ThemeStore.shared.applyWindowChrome()
         ShellIntegration.ensureInstalled()
         QuickTerminalController.shared.registerHotKeyIfEnabled()
+        // 一次性迁移:Metal 曾默认开/被手动开过,存量 true 会让首帧空白问题延续;
+        // 清掉存量值回落到新默认(关),需要的用户可在设置里再开
+        let metalResetKey = "terminal.metalRenderer.resetToOff.v1"
+        if !UserDefaults.standard.bool(forKey: metalResetKey) {
+            UserDefaults.standard.removeObject(forKey: SettingsKeys.metalRenderer)
+            UserDefaults.standard.set(true, forKey: metalResetKey)
+        }
     }
 
     var body: some Scene {
