@@ -95,6 +95,8 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var siLower = 0
     @ObservationIgnored private var siUpper = 0
     @ObservationIgnored private var osc133 = OSC133Scanner()
+    /// 本次会话「新内容」的起始 SI 行:恢复回灌的旧内容之前,不参与下次快照(防横幅叠罗汉)
+    @ObservationIgnored private var snapshotFloor = 0
     @ObservationIgnored private var logHandle: FileHandle?
     @ObservationIgnored private var castHandle: FileHandle?
     @ObservationIgnored private var castStartedAt: Date?
@@ -122,6 +124,9 @@ final class TerminalSession: Identifiable {
             let normalized = restoreScrollback.replacingOccurrences(of: "\n", with: "\r\n")
             let stamp = Date().formatted(date: .omitted, time: .shortened)
             view.feed(text: "\u{1b}[2m" + normalized + "\r\n─── 以上为上次会话内容 · \(stamp) 恢复 ───\u{1b}[0m\r\n")
+            // 回灌的旧内容不参与下次快照
+            refreshScrollInvariantBounds()
+            snapshotFloor = siUpper
         }
         start(in: directory)
     }
@@ -494,13 +499,18 @@ final class TerminalSession: Identifiable {
         castHandle.write(Data((line + "\n").utf8))
     }
 
-    /// 会话缓冲区尾部快照(scrollback 恢复用)
+    /// 会话缓冲区尾部快照(scrollback 恢复用):
+    /// 只取本次会话的新内容(不含上次回灌的旧内容),不足 3 行有效内容视为"没干过事",不存
     func scrollbackSnapshot(maxLines: Int = 2000) -> String? {
         refreshScrollInvariantBounds()
-        let start = max(siLower, siUpper - maxLines)
+        let start = max(max(siLower, siUpper - maxLines), snapshotFloor)
         guard siUpper > start else { return nil }
         let text = extractText(from: start, to: siUpper)
-        return text.isEmpty ? nil : text
+        let meaningfulLines = text.components(separatedBy: "\n").filter {
+            !$0.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+        guard meaningfulLines.count >= 3 else { return nil }
+        return text
     }
 
     // MARK: - 本机服务 URL 检测(dev server 输出里的 localhost 链接)
