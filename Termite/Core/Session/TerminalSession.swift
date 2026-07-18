@@ -539,6 +539,13 @@ final class TerminalSession: Identifiable {
         }
     }
 
+    /// 外部(分支切换等)触发的 git 信息强刷
+    func refreshGitInfo() {
+        guard let dir = workingDirectory else { return }
+        probeGitBranch(dir)
+        probeGitDirty(dir, force: true)
+    }
+
     /// 未提交文件数探测(节流;命令结束/目录变化时刷)
     func probeGitDirty(_ path: String, force: Bool = false) {
         guard force || Date().timeIntervalSince(lastGitDirtyProbeAt) > 3 else { return }

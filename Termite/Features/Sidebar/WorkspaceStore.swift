@@ -65,8 +65,8 @@ struct SavedAppState: Codable {
 final class WorkspaceStore {
     static let shared = WorkspaceStore()
 
-    /// 恢复布局有 bug(用户反馈),入口暂时隐藏;修好后再打开
-    static let isEnabled = false
+    /// 布局重建已与会话恢复共用同一路径(openTab(from:)/buildSplits)并经端到端验证,重新放出
+    static let isEnabled = true
 
     private(set) var workspaces: [Workspace] = []
 

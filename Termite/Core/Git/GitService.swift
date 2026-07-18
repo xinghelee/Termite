@@ -83,6 +83,36 @@ enum GitService {
         return GitParse.log(text)
     }
 
+    /// 带退出码与合并输出的执行(checkout / cherry-pick 等需要报错文案的写操作)
+    static func runResult(_ args: [String], in directory: String) async -> (output: String, exitCode: Int32) {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+                process.arguments = args
+                process.currentDirectoryURL = URL(fileURLWithPath: directory)
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: (error.localizedDescription, -1))
+                    return
+                }
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                continuation.resume(returning: (String(data: data, encoding: .utf8) ?? "", process.terminationStatus))
+            }
+        }
+    }
+
+    /// 本地分支列表(当前分支在最前)
+    static func branches(in directory: String) async -> [String] {
+        let text = await run(["branch", "--format=%(refname:short)", "--sort=-committerdate"], in: directory) ?? ""
+        return text.components(separatedBy: "\n").filter { !$0.isEmpty }
+    }
+
     // MARK: - 写操作(暂存区,面板按钮触发)
 
     static func stage(path: String, in directory: String) async {

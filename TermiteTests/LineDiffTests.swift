@@ -69,3 +69,41 @@ final class FrecencyTests: XCTestCase {
         XCTAssertEqual(DirectoryHistory.frecencyScore(visits: 4, ageSeconds: 30 * 86_400), 1)
     }
 }
+
+final class IntralineDiffTests: XCTestCase {
+
+    func testMiddleChangeDetected() {
+        let ranges = IntralineDiff.changedRanges(
+            old: "let count = amount(model.pageTotal)",
+            new: "let count = grouped(model.pageTotal)"
+        )
+        XCTAssertNotNil(ranges.old)
+        XCTAssertNotNil(ranges.new)
+        // 变化中段应落在 "amount"/"grouped" 一带
+        XCTAssertEqual(ranges.old?.lowerBound, ranges.new?.lowerBound)
+    }
+
+    func testIdenticalLinesNoEmphasis() {
+        let ranges = IntralineDiff.changedRanges(old: "same", new: "same")
+        XCTAssertNil(ranges.old)
+        XCTAssertNil(ranges.new)
+    }
+
+    func testTotallyDifferentLinesNoEmphasis() {
+        let ranges = IntralineDiff.changedRanges(old: "abcdefgh", new: "12345678")
+        XCTAssertNil(ranges.old)
+        XCTAssertNil(ranges.new)
+    }
+
+    func testEmphasisPairsRemovedAndAdded() {
+        let lines: [UnifiedDiff.Line] = [
+            .init(id: 0, kind: .context, text: "ctx", oldNumber: 1, newNumber: 1),
+            .init(id: 1, kind: .removed, text: "value = old()", oldNumber: 2, newNumber: nil),
+            .init(id: 2, kind: .added, text: "value = new()", oldNumber: nil, newNumber: 2),
+        ]
+        let emphasis = IntralineDiff.emphasis(for: lines)
+        XCTAssertNotNil(emphasis[1])
+        XCTAssertNotNil(emphasis[2])
+        XCTAssertNil(emphasis[0])
+    }
+}

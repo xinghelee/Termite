@@ -16,7 +16,21 @@ struct GitHistoryGraphView: View {
     @State private var fileHistoryTarget: GitFileChange?
     /// 全表统一泳道列数(对齐文案列,消除参差)
     @State private var laneColumns = 1
+    /// 过滤词(按主题/作者/hash);过滤时泳道图无拓扑意义,隐藏图形列
+    @State private var filterText = ""
+    @State private var opMessage: String?
     @AppStorage(SettingsKeys.diffWrapLines) private var diffWrap = true
+
+    private var filteredRows: [GitGraphRow] {
+        let trimmed = filterText.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !trimmed.isEmpty else { return rows }
+        return rows.filter { row in
+            row.commit.subject.lowercased().contains(trimmed)
+                || row.commit.author.lowercased().contains(trimmed)
+                || row.commit.hash.lowercased().hasPrefix(trimmed)
+                || row.commit.refs.contains { $0.lowercased().contains(trimmed) }
+        }
+    }
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
     private var selectedRow: GitGraphRow? { rows.first { $0.commit.hash == selectedHash } }
@@ -59,10 +73,39 @@ struct GitHistoryGraphView: View {
         HStack(spacing: 6) {
             Label("提交历史", systemImage: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 12, weight: .semibold))
-            Text("\(rows.count) 个提交 · 全部分支")
+            Text(filterText.isEmpty ? "\(rows.count) 个提交 · 全部分支" : "\(filteredRows.count)/\(rows.count)")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
+            if let opMessage {
+                Text(opMessage)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+            }
             Spacer()
+            HStack(spacing: 5) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                TextField("过滤:主题 / 作者 / hash", text: $filterText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11))
+                    .frame(width: 190)
+                if !filterText.isEmpty {
+                    Button {
+                        filterText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(theme.elevatedBackground))
+            .overlay(Capsule().stroke(theme.borderColor, lineWidth: 1))
             if let onClose {
                 PanelIconButton(symbol: "xmark", help: String(localized: "关闭"), action: onClose)
                     .keyboardShortcut(.cancelAction)
@@ -77,20 +120,64 @@ struct GitHistoryGraphView: View {
     private var commitList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(rows) { row in
+                ForEach(filteredRows) { row in
                     GitGraphRowView(
                         row: row,
                         isSelected: row.commit.hash == selectedHash,
-                        laneColumns: laneColumns
+                        laneColumns: filterText.isEmpty ? laneColumns : 0
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
                         Task { await select(row.commit) }
                     }
+                    .contextMenu {
+                        Button("复制 hash") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(row.commit.hash, forType: .string)
+                        }
+                        Divider()
+                        Button("Cherry-pick 到当前分支…") {
+                            confirmOperation(
+                                title: "Cherry-pick \(row.commit.shortHash)?",
+                                message: "把「\(row.commit.subject)」应用到当前分支。",
+                                args: ["cherry-pick", row.commit.hash]
+                            )
+                        }
+                        Button("Revert 此提交…") {
+                            confirmOperation(
+                                title: "Revert \(row.commit.shortHash)?",
+                                message: "生成一个反向提交撤销「\(row.commit.subject)」。",
+                                args: ["revert", "--no-edit", row.commit.hash]
+                            )
+                        }
+                    }
                 }
             }
         }
         .background(theme.panelBackground)
+    }
+
+    /// cherry-pick / revert:确认 → 执行 → 失败时把 git 输出贴出来并中止该操作
+    private func confirmOperation(title: String, message: String, args: [String]) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: String(localized: "执行"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task {
+            let result = await GitService.runResult(args, in: repoRoot)
+            if result.exitCode != 0 {
+                // 冲突等失败:中止半程操作,提示去终端处理
+                _ = await GitService.runResult([args[0], "--abort"], in: repoRoot)
+                opMessage = String(result.output.prefix(160))
+            } else {
+                opMessage = nil
+                let commits = await GitService.graphLog(in: repoRoot)
+                rows = GitGraph.computeRows(commits)
+            }
+        }
     }
 
     // MARK: - 右:提交详情
@@ -227,8 +314,10 @@ private struct GitGraphRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            GraphCanvas(row: row, laneLimit: laneColumns)
-                .frame(width: CGFloat(max(laneColumns, 1)) * Self.laneWidth, height: Self.rowHeight)
+            if laneColumns > 0 {
+                GraphCanvas(row: row, laneLimit: laneColumns)
+                    .frame(width: CGFloat(laneColumns) * Self.laneWidth, height: Self.rowHeight)
+            }
 
             ForEach(row.commit.refs.prefix(3), id: \.self) { ref in
                 RefBadge(ref: ref)

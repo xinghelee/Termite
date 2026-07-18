@@ -9,6 +9,9 @@ struct GitPanelView: View {
     @State private var model = GitPanelModel()
     @State private var enlargedDiff = false
     @State private var fileHistoryTarget: GitFileChange?
+    @State private var blameTarget: GitFileChange?
+    @State private var branches: [String] = []
+    @State private var branchMessage: String?
     @AppStorage(SettingsKeys.diffWrapLines) private var diffWrap = true
     /// 面板宽度(拖左缘调整,持久化)
     @AppStorage("git.panelWidth") private var storedWidth = 330.0
@@ -96,6 +99,13 @@ struct GitPanelView: View {
                 }
             }
         }
+        .sheet(item: $blameTarget) { target in
+            if let root = model.repoRoot {
+                BlameView(repoRoot: root, change: target) {
+                    blameTarget = nil
+                }
+            }
+        }
     }
 
     // MARK: - 头部
@@ -110,9 +120,43 @@ struct GitPanelView: View {
             Label("Git", systemImage: "arrow.trianglehead.branch")
                 .font(.system(size: 12, weight: .semibold))
             if let branch = session.gitBranch {
-                Text(branch)
+                // 分支切换器:点开列本地分支(按最近提交排序),选中即 checkout
+                Menu {
+                    ForEach(branches, id: \.self) { name in
+                        Button {
+                            checkout(name)
+                        } label: {
+                            if name == branch {
+                                Label(name, systemImage: "checkmark")
+                            } else {
+                                Text(name)
+                            }
+                        }
+                        .disabled(name == branch)
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(branch)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 7, weight: .bold))
+                    }
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(theme.accentColor)
+                    .lineLimit(1)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .onTapGesture {} // Menu 自己处理;拦掉冒泡
+                .task(id: model.repoRoot) {
+                    if let root = model.repoRoot {
+                        branches = await GitService.branches(in: root)
+                    }
+                }
+            }
+            if let branchMessage {
+                Text(branchMessage)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.orange)
                     .lineLimit(1)
             }
             Spacer()
@@ -186,6 +230,8 @@ struct GitPanelView: View {
                     revealInFinder(change)
                 } showHistory: {
                     fileHistoryTarget = change
+                } showBlame: {
+                    blameTarget = change
                 } stageToggle: {
                     Task {
                         if change.kind == .staged {
@@ -245,6 +291,8 @@ struct GitPanelView: View {
                             revealInFinder(change)
                         } showHistory: {
                             fileHistoryTarget = change
+                        } showBlame: {
+                            blameTarget = change
                         }
                     }
                 }
@@ -329,6 +377,22 @@ struct GitPanelView: View {
         guard let root = model.repoRoot else { return }
         let url = URL(fileURLWithPath: root).appendingPathComponent(change.path)
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    /// checkout 分支:失败(未提交改动冲突等)把 git 输出贴在头部
+    private func checkout(_ branch: String) {
+        guard let root = model.repoRoot else { return }
+        Task {
+            let result = await GitService.runResult(["checkout", branch], in: root)
+            if result.exitCode != 0 {
+                branchMessage = String(result.output.prefix(120))
+            } else {
+                branchMessage = nil
+                branches = await GitService.branches(in: root)
+                await model.refresh(cwd: session.workingDirectory, force: true)
+                session.refreshGitInfo()
+            }
+        }
     }
 
     /// 丢弃改动:不可撤销,先确认
@@ -507,6 +571,8 @@ struct GitDiffContent: View {
     }
 
     private func attributedLines(of hunk: UnifiedDiff.Hunk) -> AttributedString {
+        // 词级强调:删/增行配对后,真正变化的中段加深底色
+        let emphasis = IntralineDiff.emphasis(for: hunk.lines)
         var result = AttributedString()
         for (index, line) in hunk.lines.enumerated() {
             var numbers = AttributedString(pad(line.oldNumber) + " " + pad(line.newNumber) + "  ")
@@ -515,19 +581,32 @@ struct GitDiffContent: View {
             let marker: String
             let color: Color
             var background: Color?
+            var strongBackground: Color?
             switch line.kind {
             case .added:
-                marker = "+ "; color = .green; background = Color.green.opacity(0.13)
+                marker = "+ "; color = .green
+                background = Color.green.opacity(0.13)
+                strongBackground = Color.green.opacity(0.34)
             case .removed:
-                marker = "− "; color = .red; background = Color.red.opacity(0.13)
+                marker = "− "; color = .red
+                background = Color.red.opacity(0.13)
+                strongBackground = Color.red.opacity(0.34)
             case .context:
-                marker = "  "; color = Color.primary.opacity(0.72); background = nil
+                marker = "  "; color = Color.primary.opacity(0.72)
             }
             var content = AttributedString(marker + (line.text.isEmpty ? " " : line.text))
             content.foregroundColor = color
             if let background {
                 numbers.backgroundColor = background
                 content.backgroundColor = background
+            }
+            if let strongBackground, let changed = emphasis[index], !line.text.isEmpty {
+                // marker 占 2 字符,把字符区间映射到 AttributedString 索引
+                let start = content.index(content.startIndex, offsetByCharacters: min(changed.lowerBound + 2, line.text.count + 2))
+                let end = content.index(content.startIndex, offsetByCharacters: min(changed.upperBound + 2, line.text.count + 2))
+                if start < end {
+                    content[start..<end].backgroundColor = strongBackground
+                }
             }
             result += numbers
             result += content
@@ -550,6 +629,7 @@ private struct GitFileRow: View {
     let open: () -> Void
     let revealInFinder: () -> Void
     var showHistory: () -> Void = {}
+    var showBlame: () -> Void = {}
     /// 未提交文件:悬停出 暂存(+)/ 取消暂存(−)按钮
     var stageToggle: (() -> Void)?
     var discard: (() -> Void)?
@@ -596,6 +676,7 @@ private struct GitFileRow: View {
         .contextMenu {
             Button("查看 Diff", action: open)
             Button("文件修改历史", action: showHistory)
+            Button("Blame(逐行溯源)", action: showBlame)
             Button("在 Finder 中显示", action: revealInFinder)
             Button("复制路径") {
                 NSPasteboard.general.clearContents()
