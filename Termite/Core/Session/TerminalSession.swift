@@ -28,6 +28,8 @@ final class TerminalSession: Identifiable {
     private(set) var gitBranch: String?
     /// 未提交文件数(状态栏 ●n;非仓库为 nil)
     private(set) var gitDirtyCount: Int?
+    /// 输出里检测到的最近一个本机服务 URL(dev server 场景,状态栏一键打开)
+    private(set) var detectedLocalURL: String?
     /// 最近一条命令的退出码(需 OSC 133 shell 集成)
     private(set) var lastExitCode: Int?
     /// 最近一条命令的耗时(OSC 133 C→D)
@@ -199,6 +201,7 @@ final class TerminalSession: Identifiable {
         }
         appendToLog(bytes)
         appendToCast(bytes)
+        scanForLocalURL(bytes)
         let events = osc133.scan(bytes)
         if events.isEmpty {
             terminalView.feed(byteArray: bytes)
@@ -229,6 +232,7 @@ final class TerminalSession: Identifiable {
             runningCommand = true
             commandStartedAt = Date()
             commandRunningSince = commandStartedAt
+            SessionManagerRegistry.shared.updateDockBadge()
             let outputRow = currentScrollInvariantRow()
             pendingOutputStart = outputRow
             pendingPromptRow = commandMarks.last
@@ -244,6 +248,7 @@ final class TerminalSession: Identifiable {
             lastCommandDuration = duration
             recordCommand(code: code, duration: duration)
             notifyIfLongCommand(code: code, duration: duration)
+            SessionManagerRegistry.shared.updateDockBadge()
             // 命令可能改了仓库状态(git/编辑器/构建都会),节流刷新脏计数
             if gitBranch != nil, let dir = workingDirectory {
                 probeGitDirty(dir)
@@ -489,6 +494,33 @@ final class TerminalSession: Identifiable {
         guard siUpper > start else { return nil }
         let text = extractText(from: start, to: siUpper)
         return text.isEmpty ? nil : text
+    }
+
+    // MARK: - 本机服务 URL 检测(dev server 输出里的 localhost 链接)
+
+    @ObservationIgnored private var urlScanBuffer = ""
+    private static let localURLRegex = try? NSRegularExpression(
+        pattern: #"https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?(?:/[^\s"'<>\)\]]*)?"#
+    )
+
+    private func scanForLocalURL(_ bytes: ArraySlice<UInt8>) {
+        guard let regex = Self.localURLRegex,
+              let text = String(bytes: bytes, encoding: .utf8) else { return }
+        urlScanBuffer += text
+        while let newline = urlScanBuffer.firstIndex(of: "\n") {
+            let line = ANSI.strip(String(urlScanBuffer[..<newline]))
+            urlScanBuffer.removeSubrange(urlScanBuffer.startIndex...newline)
+            let range = NSRange(line.startIndex..., in: line)
+            if let match = regex.firstMatch(in: line, range: range),
+               let matchRange = Range(match.range, in: line) {
+                // 0.0.0.0 监听地址浏览器打不开,换成 localhost
+                detectedLocalURL = String(line[matchRange])
+                    .replacingOccurrences(of: "0.0.0.0", with: "localhost")
+            }
+        }
+        if urlScanBuffer.count > 4096 {
+            urlScanBuffer = String(urlScanBuffer.suffix(2048))
+        }
     }
 
     // MARK: - git 分支探测

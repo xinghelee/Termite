@@ -128,9 +128,16 @@ final class SessionManager {
 
     // MARK: - 分屏(可无限嵌套)
 
+    /// ⇧⌘↩:临时最大化当前 pane / 还原分屏布局
+    func toggleMaximizePane() {
+        guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
+        tab.maximizedID = tab.maximizedID == nil ? tab.focusedID : nil
+    }
+
     /// ⌘D / ⌘⇧D / 右键:在当前聚焦 pane 上再分出一个 pane(继承 cwd)。每次都新增,支持嵌套。
     func splitFocused(axis: SplitAxis) {
         guard let tab = selectedTab, let current = selected else { return }
+        tab.maximizedID = nil
         let secondary = makeSession(directory: inheritedDirectory())
         sessions.append(secondary)
         tab.root = tab.root.splitting(leaf: current.id, into: secondary.id, axis: axis, branchID: UUID())
@@ -158,6 +165,19 @@ final class SessionManager {
     /// 有命令在跑的会话数(关窗/退出确认用)
     var runningCommandCount: Int {
         sessions.filter(\.runningCommand).count
+    }
+
+    /// 标签 chip 右键「移到新窗口」:把整个标签(含所有 pane 会话)交给注册表待领养,
+    /// 随后由视图层 openWindow,新窗口的 manager 恢复时优先领养
+    func detachTabToNewWindow(_ tab: PaneTab) {
+        guard tabs.count > 1, let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        let ids = tab.root.leafIDs()
+        let moving = sessions.filter { ids.contains($0.id) }
+        sessions.removeAll { ids.contains($0.id) }
+        tabs.remove(at: index)
+        if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
+        SessionManagerRegistry.shared.pendingAdoptTab = (tab, moving)
+        persistOpenTabs()
     }
 
     /// 点击某个 pane 聚焦它
@@ -193,6 +213,7 @@ final class SessionManager {
         guard let tab = tabs.first(where: { $0.root.leafIDs().contains(session.id) }) else {
             persistOpenTabs(); return
         }
+        if tab.maximizedID == session.id { tab.maximizedID = nil }
         let neighbor = tab.root.neighborLeaf(of: session.id)
         if let newRoot = tab.root.removing(leaf: session.id) {
             tab.root = newRoot
@@ -373,6 +394,17 @@ final class SessionManager {
     /// 后续窗口开默认标签
     func restoreOrCreateInitialTabs() {
         guard !isRetired, tabs.isEmpty else { return }
+        // 「移到新窗口」的标签优先领养
+        if let adoption = SessionManagerRegistry.shared.takePendingAdoptTab() {
+            for session in adoption.sessions {
+                session.manager = self
+                sessions.append(session)
+            }
+            tabs.append(adoption.tab)
+            selectedTabID = adoption.tab.id
+            persistOpenTabs()
+            return
+        }
         let enabled = UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true
         guard enabled, SessionManagerRegistry.shared.isFirst(self) else {
             newTab()

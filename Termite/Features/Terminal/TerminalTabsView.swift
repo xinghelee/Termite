@@ -3,6 +3,7 @@ import SwiftUI
 /// 终端区:标签 chips(标题栏)+ 当前标签的分屏树 + 底部状态栏
 struct TerminalTabsView: View {
     @Environment(SessionManager.self) private var sessionManager
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var manager = sessionManager
@@ -14,6 +15,25 @@ struct TerminalTabsView: View {
                     broadcastBanner
                 }
                 HStack(spacing: 0) {
+                    if let maximizedID = tab.maximizedID,
+                       let maximized = sessionManager.session(maximizedID) {
+                        // ⇧⌘↩ 最大化:只渲染该 pane,右上角挂还原提示
+                        TerminalPaneView(session: maximized)
+                            .id(maximizedID)
+                            .overlay(alignment: .topTrailing) {
+                                Button {
+                                    sessionManager.toggleMaximizePane()
+                                } label: {
+                                    Label("已最大化 · ⇧⌘↩ 还原", systemImage: "arrow.down.right.and.arrow.up.left")
+                                        .font(.system(size: 10.5, weight: .medium))
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 4)
+                                        .background(Capsule().fill(.regularMaterial))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(10)
+                            }
+                    } else {
                     PaneTreeView(
                         node: tab.root,
                         focusedID: tab.focusedID,
@@ -26,6 +46,7 @@ struct TerminalTabsView: View {
                             tab.root = tab.root.settingRatio(branch: branchID, ratio: ratio)
                         }
                     )
+                    }
                     if sessionManager.isTimelineVisible, let session = sessionManager.selected {
                         Divider().overlay(ThemeStore.shared.current.borderColor)
                         CommandTimelineView(session: session) {
@@ -143,6 +164,16 @@ struct TerminalTabsView: View {
                             close: { sessionManager.requestCloseTab(tab) }
                         )
                         .id(tab.id)
+                        .contextMenu {
+                            Button("移到新窗口") {
+                                sessionManager.detachTabToNewWindow(tab)
+                                openWindow(id: "main", value: UUID())
+                            }
+                            .disabled(sessionManager.tabs.count < 2)
+                            Button("关闭标签页", role: .destructive) {
+                                sessionManager.requestCloseTab(tab)
+                            }
+                        }
                         // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
                         .draggable(tab.id.uuidString)
                         .dropDestination(for: String.self) { items, _ in

@@ -68,6 +68,20 @@ struct StatusBarView: View {
                     .foregroundStyle(code == 0 ? Color.green : Color.red)
                     .help(code == 0 ? "上条命令成功" : "上条命令退出码 \(code)")
                 }
+                if let url = session.detectedLocalURL {
+                    separatorDot
+                    Button {
+                        if let opened = URL(string: url) { NSWorkspace.shared.open(opened) }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "globe")
+                            Text(URL(string: url)?.port.map { ":\($0)" } ?? url)
+                        }
+                        .foregroundStyle(theme.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("在浏览器打开 \(url)")
+                }
                 if !session.runningCommand,
                    let last = session.commandHistory.last,
                    let format = last.structured, last.hasOutput {

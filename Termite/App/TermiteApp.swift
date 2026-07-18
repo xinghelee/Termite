@@ -174,6 +174,11 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
 
+            Button("最大化 / 还原当前分屏") {
+                SessionManager.shared.toggleMaximizePane()
+            }
+            .keyboardShortcut(.return, modifiers: [.command, .shift])
+
             Button("广播输入到所有分屏") {
                 SessionManager.shared.toggleBroadcast()
             }

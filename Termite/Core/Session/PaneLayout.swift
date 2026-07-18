@@ -173,6 +173,8 @@ final class PaneTab: Identifiable {
     var focusedID: UUID
     /// 广播输入:开启后当前标签所有分屏 pane 同步接收键入
     var isBroadcasting = false
+    /// 临时最大化的 pane(⇧⌘↩;nil = 正常分屏布局)
+    var maximizedID: UUID?
 
     init(sessionID: UUID) {
         self.root = .leaf(sessionID)
