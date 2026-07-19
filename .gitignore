@@ -3,5 +3,6 @@
 /Termite.xcodeproj
 /DerivedData
 /build
+/dist
 xcuserdata/
 *.xcresult
