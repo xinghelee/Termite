@@ -150,7 +150,8 @@ struct SidebarView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
-        panel.message = String(localized: "选择要固定到侧边栏的项目文件夹")
+        panel.canCreateDirectories = true
+        panel.message = String(localized: "选择要固定到侧边栏的项目文件夹(左下角可新建)")
         if panel.runModal() == .OK {
             for url in panel.urls {
                 store.add(path: url.path)

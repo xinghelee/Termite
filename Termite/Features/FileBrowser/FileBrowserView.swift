@@ -42,7 +42,8 @@ struct FileBrowserView: View {
                                 depth: 0,
                                 showHidden: showHidden,
                                 session: session,
-                                onPreview: { preview($0) }
+                                onPreview: { preview($0) },
+                                onNewFolder: { promptNewFolder(in: $0.path) }
                             )
                         }
                         .padding(6)
@@ -97,6 +98,34 @@ struct FileBrowserView: View {
         }
     }
 
+    /// 弹名字输入框,在 parent 下创建文件夹,成功后重载文件树
+    private func promptNewFolder(in parent: String) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "新建文件夹")
+        alert.informativeText = (parent as NSString).abbreviatingWithTildeInPath
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = String(localized: "文件夹名称")
+        alert.accessoryView = field
+        alert.addButton(withTitle: String(localized: "创建"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        do {
+            try FileManager.default.createDirectory(
+                atPath: (parent as NSString).appendingPathComponent(name),
+                withIntermediateDirectories: false
+            )
+            reloadToken += 1
+        } catch {
+            let failure = NSAlert()
+            failure.messageText = String(localized: "无法创建文件夹")
+            failure.informativeText = error.localizedDescription
+            failure.runModal()
+        }
+    }
+
     /// 点击文件的路由:文本/代码 → 面板内着色预览;其余(图片/PDF/二进制)→ Quick Look
     private func preview(_ entry: FileEntry) {
         if Self.isTextLike(entry.path) {
@@ -135,6 +164,11 @@ struct FileBrowserView: View {
                     .help((root as NSString).abbreviatingWithTildeInPath)
             }
             Spacer()
+            if let root = rootPath {
+                PanelIconButton(symbol: "folder.badge.plus", help: String(localized: "新建文件夹")) {
+                    promptNewFolder(in: root)
+                }
+            }
             PanelIconButton(
                 symbol: showHidden ? "eye" : "eye.slash",
                 help: String(localized: "显示/隐藏点文件"),
@@ -159,6 +193,7 @@ private struct FileTreeLevel: View {
     let showHidden: Bool
     let session: TerminalSession
     let onPreview: (FileEntry) -> Void
+    let onNewFolder: (FileEntry) -> Void
 
     @State private var entries: [FileEntry]?
     @State private var expanded: Set<String> = []
@@ -177,7 +212,8 @@ private struct FileTreeLevel: View {
                     depth: depth,
                     isExpanded: expanded.contains(entry.path),
                     session: session,
-                    onPreview: { onPreview(entry) }
+                    onPreview: { onPreview(entry) },
+                    onNewFolder: { onNewFolder(entry) }
                 ) {
                     if entry.isDirectory {
                         if expanded.contains(entry.path) {
@@ -193,7 +229,8 @@ private struct FileTreeLevel: View {
                         depth: depth + 1,
                         showHidden: showHidden,
                         session: session,
-                        onPreview: onPreview
+                        onPreview: onPreview,
+                        onNewFolder: onNewFolder
                     )
                 }
             }
@@ -236,6 +273,7 @@ private struct FileRow: View {
     let isExpanded: Bool
     let session: TerminalSession
     let onPreview: () -> Void
+    let onNewFolder: () -> Void
     let onTap: () -> Void
 
     @State private var hovering = false
@@ -290,6 +328,9 @@ private struct FileRow: View {
                     // ^U 清行再输入,避免拼进用户已敲了一半的命令
                     session.sendText("\u{15}cd " + TermiteTerminalView.shellEscaped(entry.path) + "\n")
                     session.focusTerminal()
+                }
+                Button("在此新建文件夹") {
+                    onNewFolder()
                 }
             } else {
                 Button("快速查看") {
