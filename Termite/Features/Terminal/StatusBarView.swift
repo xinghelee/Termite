@@ -48,6 +48,10 @@ struct StatusBarView: View {
                     .buttonStyle(.plain)
                     .help("Git 面板(⌘G)· \(session.gitDirtyCount ?? 0) 个未提交文件")
                 }
+                if session.gitBranch != nil, let dir = session.workingDirectory {
+                    separatorDot
+                    GitEmailStatusItem(workingDirectory: dir)
+                }
                 if session.runningCommand {
                     separatorDot
                     HStack(spacing: 4) {
@@ -156,5 +160,46 @@ struct StatusBarView: View {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return "\(minutes)m\(seconds)s"
+    }
+}
+
+/// git user.email 展示项:双身份(工作/个人)场景一眼看清当前提交身份,点击弹出编辑。
+/// 目录切换时重查;编辑弹层关闭后重查,让改动立即反映到条上。
+private struct GitEmailStatusItem: View {
+    let workingDirectory: String
+
+    @State private var email = ""
+    @State private var hasLocalOverride = false
+    @State private var editing = false
+
+    var body: some View {
+        Button {
+            editing.toggle()
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 9))
+                Text(email.isEmpty ? String(localized: "邮箱未设置") : email)
+            }
+            .foregroundStyle(email.isEmpty ? AnyShapeStyle(.yellow) : AnyShapeStyle(.secondary))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: 200)
+        }
+        .buttonStyle(.plain)
+        .help(hasLocalOverride ? "git 提交邮箱(本仓库覆盖),点击编辑" : "git 提交邮箱(全局),点击编辑")
+        .popover(isPresented: $editing, arrowEdge: .top) {
+            GitIdentityView(repoRoot: workingDirectory)
+        }
+        .task(id: workingDirectory) { await load() }
+        .onChange(of: editing) { _, showing in
+            if !showing { Task { await load() } }
+        }
+    }
+
+    private func load() async {
+        let identity = await GitService.identity(in: workingDirectory)
+        email = identity.email
+        hasLocalOverride = identity.hasLocal
     }
 }
