@@ -188,6 +188,84 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         MainActor.assumeIsolated { SessionManager.shared.requestSearch() }
     }
 
+    // MARK: - IME 组词期间隐藏光标
+
+    /// 中文等输入法组词时,SwiftTerm 在光标处叠加拼音预览浮层,但光标仍留在原地:
+    /// CG 路径是 CaretView 子视图,Metal 路径画在 MTKView 纹理里,TUI(如 Claude Code)
+    /// 还会自绘反色块。拼音浮层比单元格矮几像素,光标会从浮层上下两端露出。
+    /// 组词期间隐藏 CaretView,并用背景色遮罩盖住整个光标格,提交/取消后恢复。
+    private var imeComposing = false
+
+    /// 盖在光标格上的背景色遮罩:Metal 自绘光标和 TUI 反色块不是 AppKit 视图,
+    /// 藏不掉,只能在拼音浮层之下压一层背景色,连同浮层盖不到的上下边缘一起遮住
+    private lazy var imeCursorCover: NSView = {
+        let v = NSView()
+        v.identifier = NSUserInterfaceItemIdentifier("imeCursorCover")
+        v.wantsLayer = true
+        return v
+    }()
+
+    /// 只在组词状态切换时对已挂载的 caret 生效;TUI 每帧都会经 DECTCEM 隐藏/显示光标,
+    /// caret 被反复 removeFromSuperview/addSubview,组词开始那一刻它可能不在视图树里,
+    /// 所以还需要 addSubview 兜底同步。
+    private func applyCompositionCaretState() {
+        // Metal 渲染时 AppKit caret 本来就是隐藏的(光标由 Metal 画),
+        // 组词结束在这里解除隐藏会变成双光标,不能碰
+        if !isUsingMetalRenderer {
+            for sub in subviews where String(describing: type(of: sub)) == "CaretView" {
+                sub.isHidden = imeComposing
+            }
+        }
+        updateCursorCover()
+    }
+
+    private func updateCursorCover() {
+        guard imeComposing else {
+            imeCursorCover.removeFromSuperview()
+            return
+        }
+        imeCursorCover.layer?.backgroundColor = nativeBackgroundColor.cgColor
+        imeCursorCover.frame = caretFrame
+        // 压在拼音浮层之下、其余一切(MTKView/CaretView/CG 内容)之上
+        if let overlay = subviews.first(where: { $0 is NSTextField }) {
+            addSubview(imeCursorCover, positioned: .below, relativeTo: overlay)
+        } else {
+            addSubview(imeCursorCover, positioned: .above, relativeTo: nil)
+        }
+    }
+
+    override func addSubview(_ view: NSView) {
+        super.addSubview(view)
+        guard !isUsingMetalRenderer else { return }
+        if String(describing: type(of: view)) == "CaretView" {
+            view.isHidden = imeComposing
+        }
+    }
+
+    override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
+        imeComposing = hasMarkedText()
+        applyCompositionCaretState()
+        // 拼音浮层默认 90% 透明背景,TUI 自绘的反色块光标会从底下透出来,改成不透明
+        if imeComposing,
+           let overlay = subviews.first(where: { $0 is NSTextField }) as? NSTextField,
+           let bg = overlay.backgroundColor {
+            overlay.backgroundColor = bg.withAlphaComponent(1)
+        }
+    }
+
+    override func unmarkText() {
+        super.unmarkText()
+        imeComposing = false
+        applyCompositionCaretState()
+    }
+
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        super.insertText(string, replacementRange: replacementRange)
+        imeComposing = false
+        applyCompositionCaretState()
+    }
+
     // MARK: - 选中即复制 / 中键粘贴
 
     override func mouseUp(with event: NSEvent) {
