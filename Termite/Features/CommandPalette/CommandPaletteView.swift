@@ -59,6 +59,15 @@ struct CommandPaletteView: View {
             ) {
                 m.toggleGitPanel()
             },
+            PaletteCommand(
+                id: "file-browser",
+                title: m.isFileBrowserVisible ? String(localized: "关闭文件浏览器") : String(localized: "打开文件浏览器"),
+                subtitle: "⌘⇧E",
+                icon: "folder",
+                isEnabled: hasSession
+            ) {
+                m.toggleFileBrowser()
+            },
             PaletteCommand(id: "clear", title: String(localized: "清空回滚缓冲"), subtitle: "⌘K", icon: "eraser", isEnabled: hasSession) {
                 m.selected?.clearBuffer()
             },

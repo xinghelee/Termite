@@ -37,4 +37,6 @@ enum SettingsKeys {
     static let diffWrapLines = "diff.wrapLines"
     /// 鼠标事件上报给终端程序(vim/htop 等;按住 ⌥ 可临时用本地选择)
     static let mouseReporting = "terminal.mouseReporting"
+    /// 文件浏览器「打开」用的 .app 路径(空 = 跟随系统默认程序)
+    static let fileOpenAppPath = "fileBrowser.openAppPath"
 }

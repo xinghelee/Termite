@@ -25,17 +25,33 @@ final class SessionManager {
     var searchRequestToken = 0
     /// 右侧命令时间线面板
     var isTimelineVisible = false
-    /// 右侧 Git 面板(与时间线互斥,右侧只留一个)
+    /// 右侧 Git 面板(右侧面板互斥,只留一个)
     var isGitPanelVisible = false
+    /// 右侧文件浏览器面板
+    var isFileBrowserVisible = false
 
     func toggleTimeline() {
         isTimelineVisible.toggle()
-        if isTimelineVisible { isGitPanelVisible = false }
+        if isTimelineVisible {
+            isGitPanelVisible = false
+            isFileBrowserVisible = false
+        }
     }
 
     func toggleGitPanel() {
         isGitPanelVisible.toggle()
-        if isGitPanelVisible { isTimelineVisible = false }
+        if isGitPanelVisible {
+            isTimelineVisible = false
+            isFileBrowserVisible = false
+        }
+    }
+
+    func toggleFileBrowser() {
+        isFileBrowserVisible.toggle()
+        if isFileBrowserVisible {
+            isTimelineVisible = false
+            isGitPanelVisible = false
+        }
     }
     /// 本窗口的 ⌘P 命令面板状态
     let palette = CommandPaletteController()

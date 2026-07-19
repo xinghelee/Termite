@@ -160,6 +160,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
     @AppStorage(SettingsKeys.quickTerminalHotkey) private var quickTerminalHotkey = QuickTerminalHotkey.ctrlOptCmdSpace.rawValue
+    @AppStorage(SettingsKeys.fileOpenAppPath) private var openAppPath = ""
     @State private var cliMessage: String?
 
     var body: some View {
@@ -196,6 +197,22 @@ private struct BehaviorSettingsTab: View {
                     Text("⌥Space 易与 Raycast / 输入法切换等冲突,默认使用 ⌃⌥⌘Space。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+            }
+            Section("文件浏览器") {
+                HStack {
+                    Text("打开文件使用")
+                    Spacer()
+                    Text(FileOpener.displayName)
+                        .foregroundStyle(.secondary)
+                    Button("选择…") {
+                        FileOpener.chooseApp { openAppPath = $0 }
+                    }
+                    if !openAppPath.isEmpty {
+                        Button("恢复系统默认") { openAppPath = "" }
+                    }
+                }
+                Text("双击文件或右键「打开」时使用;留空跟随 macOS 的默认程序关联。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("命令行工具") {
                 HStack {

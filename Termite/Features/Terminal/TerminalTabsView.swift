@@ -63,6 +63,14 @@ struct TerminalTabsView: View {
                         .id(session.id)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
+                    if sessionManager.isFileBrowserVisible, let session = sessionManager.selected {
+                        Divider().overlay(ThemeStore.shared.current.borderColor)
+                        FileBrowserView(session: session) {
+                            sessionManager.isFileBrowserVisible = false
+                        }
+                        .id(session.id)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
                 if let session = sessionManager.selected {
                     StatusBarView(session: session)
@@ -226,6 +234,15 @@ struct TerminalTabsView: View {
             ) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                     sessionManager.toggleGitPanel()
+                }
+            }
+            PanelIconButton(
+                symbol: "folder",
+                help: String(localized: "文件浏览器(⇧⌘E)"),
+                tint: sessionManager.isFileBrowserVisible ? ThemeStore.shared.current.accentColor : nil
+            ) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    sessionManager.toggleFileBrowser()
                 }
             }
             ThemePanelButton()

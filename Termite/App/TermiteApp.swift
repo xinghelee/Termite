@@ -202,6 +202,11 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("g", modifiers: .command)
 
+            Button("文件浏览器") {
+                SessionManager.shared.toggleFileBrowser()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+
             Divider()
 
             Button("左右分屏") {
