@@ -26,9 +26,16 @@ struct SidebarView: View {
                     store.move(fromOffsets: from, toOffset: to)
                 }
             } header: {
-                Text("项目")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(theme.current.secondaryText)
+                HStack {
+                    Text("项目")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(theme.current.secondaryText)
+                    Spacer()
+                    HeaderIconButton(symbol: "plus", help: String(localized: "添加项目文件夹")) {
+                        pickFolder()
+                    }
+                    .padding(.trailing, 4)
+                }
             }
 
             if store.projects.isEmpty {
@@ -36,7 +43,7 @@ struct SidebarView: View {
                     Text("还没有项目")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-                    Text("点右上 + 选择文件夹,或把文件夹拖到这里。点击项目即在该目录打开终端标签。")
+                    Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。点击项目即在该目录打开终端标签。")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -52,6 +59,13 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(theme.current.sidebarBackground)
+        // 右缘发丝线:与标题栏下方的结构线呼应,划清侧边栏与终端区
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(theme.current.borderColor)
+                .frame(width: 1)
+                .ignoresSafeArea()
+        }
         .dropDestination(for: URL.self) { urls, _ in
             var added = false
             for url in urls {
@@ -62,16 +76,6 @@ struct SidebarView: View {
                 }
             }
             return added
-        }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    pickFolder()
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .help("添加项目文件夹")
-            }
         }
     }
 
@@ -101,16 +105,11 @@ struct SidebarView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.current.secondaryText)
                 Spacer()
-                Button {
+                HeaderIconButton(symbol: "plus.square.on.square", help: String(localized: "保存当前布局为工作区模板")) {
                     saveCurrentLayout()
-                } label: {
-                    Image(systemName: "plus.square.on.square")
-                        .font(.system(size: 10))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
                 .disabled(sessionManager.tabs.isEmpty)
-                .help("保存当前布局为工作区模板")
+                .padding(.trailing, 4)
             }
         }
     }
@@ -160,6 +159,29 @@ struct SidebarView: View {
     }
 }
 
+/// 侧边栏区块标题右侧的小图标按钮:悬停有圆形底色响应
+private struct HeaderIconButton: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(hovering ? Color.primary.opacity(0.1) : .clear))
+        }
+        .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .onHover { hovering = $0 }
+        .help(help)
+    }
+}
+
 private struct WorkspaceRow: View {
     let workspace: Workspace
     let open: () -> Void
@@ -173,14 +195,15 @@ private struct WorkspaceRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "square.grid.2x2")
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 1) {
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 1.5) {
                 Text(workspace.name)
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                 Text("\(workspace.tabs.count) 标签 · \(workspace.paneCount) pane")
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
@@ -216,15 +239,17 @@ private struct ProjectRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // Finder 式裸图标:固定宽度对齐成列,活动态用强调色
             Image(systemName: "folder.fill")
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .foregroundStyle(isActive ? theme.accentColor : Color.secondary)
-            VStack(alignment: .leading, spacing: 1) {
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 1.5) {
                 Text(project.name)
-                    .font(.system(size: 12.5, weight: isActive ? .semibold : .regular))
+                    .font(.system(size: 13, weight: isActive ? .semibold : .medium))
                     .lineLimit(1)
                 Text((project.path as NSString).abbreviatingWithTildeInPath)
-                    .font(.system(size: 10.5, design: .monospaced))
+                    .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)

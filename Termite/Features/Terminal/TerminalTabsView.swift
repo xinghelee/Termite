@@ -2,12 +2,21 @@ import SwiftUI
 
 /// 终端区:标签 chips(标题栏)+ 当前标签的分屏树 + 底部状态栏
 struct TerminalTabsView: View {
+    /// 侧边栏切换(系统按钮已移除,由这里统一样式渲染);nil 时不显示
+    var toggleSidebar: (() -> Void)? = nil
+
     @Environment(SessionManager.self) private var sessionManager
     @Environment(\.openWindow) private var openWindow
+    @State private var chipsContentWidth: CGFloat = 0
+    @State private var chipsContainerWidth: CGFloat = 0
 
     var body: some View {
         @Bindable var manager = sessionManager
         VStack(spacing: 0) {
+            // 标题栏与终端区同色,一条发丝线划出结构边界
+            Rectangle()
+                .fill(ThemeStore.shared.current.borderColor)
+                .frame(height: 1)
             if sessionManager.tabs.isEmpty {
                 emptyState
             } else if let tab = sessionManager.selectedTab {
@@ -83,12 +92,12 @@ struct TerminalTabsView: View {
         .toolbar {
             if #available(macOS 26.0, *) {
                 ToolbarItem(placement: .navigation) {
-                    if !sessionManager.tabs.isEmpty { tabChips }
+                    leadingControls
                 }
                 .sharedBackgroundVisibility(.hidden)
             } else {
                 ToolbarItem(placement: .navigation) {
-                    if !sessionManager.tabs.isEmpty { tabChips }
+                    leadingControls
                 }
             }
             if #available(macOS 26.0, *) {
@@ -156,7 +165,38 @@ struct TerminalTabsView: View {
         tab.root.leafIDs().contains { sessionManager.session($0)?.hasUnseenActivity == true }
     }
 
-    /// 标签 chips(标题栏左侧):两端渐隐,选中自动滚入
+    /// 标题栏左侧:侧边栏切换 + 标签 chips + 新建标签(「+」贴着标签条,符合浏览器习惯)
+    private var leadingControls: some View {
+        HStack(spacing: 6) {
+            if let toggleSidebar {
+                PanelIconButton(symbol: "sidebar.leading", help: String(localized: "显示 / 隐藏侧边栏")) {
+                    toggleSidebar()
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(RaisedCapsule())
+            }
+            if !sessionManager.tabs.isEmpty {
+                tabChips
+                PanelIconButton(symbol: "plus", help: String(localized: "新建标签页(⌘T)")) {
+                    sessionManager.newTab()
+                }
+            }
+        }
+    }
+
+    /// 标签条溢出可滚动时才显示两端渐隐,避免内容未满时文字被无故淡掉
+    private var chipsOverflow: Bool {
+        chipsContentWidth > chipsContainerWidth + 1
+    }
+
+    /// 标签条轨道:比标题栏底色再暗一档,内凹感,把所有 chips 收进同一个容器
+    private var chipTrackColor: Color {
+        let theme = ThemeStore.shared.current
+        return Color(nsColor: theme.backgroundNSColor.mixed(with: .black, ratio: theme.isDark ? 0.22 : 0.05))
+    }
+
+    /// 标签 chips(标题栏左侧):深色轨道内选中浮起,溢出时两端渐隐,选中自动滚入
     private var tabChips: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -193,17 +233,30 @@ struct TerminalTabsView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 4)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContentWidth = $0 }
             }
             .frame(maxWidth: 560, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContainerWidth = $0 }
             .mask(
                 HStack(spacing: 0) {
-                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [chipsOverflow ? .clear : .black, .black], startPoint: .leading, endPoint: .trailing)
                         .frame(width: 12)
                     Color.black
-                    LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [.black, chipsOverflow ? .clear : .black], startPoint: .leading, endPoint: .trailing)
                         .frame(width: 12)
                 }
+            )
+            // 背景加在 mask 之后:轨道本身不参与两端渐隐。
+            // 内阴影让轨道真正"凹进去",避免纯平色块的廉价感
+            .padding(3)
+            .background(
+                Capsule().fill(
+                    chipTrackColor.shadow(.inner(
+                        color: .black.opacity(ThemeStore.shared.current.isDark ? 0.4 : 0.1),
+                        radius: 1.5, y: 1
+                    ))
+                )
             )
             .onChange(of: sessionManager.selectedTabID) { _, selected in
                 guard let selected else { return }
@@ -212,12 +265,9 @@ struct TerminalTabsView: View {
         }
     }
 
-    /// 标题栏右侧按钮组:新建标签 + 命令时间线 + 主题面板
+    /// 标题栏右侧按钮组:面板开关(时间线 / Git / 文件)+ 主题面板
     private var panelButtons: some View {
         HStack(spacing: 2) {
-            PanelIconButton(symbol: "plus", help: String(localized: "新建标签页(⌘T)")) {
-                sessionManager.newTab()
-            }
             PanelIconButton(
                 symbol: "clock.arrow.circlepath",
                 help: String(localized: "命令时间线(⌘I)"),
@@ -249,11 +299,7 @@ struct TerminalTabsView: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
-        .background(
-            Capsule()
-                .fill(ThemeStore.shared.current.elevatedBackground)
-                .overlay(Capsule().stroke(ThemeStore.shared.current.borderColor, lineWidth: 1))
-        )
+        .background(RaisedCapsule())
     }
 
     /// 广播模式横幅:提示所有分屏同步接收键入
@@ -293,6 +339,27 @@ struct TerminalTabsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// 浮起材质胶囊:投影 + 顶部受光细边。选中标签、标题栏按钮共用同一套光影语言
+struct RaisedCapsule: View {
+    var body: some View {
+        let theme = ThemeStore.shared.current
+        Capsule()
+            .fill(theme.elevatedBackground.shadow(.drop(
+                color: .black.opacity(theme.isDark ? 0.35 : 0.15),
+                radius: 1.5, y: 1
+            )))
+            .overlay(
+                Capsule().strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(theme.isDark ? 0.16 : 0.6), .white.opacity(0)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+            )
     }
 }
 
@@ -354,9 +421,12 @@ private struct SessionTitleCapsule: View {
             }
         } label: {
             HStack(spacing: 7) {
-                Circle()
-                    .fill(session.state == .running ? Color.green : Color.red)
-                    .frame(width: 6, height: 6)
+                // 运行中是常态不提示,仅退出时红点示警(与标签 chips 的规则一致)
+                if session.state != .running {
+                    Circle()
+                        .fill(Color.red.opacity(0.8))
+                        .frame(width: 6, height: 6)
+                }
                 Text(session.shellName)
                     .font(.system(size: 12, weight: .medium))
                 if !directoryText.isEmpty {
@@ -369,16 +439,10 @@ private struct SessionTitleCapsule: View {
             .truncationMode(.middle)
             .frame(maxWidth: 380)
             .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.vertical, 5)
+            // 纯信息展示不需要一直"装在盒子里",悬停时才显形提示可点
             .background(
-                Capsule()
-                    .fill(theme.elevatedBackground)
-                    .overlay(
-                        Capsule().stroke(
-                            hovering ? theme.accentColor.opacity(0.4) : theme.borderColor,
-                            lineWidth: 1
-                        )
-                    )
+                Capsule().fill(hovering ? Color.primary.opacity(0.06) : .clear)
             )
             .contentShape(Capsule())
         }
@@ -546,7 +610,8 @@ private struct TerminalTabChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            // 有命令在跑时旋转指示;后台有新输出时强调色大点;空闲绿色圆点
+            // 圆点只承载例外状态:命令在跑转菊花、后台新输出强调色点、进程退出红点;
+            // 空闲是常态,不显示指示,避免整排绿点噪音
             if focusedSession?.runningCommand == true {
                 ProgressView()
                     .controlSize(.mini)
@@ -556,14 +621,16 @@ private struct TerminalTabChip: View {
                     .fill(ThemeStore.shared.current.accentColor)
                     .frame(width: 7, height: 7)
                     .help("有新输出")
-            } else {
+            } else if case .exited = focusedSession?.state {
                 Circle()
-                    .fill(stateColor)
+                    .fill(Color.red.opacity(0.8))
                     .frame(width: 6, height: 6)
+                    .help("进程已退出")
             }
             Text(focusedSession?.displayTitle ?? String(localized: "终端"))
                 .font(.system(size: 12))
                 .lineLimit(1)
+                .frame(maxWidth: 150)
             if paneCount > 1 {
                 Text("\(paneCount)")
                     .font(.system(size: 9, weight: .semibold).monospacedDigit())
@@ -580,28 +647,21 @@ private struct TerminalTabChip: View {
             .buttonStyle(.plain)
             .opacity(isHovering || isSelected ? 0.7 : 0)
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 5)
-        .background(
-            Capsule()
-                .fill(isSelected ? ThemeStore.shared.current.accentSoft : (isHovering ? Color.primary.opacity(0.06) : .clear))
-        )
-        .overlay(
-            Capsule()
-                .stroke(isSelected ? ThemeStore.shared.current.accentColor.opacity(0.35) : .clear, lineWidth: 1)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background {
+            // 深色轨道内:选中 chip 用浮起材质,未选中保持透明、悬停微亮
+            if isSelected {
+                RaisedCapsule()
+            } else if isHovering {
+                Capsule().fill(Color.primary.opacity(0.05))
+            }
+        }
         .foregroundStyle(isSelected ? .primary : .secondary)
         .contentShape(Capsule())
         .animation(.easeOut(duration: 0.12), value: isHovering)
         .onTapGesture(perform: select)
         .onHover { isHovering = $0 }
-    }
-
-    private var stateColor: Color {
-        switch focusedSession?.state {
-        case .running: return .green
-        case .exited, .none: return .gray
-        }
     }
 }
 

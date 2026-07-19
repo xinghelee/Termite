@@ -26,8 +26,15 @@ struct MainWindowView: View {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
                 SidebarView()
                     .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                    // 系统自带的侧边栏切换按钮是大号玻璃样式,和标题栏其余小圆钮不搭;
+                    // 移除后由 TerminalTabsView 用统一样式的 PanelIconButton 替代
+                    .toolbar(removing: .sidebarToggle)
             } detail: {
-                TerminalTabsView()
+                TerminalTabsView(toggleSidebar: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
+                    }
+                })
             }
 
             if manager.palette.isPresented {
