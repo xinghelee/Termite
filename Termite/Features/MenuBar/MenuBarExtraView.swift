@@ -30,7 +30,7 @@ struct MenuBarExtraView: View {
                 SessionManager.shared.newTab()
             }
         }
-        Button("下拉终端(⌥Space)") {
+        Button("下拉终端(\(QuickTerminalHotkey.current.label))") {
             QuickTerminalController.shared.toggle()
         }
         Divider()

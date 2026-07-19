@@ -29,8 +29,10 @@ enum SettingsKeys {
     static let restoreSessions = "session.restoreOnLaunch"
     /// 菜单栏常驻图标
     static let menuBarExtra = "app.menuBarExtra"
-    /// ⌥Space 下拉终端
+    /// 下拉终端(全局热键)
     static let quickTerminal = "app.quickTerminal"
+    /// 下拉终端热键选择(QuickTerminalHotkey.rawValue)
+    static let quickTerminalHotkey = "app.quickTerminalHotkey"
     /// diff 视图自动换行(关闭则横向滚动看原始排版)
     static let diffWrapLines = "diff.wrapLines"
     /// 鼠标事件上报给终端程序(vim/htop 等;按住 ⌥ 可临时用本地选择)

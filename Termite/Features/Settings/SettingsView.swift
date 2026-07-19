@@ -159,6 +159,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
+    @AppStorage(SettingsKeys.quickTerminalHotkey) private var quickTerminalHotkey = QuickTerminalHotkey.ctrlOptCmdSpace.rawValue
     @State private var cliMessage: String?
 
     var body: some View {
@@ -175,7 +176,7 @@ private struct BehaviorSettingsTab: View {
             }
             Section("通用") {
                 Toggle("在菜单栏显示图标", isOn: $menuBarExtraEnabled)
-                Toggle("⌥Space 下拉终端(全局热键)", isOn: $quickTerminalEnabled)
+                Toggle("下拉终端(全局热键)", isOn: $quickTerminalEnabled)
                     .onChange(of: quickTerminalEnabled) { _, on in
                         if on {
                             QuickTerminalController.shared.registerHotKeyIfEnabled()
@@ -183,6 +184,18 @@ private struct BehaviorSettingsTab: View {
                             QuickTerminalController.shared.unregisterHotKey()
                         }
                     }
+                if quickTerminalEnabled {
+                    Picker("下拉终端热键", selection: $quickTerminalHotkey) {
+                        ForEach(QuickTerminalHotkey.allCases) { hotkey in
+                            Text(hotkey.label).tag(hotkey.rawValue)
+                        }
+                    }
+                    .onChange(of: quickTerminalHotkey) { _, _ in
+                        QuickTerminalController.shared.reregisterHotKey()
+                    }
+                    Text("⌥Space 易与 Raycast / 输入法切换等冲突,默认使用 ⌃⌥⌘Space。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Section("命令行工具") {
                 HStack {

@@ -82,7 +82,7 @@ struct CommandPaletteView: View {
             PaletteCommand(id: "ports", title: String(localized: "端口管理(谁占了 3000)"), icon: "network") {
                 m.portsPresented = true
             },
-            PaletteCommand(id: "quick-terminal", title: String(localized: "下拉终端"), subtitle: "⌥Space", icon: "rectangle.topthird.inset.filled") {
+            PaletteCommand(id: "quick-terminal", title: String(localized: "下拉终端"), subtitle: QuickTerminalHotkey.current.label, icon: "rectangle.topthird.inset.filled") {
                 QuickTerminalController.shared.toggle()
             },
             PaletteCommand(id: "reveal-cwd", title: String(localized: "在 Finder 中打开工作目录"), icon: "folder", isEnabled: m.selected?.workingDirectory != nil) {

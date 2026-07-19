@@ -2,7 +2,44 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
-/// Quake 式下拉终端:⌥Space 全局热键(Carbon RegisterEventHotKey,无需辅助功能权限)
+/// 下拉终端全局热键选项(可在设置切换;⌥Space 与 Raycast/Alfred 等冲突,默认用 ⌃⌥⌘Space)
+enum QuickTerminalHotkey: String, CaseIterable, Identifiable {
+    case ctrlOptCmdSpace
+    case optSpace
+    case f12
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .ctrlOptCmdSpace: return "⌃⌥⌘Space"
+        case .optSpace: return "⌥Space"
+        case .f12: return "F12"
+        }
+    }
+
+    var keyCode: UInt32 {
+        switch self {
+        case .ctrlOptCmdSpace, .optSpace: return UInt32(kVK_Space)
+        case .f12: return UInt32(kVK_F12)
+        }
+    }
+
+    var carbonModifiers: UInt32 {
+        switch self {
+        case .ctrlOptCmdSpace: return UInt32(controlKey | optionKey | cmdKey)
+        case .optSpace: return UInt32(optionKey)
+        case .f12: return 0
+        }
+    }
+
+    static var current: QuickTerminalHotkey {
+        UserDefaults.standard.string(forKey: SettingsKeys.quickTerminalHotkey)
+            .flatMap(QuickTerminalHotkey.init(rawValue:)) ?? .ctrlOptCmdSpace
+    }
+}
+
+/// Quake 式下拉终端:全局热键(Carbon RegisterEventHotKey,无需辅助功能权限)
 /// 从屏幕顶部滑下一块非激活浮动面板,承载一个独立于标签体系的终端会话。
 @MainActor
 final class QuickTerminalController {
@@ -15,7 +52,7 @@ final class QuickTerminalController {
 
     private var isVisible: Bool { panel?.isVisible ?? false }
 
-    // MARK: - 全局热键(⌥Space)
+    // MARK: - 全局热键
 
     func registerHotKeyIfEnabled() {
         let enabled = UserDefaults.standard.object(forKey: SettingsKeys.quickTerminal) as? Bool ?? true
@@ -36,15 +73,22 @@ final class QuickTerminalController {
             &eventHandlerRef
         )
 
+        let hotkey = QuickTerminalHotkey.current
         let hotKeyID = EventHotKeyID(signature: OSType(0x544D5445), id: 1) // "TMTE"
         RegisterEventHotKey(
-            UInt32(kVK_Space),
-            UInt32(optionKey),
+            hotkey.keyCode,
+            hotkey.carbonModifiers,
             hotKeyID,
             GetEventDispatcherTarget(),
             0,
             &hotKeyRef
         )
+    }
+
+    /// 设置里切换了热键:注销重注册
+    func reregisterHotKey() {
+        unregisterHotKey()
+        registerHotKeyIfEnabled()
     }
 
     func unregisterHotKey() {
@@ -172,7 +216,7 @@ private struct QuickTerminalContent: View {
             HStack {
                 Image(systemName: "rectangle.topthird.inset.filled")
                     .font(.system(size: 9))
-                Text("下拉终端 · ⌥Space 收起")
+                Text("下拉终端 · \(QuickTerminalHotkey.current.label) 收起")
                     .font(.system(size: 10))
                 Spacer()
             }
