@@ -126,11 +126,12 @@ final class SessionManagerRegistry {
         return pendingAdoptTab
     }
 
-    /// Dock 角标:全局运行中命令数(含下拉终端)
+    /// Dock 角标:全局运行中命令数(含下拉终端)——暂时停用,恢复时启用注释里的计数
     func updateDockBadge() {
-        var count = allSessions.filter(\.runningCommand).count
-        if QuickTerminalController.shared.session?.runningCommand == true { count += 1 }
-        NSApp.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
+        NSApp.dockTile.badgeLabel = nil
+        // var count = allSessions.filter(\.runningCommand).count
+        // if QuickTerminalController.shared.session?.runningCommand == true { count += 1 }
+        // NSApp.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
     }
 
     // MARK: - 打开标签持久化(跨窗口聚合:布局树 + 可选 scrollback 快照)
