@@ -100,8 +100,61 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard inputEnabled else { return }
+        pauseCursorBlinkForInput()
         super.send(source: source, data: data)
         session?.didSendUserInput(Array(data))
+    }
+
+    // MARK: - 输入时暂停光标闪烁
+
+    /// Metal 光标闪烁是渲染器里自由运转的 0.7s 定时器,按键不重置相位:
+    /// 左右键移动光标时若恰逢"灭"半周期,光标要过大半秒才在新位置亮起,看着像闪没了。
+    /// (打字没这问题,是因为回显重绘常伴随 DECTCEM 隐/显光标,顺带重置了定时器。)
+    /// 仿 xterm/iTerm:有输入就把闪烁样式临时换成同形状的稳定样式(常亮),
+    /// 停止输入一段时间后换回,闪烁从"亮"相位重启。CG 与 Metal 两条渲染路径同时生效。
+    var blinkResumeDelay: TimeInterval = 0.7
+    private var blinkRestoreWork: DispatchWorkItem?
+    private var blinkStyleToRestore: CursorStyle?
+
+    private func pauseCursorBlinkForInput() {
+        let terminal = getTerminal()
+        let current = terminal.options.cursorStyle
+        if let saved = blinkStyleToRestore, Self.steadyVariant(of: saved) != current {
+            // 暂停期间样式被外部改过(TUI 的 DECSCUSR 或设置面板),放弃旧值按当前样式重新判断
+            blinkStyleToRestore = nil
+        }
+        if blinkStyleToRestore == nil {
+            guard let steady = Self.steadyVariant(of: current) else {
+                blinkRestoreWork?.cancel()
+                blinkRestoreWork = nil
+                return
+            }
+            blinkStyleToRestore = current
+            terminal.setCursorStyle(steady)
+        }
+        blinkRestoreWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.resumeCursorBlink() }
+        blinkRestoreWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + blinkResumeDelay, execute: work)
+    }
+
+    private func resumeCursorBlink() {
+        blinkRestoreWork = nil
+        guard let blink = blinkStyleToRestore else { return }
+        blinkStyleToRestore = nil
+        let terminal = getTerminal()
+        // 只在样式仍是我们换上的稳定样式时才换回;期间被外部改过就不抢
+        guard terminal.options.cursorStyle == Self.steadyVariant(of: blink) else { return }
+        terminal.setCursorStyle(blink)
+    }
+
+    private static func steadyVariant(of style: CursorStyle) -> CursorStyle? {
+        switch style {
+        case .blinkBlock: return .steadyBlock
+        case .blinkUnderline: return .steadyUnderline
+        case .blinkBar: return .steadyBar
+        default: return nil
+        }
     }
 
     // MARK: - 右键菜单
