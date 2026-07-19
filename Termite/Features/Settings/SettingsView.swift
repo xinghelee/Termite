@@ -30,7 +30,7 @@ private struct TerminalSettingsTab: View {
     @AppStorage(SettingsKeys.optionAsMeta) private var optionAsMeta = true
     @AppStorage(SettingsKeys.mouseReporting) private var mouseReporting = true
     @AppStorage(SettingsKeys.scrollbackLines) private var scrollbackLines = 10_000
-    @AppStorage(SettingsKeys.metalRenderer) private var metalRenderer = false
+    @AppStorage(SettingsKeys.metalRenderer) private var metalRenderer = true
 
     @State private var families: [String] = []
 
@@ -78,8 +78,8 @@ private struct TerminalSettingsTab: View {
                     Text("50 000").tag(50_000)
                     Text("100 000").tag(100_000)
                 }
-                Toggle("Metal GPU 渲染(实验性)", isOn: $metalRenderer)
-                Text("Metal 在部分场景有首帧空白/刷新问题,默认关闭,切换即时生效。回滚行数对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。")
+                Toggle("Metal GPU 渲染", isOn: $metalRenderer)
+                Text("Metal 渲染默认开启,遇到显示异常可在此关闭,切换即时生效。回滚行数对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .onChange(of: metalRenderer) { _, on in
