@@ -23,6 +23,8 @@ enum CursorPrefs {
     @MainActor
     static func apply(to view: SwiftTerm.TerminalView) {
         view.getTerminal().setCursorStyle(resolved())
+        // 失焦 pane 立刻整形回常亮,不等下次焦点切换
+        (view as? TermiteTerminalView)?.reassertCursorFocusState()
     }
 
     @MainActor

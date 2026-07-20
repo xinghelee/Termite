@@ -28,6 +28,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         if window != nil, let session, session.manager?.selected === session {
             window?.makeFirstResponder(self)
         }
+        observeWindowKeyState()
         syncPtyWindowSize()
     }
 
@@ -70,6 +71,10 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         registerForDraggedTypes([.fileURL])
+    }
+
+    deinit {
+        windowKeyObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     // MARK: - 拖文件进终端:插入 shell 转义后的路径
@@ -166,6 +171,75 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         case .blinkUnderline: return .steadyUnderline
         case .blinkBar: return .steadyBar
         default: return nil
+        }
+    }
+
+    // MARK: - 只有聚焦 pane 的光标闪烁
+
+    /// SwiftTerm 失焦时画空心光标,但闪烁定时器不看焦点,「灭」相位连空心框
+    /// 一起消失——多分屏时满屏光标齐闪。失焦把样式换成同形状常亮(Metal 的
+    /// 闪烁定时器随样式停掉),聚焦时还原。
+    private var focusStyleToRestore: CursorStyle?
+    /// becomeFirstResponder 在 SwiftTerm 里是 public 不可再覆写,
+    /// 改为 KVO 窗口 firstResponder(SwiftTerm 的 override 先跑,hasFocus 已就绪)
+    private var firstResponderObservation: NSKeyValueObservation?
+
+    /// internal 供测试直接驱动(单测里视图不在真实响应者链上)
+    func applyFocusCursorStyle(focused: Bool) {
+        let terminal = getTerminal()
+        // 两套「临时常亮」机制不叠加:焦点切换时先结清输入暂停态,
+        // 真正的闪烁样式若被暂停机制存着,从那里取回
+        blinkRestoreWork?.cancel()
+        blinkRestoreWork = nil
+        let pausedBlink = blinkStyleToRestore
+        blinkStyleToRestore = nil
+        if focused {
+            guard let saved = focusStyleToRestore else { return }
+            focusStyleToRestore = nil
+            // 失焦期间样式被外部(TUI 的 DECSCUSR)改过就不抢
+            if terminal.options.cursorStyle == Self.steadyVariant(of: saved) {
+                terminal.setCursorStyle(saved)
+            }
+        } else {
+            let current = pausedBlink ?? terminal.options.cursorStyle
+            guard let steady = Self.steadyVariant(of: current) else { return }
+            focusStyleToRestore = current
+            terminal.setCursorStyle(steady)
+        }
+    }
+
+    /// 光标偏好变更后重新按当前焦点态整形(CursorPrefs.applyToAllSessions 调用)
+    func reassertCursorFocusState() {
+        focusStyleToRestore = nil
+        applyFocusCursorStyle(focused: hasFocus)
+    }
+
+    /// 窗口失去/夺回 key 时同样只让聚焦 pane 闪(hasFocus 已含 isKeyWindow 判断)
+    private var windowKeyObservers: [NSObjectProtocol] = []
+
+    private func observeWindowKeyState() {
+        windowKeyObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        windowKeyObservers = []
+        firstResponderObservation = nil
+        guard let window else { return }
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            let token = NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.applyFocusCursorStyle(focused: self.hasFocus)
+                }
+            }
+            windowKeyObservers.append(token)
+        }
+        firstResponderObservation = window.observe(\.firstResponder, options: [.old, .new]) { [weak self] _, change in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // 只关心涉及本视图的焦点进出
+                let old = change.oldValue ?? nil
+                let new = change.newValue ?? nil
+                guard old === self || new === self else { return }
+                self.applyFocusCursorStyle(focused: self.hasFocus)
+            }
         }
     }
 
