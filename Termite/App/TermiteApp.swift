@@ -31,8 +31,11 @@ final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         MainActor.assumeIsolated {
             let confirmEnabled = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
-            let running = SessionManagerRegistry.shared.allSessions.filter(\.runningCommand).count
-            guard confirmEnabled, running > 0 else { return .terminateNow }
+            let runningSessions = SessionManagerRegistry.shared.allSessions.filter(\.runningCommand)
+            // 保活会话退出后照常在守护进程里跑,重启接回,无需吓唬用户
+            let allSurvive = !runningSessions.isEmpty && runningSessions.allSatisfy(\.usesHostTransport)
+            let running = runningSessions.count
+            guard confirmEnabled, running > 0, !allSurvive else { return .terminateNow }
             let alert = NSAlert()
             alert.messageText = String(localized: "退出 Termite?")
             alert.informativeText = String(localized: "有 \(running) 个命令正在运行,退出会终止它们。")

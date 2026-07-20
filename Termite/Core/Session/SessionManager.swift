@@ -114,8 +114,8 @@ final class SessionManager {
 
     /// ⌘T:新标签页。默认继承当前聚焦会话的工作目录(设置可关)。
     @discardableResult
-    func newTab(directory: String? = nil, scrollback: String? = nil) -> TerminalSession {
-        let session = makeSession(directory: directory ?? inheritedDirectory(), scrollback: scrollback)
+    func newTab(directory: String? = nil, scrollback: String? = nil, reattach: PtyReattach? = nil) -> TerminalSession {
+        let session = makeSession(directory: directory ?? inheritedDirectory(), scrollback: scrollback, reattach: reattach)
         sessions.append(session)
         let tab = PaneTab(sessionID: session.id)
         tabs.append(tab)
@@ -138,9 +138,9 @@ final class SessionManager {
         return inherits ? selected?.workingDirectory : nil
     }
 
-    private func makeSession(directory: String?, scrollback: String? = nil) -> TerminalSession {
-        let session = TerminalSession(workingDirectory: directory, restoreScrollback: scrollback)
-        session.manager = self
+    private func makeSession(directory: String?, scrollback: String? = nil, reattach: PtyReattach? = nil) -> TerminalSession {
+        let session = TerminalSession(workingDirectory: directory, restoreScrollback: scrollback,
+                                      reattach: reattach, manager: self)
         session.onProcessExit = { [weak self, weak session] in
             guard let self, let session else { return }
             self.closePane(session)
@@ -336,6 +336,9 @@ final class SessionManager {
         switch node {
         case .leaf(let sid):
             let encoded = WorkspaceNode(cwd: session(sid)?.workingDirectory)
+            // 保活票据:重启后凭 (会话 ID, 已消费偏移) 无缝接回守护进程里的 shell
+            encoded.ptyID = session(sid)?.hostPtyID
+            encoded.ptyOffset = session(sid)?.consumedHostOffset
             if let scrollbackDirectory,
                let text = session(sid)?.scrollbackSnapshot() {
                 let name = UUID().uuidString + ".txt"
@@ -365,10 +368,17 @@ final class SessionManager {
     /// 从布局节点重建一个标签(工作区模板与会话恢复共用;节点带 scrollback 引用则回灌)
     func openTab(from node: WorkspaceNode) {
         let firstLeaf = node.firstLeafNode
-        let first = newTab(directory: validDirectory(firstLeaf.cwd), scrollback: restoredScrollback(firstLeaf))
+        let first = newTab(directory: validDirectory(firstLeaf.cwd),
+                           scrollback: restoredScrollback(firstLeaf),
+                           reattach: reattachTicket(firstLeaf))
         guard let tab = tabs.last, tab.root.leafIDs() == [first.id] else { return }
         buildSplits(node, existingLeaf: first.id, in: tab)
         tab.focusedID = first.id
+    }
+
+    private func reattachTicket(_ node: WorkspaceNode) -> PtyReattach? {
+        guard let ptyID = node.ptyID else { return nil }
+        return PtyReattach(id: ptyID, offset: node.ptyOffset ?? 0)
     }
 
     private func restoredScrollback(_ node: WorkspaceNode) -> String? {
@@ -381,7 +391,9 @@ final class SessionManager {
     private func buildSplits(_ node: WorkspaceNode, existingLeaf: UUID, in tab: PaneTab) {
         guard let axisRaw = node.axis, let a = node.first, let b = node.second else { return }
         let bLeaf = b.firstLeafNode
-        let secondary = makeSession(directory: validDirectory(bLeaf.cwd), scrollback: restoredScrollback(bLeaf))
+        let secondary = makeSession(directory: validDirectory(bLeaf.cwd),
+                                    scrollback: restoredScrollback(bLeaf),
+                                    reattach: reattachTicket(bLeaf))
         sessions.append(secondary)
         tab.root = tab.root.splitting(
             leaf: existingLeaf,
@@ -432,7 +444,9 @@ final class SessionManager {
             newTab()
             return
         }
+        var claimedPtyIDs: Set<UUID> = []
         if let state = SessionManagerRegistry.loadSavedState(), !state.tabs.isEmpty {
+            claimedPtyIDs = Set(state.tabs.flatMap(\.allPtyIDs))
             for node in state.tabs {
                 openTab(from: node)
             }
@@ -457,6 +471,27 @@ final class SessionManager {
         // Dock 拖放 / CLI 冷启动送进来的目录,追加为新标签并选中
         for dir in SessionManagerRegistry.shared.takePendingOpenDirectories() {
             newTab(directory: validDirectory(dir))
+        }
+        // 守护进程里 app 状态没记到的活会话(崩溃丢状态等):收养成新标签,不留隐形僵尸
+        Task { await adoptOrphanHostSessions(claimed: claimedPtyIDs) }
+    }
+
+    /// 孤儿保活会话收养:LIST 守护进程 → 不在恢复名单里的活会话开新标签接回,
+    /// 死会话清掉记录。守护进程没在跑就不拉起(没有守护进程自然没有孤儿)。
+    private func adoptOrphanHostSessions(claimed: Set<UUID>) async {
+        let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
+            && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+        guard keepAlive else { return }
+        let client = PtyHostClient.shared
+        guard await client.ensureReady(spawnIfNeeded: false),
+              let listing = await client.list() else { return }
+        for info in listing where !claimed.contains(info.id) {
+            if info.alive {
+                newTab(directory: validDirectory(info.cwd),
+                       reattach: PtyReattach(id: info.id, offset: info.headOffset))
+            } else {
+                client.kill(id: info.id)
+            }
         }
     }
 

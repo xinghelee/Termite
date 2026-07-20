@@ -157,6 +157,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.confirmBeforeClosingTab) private var confirmBeforeClosingTab = true
     @AppStorage(SettingsKeys.notifyLongCommand) private var notifyLongCommand = true
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
+    @AppStorage(SettingsKeys.sessionPersistence) private var sessionPersistence = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
     @AppStorage(SettingsKeys.quickTerminalHotkey) private var quickTerminalHotkey = QuickTerminalHotkey.ctrlOptCmdSpace.rawValue
@@ -174,6 +175,8 @@ private struct BehaviorSettingsTab: View {
                 Toggle("关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)", isOn: $confirmBeforeClosingTab)
                 Toggle("后台长命令(≥10s)完成时系统通知", isOn: $notifyLongCommand)
                 Toggle("启动时恢复上次的标签页(工作目录)", isOn: $restoreSessions)
+                Toggle("退出后保留会话(重启无缝接回,命令继续跑)", isOn: $sessionPersistence)
+                    .disabled(!restoreSessions)
             }
             Section("通用") {
                 Toggle("在菜单栏显示图标", isOn: $menuBarExtraEnabled)

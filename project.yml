@@ -23,8 +23,21 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - path: Termite
+      - path: PtyHostShared
     dependencies:
       - package: SwiftTerm
+      # 只要构建顺序,不链接;产物由 postBuildScripts 拷进 bundle
+      - target: PtyHostDaemon
+        link: false
+        embed: false
+    postBuildScripts:
+      - name: Embed termite-ptyhost
+        script: |
+          cp -f "$BUILT_PRODUCTS_DIR/termite-ptyhost" "$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/MacOS/termite-ptyhost"
+        inputFiles:
+          - $(BUILT_PRODUCTS_DIR)/termite-ptyhost
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/MacOS/termite-ptyhost
     scheme:
       configVariants: []
       testTargets:
@@ -56,6 +69,22 @@ targets:
         ENABLE_HARDENED_RUNTIME: false
         DEAD_CODE_STRIPPING: true
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  PtyHostDaemon:
+    type: tool
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: PtyHostShared
+      - path: PtyHostDaemon
+    settings:
+      base:
+        PRODUCT_NAME: termite-ptyhost
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 99LYH6FNPS
+        DEAD_CODE_STRIPPING: true
 
   TermiteTests:
     type: bundle.unit-test

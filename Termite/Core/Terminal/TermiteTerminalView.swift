@@ -48,9 +48,16 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     private var lastSyncedGrid = (cols: 0, rows: 0)
 
     private func syncPtyWindowSize() {
-        guard process?.running == true else { return }
         let terminal = getTerminal()
         guard terminal.cols != lastSyncedGrid.cols || terminal.rows != lastSyncedGrid.rows else { return }
+        if let session, session.usesHostTransport {
+            // 保活模式:LocalProcessTerminalView.sizeChanged 会因 process 未运行直接 return,
+            // winsize 经协议发给守护进程
+            lastSyncedGrid = (terminal.cols, terminal.rows)
+            session.hostResize(cols: terminal.cols, rows: terminal.rows)
+            return
+        }
+        guard process?.running == true else { return }
         lastSyncedGrid = (terminal.cols, terminal.rows)
         sizeChanged(source: self, newCols: terminal.cols, newRows: terminal.rows)
     }
@@ -101,7 +108,12 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard inputEnabled else { return }
         pauseCursorBlinkForInput()
-        super.send(source: source, data: data)
+        if let session, session.usesHostTransport {
+            // 保活模式:shell 在守护进程里,输入走协议而不是本地 LocalProcess
+            session.sendRawInput(Array(data))
+        } else {
+            super.send(source: source, data: data)
+        }
         session?.didSendUserInput(Array(data))
     }
 

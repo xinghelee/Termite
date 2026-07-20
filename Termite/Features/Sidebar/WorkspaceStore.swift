@@ -21,6 +21,9 @@ final class WorkspaceNode: Codable {
     var second: WorkspaceNode?
     /// 会话恢复:该叶子的 scrollback 快照文件名(restore 目录下;工作区模板不用)
     var scrollbackFile: String?
+    /// 会话保活:守护进程里的会话 ID + 已消费输出偏移(重启后无缝接回;工作区模板不用)
+    var ptyID: UUID?
+    var ptyOffset: UInt64?
 
     init(cwd: String?) {
         self.cwd = cwd
@@ -50,6 +53,14 @@ final class WorkspaceNode: Codable {
     var firstLeafNode: WorkspaceNode {
         if isLeaf { return self }
         return first?.firstLeafNode ?? second?.firstLeafNode ?? self
+    }
+
+    /// 树上全部保活会话 ID(启动时区分「待接回」与「孤儿」)
+    var allPtyIDs: [UUID] {
+        var ids: [UUID] = []
+        if let ptyID { ids.append(ptyID) }
+        ids += (first?.allPtyIDs ?? []) + (second?.allPtyIDs ?? [])
+        return ids
     }
 }
 

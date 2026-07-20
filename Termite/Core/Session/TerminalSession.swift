@@ -3,6 +3,12 @@ import Foundation
 import Observation
 import SwiftTerm
 
+/// 会话恢复时的保活重连票据:守护进程里的会话 ID + 上次已消费的输出偏移
+struct PtyReattach {
+    let id: UUID
+    let offset: UInt64
+}
+
 /// 本地终端会话:持有一个 TermiteTerminalView(内嵌 PTY 子进程)。
 /// 负责 shell 启动、OSC 133 命令跟踪(⌘↑/⌘↓ 跳转、复制输出、退出码/耗时)、
 /// OSC 7 工作目录、标题、git 分支探测、会话录制与退出处理。
@@ -42,6 +48,16 @@ final class TerminalSession: Identifiable {
     private(set) var hasCommandOutput = false
     /// 后台标签活动:非可见会话有新输出时点亮,聚焦后由 SessionManager 清除
     var hasUnseenActivity = false
+    /// 收到过用户输入才把后台输出算作新活动:恢复会话时 shell 启动输出
+    /// (zshrc 初始化、首个提示符)会打到所有后台标签,不该点亮绿点
+    private var hasReceivedUserInput = false
+    /// 保活传输:非 nil = shell 活在 termite-ptyhost 守护进程里(app 重启不丢);
+    /// nil = 本地 LocalProcess 直连(保活关闭 / 守护进程不可用 / 下拉终端)
+    @ObservationIgnored private(set) var hostPtyID: UUID?
+    var usesHostTransport: Bool { hostPtyID != nil }
+    /// 已消费的守护进程输出流偏移(持久化后用于重连断点续传)
+    @ObservationIgnored private(set) var consumedHostOffset: UInt64 = 0
+    @ObservationIgnored private var pendingReattach: PtyReattach?
     /// 命令时间线(OSC 133 完整周期的记录,新在后)
     private(set) var commandHistory: [CommandRecord] = []
     /// 当前正在录制到的文件 URL(nil = 未录制)
@@ -104,8 +120,13 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var gitDirtyTask: Task<Void, Never>?
     @ObservationIgnored private var lastGitDirtyProbeAt = Date.distantPast
 
-    init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil) {
+    /// manager 必须在 init 传入(而非事后赋值):start() 里靠它区分
+    /// 普通会话(可保活)与下拉终端(始终本地直连)
+    init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil,
+         reattach: PtyReattach? = nil, manager: SessionManager? = nil) {
         shellPath = ShellResolver.loginShell()
+        pendingReattach = reattach
+        self.manager = manager
         let view = TermiteTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         terminalView = view
         view.session = self
@@ -140,6 +161,20 @@ final class TerminalSession: Identifiable {
         let cwd = directory ?? FileManager.default.homeDirectoryForCurrentUser.path
         workingDirectory = cwd
         probeGitBranch(cwd)
+        // 保活依赖启动恢复:恢复关了没人接回会话,守护进程只会攒僵尸
+        let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
+            && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+        if keepAlive, manager != nil { // 下拉终端(manager nil)不参与保活
+            let reattach = pendingReattach
+            pendingReattach = nil
+            Task { await startViaHost(env: env, cwd: cwd, reattach: reattach) }
+        } else {
+            launchLocal(env: env, cwd: cwd)
+        }
+    }
+
+    /// 本地直连(保活关闭或守护进程不可用时的回落路径)
+    private func launchLocal(env: [String: String], cwd: String) {
         terminalView.startProcess(
             executable: shellPath,
             args: [],
@@ -149,6 +184,77 @@ final class TerminalSession: Identifiable {
         )
     }
 
+    /// 保活路径:shell 进程活在 termite-ptyhost 里,app 只是显示器
+    private func startViaHost(env: [String: String], cwd: String, reattach: PtyReattach?) async {
+        let client = PtyHostClient.shared
+        guard await client.ensureReady() else {
+            launchLocal(env: env, cwd: cwd)
+            return
+        }
+        if let reattach, await tryReattach(reattach, client: client) {
+            return
+        }
+        let terminal = terminalView.getTerminal()
+        let request = PtyCreateRequest(
+            id: id, shellPath: shellPath, argv0: "-" + shellName,
+            env: env, cwd: cwd, cols: terminal.cols, rows: terminal.rows
+        )
+        bindHostCallbacks(id, client: client)
+        if await client.create(request) != nil {
+            hostPtyID = id
+        } else {
+            client.unbind(id)
+            launchLocal(env: env, cwd: cwd)
+        }
+    }
+
+    /// 重连活会话:LIST 验活 → 按已消费偏移续传 backlog → 尺寸轻推触发重绘
+    private func tryReattach(_ reattach: PtyReattach, client: PtyHostClient) async -> Bool {
+        guard let listing = await client.list(),
+              let info = listing.first(where: { $0.id == reattach.id }) else { return false }
+        guard info.alive else {
+            client.kill(id: reattach.id) // 死会话:清掉守护进程里的记录,走全新启动
+            return false
+        }
+        bindHostCallbacks(reattach.id, client: client)
+        guard let attached = await client.attach(id: reattach.id, since: reattach.offset) else {
+            client.unbind(reattach.id)
+            return false
+        }
+        hostPtyID = reattach.id
+        consumedHostOffset = max(attached.fromOffset, reattach.offset)
+        kickRedraw()
+        return true
+    }
+
+    private func bindHostCallbacks(_ ptyID: UUID, client: PtyHostClient) {
+        client.bind(ptyID) { [weak self] offset, data in
+            guard let self else { return }
+            consumedHostOffset = offset + UInt64(data.count)
+            processOutput(ArraySlice(data))
+        } exited: { [weak self] code in
+            guard let self else { return }
+            state = .exited(code)
+            stopLogging()
+            onProcessExit?()
+        }
+    }
+
+    /// 尺寸抖一下再复原:TIOCSWINSZ 只在尺寸变化时发 SIGWINCH。
+    /// 重连后屏幕内容是快照回灌的,靠这一下让 zle / 全屏 TUI 重绘到真实状态
+    private func kickRedraw() {
+        guard let hostPtyID else { return }
+        let terminal = terminalView.getTerminal()
+        PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: max(terminal.rows - 1, 1))
+        PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: terminal.rows)
+    }
+
+    /// 视图网格尺寸变化(保活模式经协议转发,替代 LocalProcess 的 ioctl)
+    func hostResize(cols: Int, rows: Int) {
+        guard let hostPtyID else { return }
+        PtyHostClient.shared.resize(id: hostPtyID, cols: cols, rows: rows)
+    }
+
     /// 关闭 pane 时终止 shell 子进程。
     /// 交互式 zsh 默认忽略 SIGTERM(SwiftTerm terminate 只发 SIGTERM),
     /// 这里像 Terminal.app 一样先对整个进程组发 SIGHUP,连同前台命令一起挂断。
@@ -156,6 +262,13 @@ final class TerminalSession: Identifiable {
         stopLogging()
         stopCasting()
         gitProbeTask?.cancel()
+        if let hostPtyID {
+            // 保活会话:⌘W/关窗是明确的「关闭」,连守护进程里的 shell 一起挂断。
+            // app 退出(⌘Q)不走这里——socket 断开即自动 detach,shell 继续活着
+            PtyHostClient.shared.unbind(hostPtyID)
+            PtyHostClient.shared.kill(id: hostPtyID)
+            return
+        }
         if case .running = state {
             let pid = terminalView.process.shellPid
             if pid > 0 {
@@ -180,11 +293,17 @@ final class TerminalSession: Identifiable {
     }
 
     func sendRawInput(_ bytes: [UInt8]) {
-        terminalView.process.send(data: bytes[...])
+        hasReceivedUserInput = true
+        if let hostPtyID {
+            PtyHostClient.shared.input(id: hostPtyID, bytes)
+        } else {
+            terminalView.process.send(data: bytes[...])
+        }
     }
 
     /// 焦点 pane 的用户键入(TermiteTerminalView.send 回调)→ 广播到同标签其它 pane
     func didSendUserInput(_ bytes: [UInt8]) {
+        hasReceivedUserInput = true
         manager?.broadcastInput(from: id, bytes: bytes)
     }
 
@@ -200,7 +319,7 @@ final class TerminalSession: Identifiable {
     /// 处理原始 PTY 输出:录制、扫描 OSC 133 事件,分段喂给终端,使标记与光标状态对齐
     func processOutput(_ bytes: ArraySlice<UInt8>) {
         // 下拉终端会话(manager nil)不参与活动提示
-        if !hasUnseenActivity, let manager, !manager.isSessionVisible(id) {
+        if !hasUnseenActivity, hasReceivedUserInput, let manager, !manager.isSessionVisible(id) {
             hasUnseenActivity = true
         }
         appendToLog(bytes)
