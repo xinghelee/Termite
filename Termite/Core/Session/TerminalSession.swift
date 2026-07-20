@@ -161,9 +161,11 @@ final class TerminalSession: Identifiable {
         let cwd = directory ?? FileManager.default.homeDirectoryForCurrentUser.path
         workingDirectory = cwd
         probeGitBranch(cwd)
-        // 保活依赖启动恢复:恢复关了没人接回会话,守护进程只会攒僵尸
+        // 保活依赖启动恢复:恢复关了没人接回会话,守护进程只会攒僵尸。
+        // 单测宿主 app 里禁用:测试不该拉起真守护进程、留下真 shell 会话
         let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
             && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
         if keepAlive, manager != nil { // 下拉终端(manager nil)不参与保活
             let reattach = pendingReattach
             pendingReattach = nil
@@ -483,8 +485,10 @@ final class TerminalSession: Identifiable {
         return nil
     }
 
-    /// 提取 scroll-invariant 行区间的纯文本(空行保留,尾部空行去掉)
+    /// 提取 scroll-invariant 行区间的纯文本(空行保留,尾部空行去掉)。
+    /// 行号可能回退(重连 backlog 回放、终端 reset/ED3 修剪),start > end 按空处理
     private func extractText(from start: Int, to end: Int) -> String {
+        guard start < end else { return "" }
         let terminal = terminalView.getTerminal()
         var lines: [String] = []
         for row in start..<end {

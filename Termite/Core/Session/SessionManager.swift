@@ -481,6 +481,7 @@ final class SessionManager {
     private func adoptOrphanHostSessions(claimed: Set<UUID>) async {
         let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
             && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
         guard keepAlive else { return }
         let client = PtyHostClient.shared
         guard await client.ensureReady(spawnIfNeeded: false),
