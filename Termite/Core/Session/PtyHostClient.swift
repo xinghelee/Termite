@@ -30,8 +30,33 @@ final class PtyHostClient {
 
     /// 确保已连接且版本握手通过;必要时拉起守护进程(spawnIfNeeded=false 只连不拉,
     /// 供「查孤儿」这类没有守护进程就没意义的场景)。失败返回 false(调用方回落本地)。
+    ///
+    /// 单飞:启动恢复会并发创建多个会话,曾各自走完整握手——重复 spawn 守护进程
+    /// (输家 bind errno=48 退出)、重复 connect 反复顶掉共享的 fd/writer/parser,
+    /// waiters 应答错配后超时兜底又把唯一活连接断掉,留下有 hostPtyID 却没有
+    /// writer 的「听不见输入」死会话。并发调用在这里合流,等同一次握手的结果。
     func ensureReady(spawnIfNeeded: Bool = true) async -> Bool {
-        if isConnected { return true }
+        while true {
+            if isConnected { return true }
+            guard let current = connecting else { break }
+            if await current.task.value { return true }
+            // 上一轮失败:它拉起过守护进程(或本调用同样只探测)就没有更多可做;
+            // 只探测的轮次失败而本调用允许拉起 → 回到循环自己开一轮
+            if current.spawns || !spawnIfNeeded { return false }
+        }
+        let task = Task {
+            let ok = await self.establishConnection(spawnIfNeeded: spawnIfNeeded)
+            self.connecting = nil // 在完成前清掉,等待方恢复时看到的一定是新状态
+            return ok
+        }
+        connecting = (spawns: spawnIfNeeded, task: task)
+        return await task.value
+    }
+
+    /// 进行中的连接/握手(spawns 记录该轮是否允许拉起守护进程)
+    private var connecting: (spawns: Bool, task: Task<Bool, Never>)?
+
+    private func establishConnection(spawnIfNeeded: Bool) async -> Bool {
         let path = PtyHostPaths.socketURL.path
         try? FileManager.default.createDirectory(at: PtyHostPaths.socketURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)

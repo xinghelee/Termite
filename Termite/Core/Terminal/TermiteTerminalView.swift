@@ -113,13 +113,14 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard inputEnabled else { return }
         pauseCursorBlinkForInput()
-        if let session, session.usesHostTransport {
-            // 保活模式:shell 在守护进程里,输入走协议而不是本地 LocalProcess
+        if let session {
+            // 输入统一交给会话路由:保活走协议、本地走 LocalProcess,
+            // 传输未就绪时先缓冲(直接 super.send 会打进未启动的进程丢掉)
             session.sendRawInput(Array(data))
+            session.didSendUserInput(Array(data))
         } else {
             super.send(source: source, data: data)
         }
-        session?.didSendUserInput(Array(data))
     }
 
     // MARK: - 输入时暂停光标闪烁

@@ -55,6 +55,10 @@ final class TerminalSession: Identifiable {
     /// nil = 本地 LocalProcess 直连(保活关闭 / 守护进程不可用 / 下拉终端)
     @ObservationIgnored private(set) var hostPtyID: UUID?
     var usesHostTransport: Bool { hostPtyID != nil }
+    /// 传输就绪前(保活握手 + CREATE 往返,冷启动拉守护进程可达秒级)的键入
+    /// 先攒着,就绪后按原序补发;此前这段输入直接打进未启动的 LocalProcess 丢掉
+    @ObservationIgnored private var transportReady = false
+    @ObservationIgnored private var pendingInput: [UInt8] = []
     /// 已消费的守护进程输出流偏移(持久化后用于重连断点续传)
     @ObservationIgnored private(set) var consumedHostOffset: UInt64 = 0
     @ObservationIgnored private var pendingReattach: PtyReattach?
@@ -184,6 +188,7 @@ final class TerminalSession: Identifiable {
             execName: "-" + shellName,   // argv[0] 带 "-":登录 shell(与 Terminal.app 一致)
             currentDirectory: cwd
         )
+        markTransportReady()
     }
 
     /// 保活路径:shell 进程活在 termite-ptyhost 里,app 只是显示器
@@ -204,6 +209,7 @@ final class TerminalSession: Identifiable {
         bindHostCallbacks(id, client: client)
         if await client.create(request) != nil {
             hostPtyID = id
+            markTransportReady()
         } else {
             client.unbind(id)
             launchLocal(env: env, cwd: cwd)
@@ -225,6 +231,7 @@ final class TerminalSession: Identifiable {
         }
         hostPtyID = reattach.id
         consumedHostOffset = max(attached.fromOffset, reattach.offset)
+        markTransportReady()
         kickRedraw()
         return true
     }
@@ -296,11 +303,24 @@ final class TerminalSession: Identifiable {
 
     func sendRawInput(_ bytes: [UInt8]) {
         hasReceivedUserInput = true
+        guard transportReady else {
+            pendingInput += bytes
+            return
+        }
         if let hostPtyID {
             PtyHostClient.shared.input(id: hostPtyID, bytes)
         } else {
             terminalView.process.send(data: bytes[...])
         }
+    }
+
+    /// 传输落定(保活接通 / 本地 shell 启动)后调用:补发就绪前攒下的键入
+    private func markTransportReady() {
+        transportReady = true
+        guard !pendingInput.isEmpty else { return }
+        let buffered = pendingInput
+        pendingInput = []
+        sendRawInput(buffered)
     }
 
     /// 焦点 pane 的用户键入(TermiteTerminalView.send 回调)→ 广播到同标签其它 pane
