@@ -46,8 +46,8 @@ targets:
       path: Termite/Info.plist
       properties:
         CFBundleDisplayName: Termite
-        CFBundleShortVersionString: "1.4"
-        CFBundleVersion: "5"
+        CFBundleShortVersionString: "1.5"
+        CFBundleVersion: "6"
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHighResolutionCapable: true
         # 允许 Finder/Dock 把文件夹拖到图标上(在该目录开新标签)
