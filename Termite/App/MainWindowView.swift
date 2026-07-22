@@ -8,6 +8,7 @@ struct MainWindowView: View {
 
     @State private var theme = ThemeStore.shared
     @State private var sidebarVisibility = NavigationSplitViewVisibility.automatic
+    @Environment(\.openWindow) private var openWindow
 
     private var manager: SessionManager {
         SessionManagerRegistry.shared.manager(for: windowKey)
@@ -17,7 +18,10 @@ struct MainWindowView: View {
         content(manager)
             .task {
                 theme.applyWindowChrome()
-                manager.restoreOrCreateInitialTabs()
+                // 首窗口恢复多窗口存档时,把其余窗口逐个开出来(各自认领挂起状态)
+                for key in manager.restoreOrCreateInitialTabs(windowKey: windowKey) {
+                    openWindow(id: "main", value: key)
+                }
             }
     }
 

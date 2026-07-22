@@ -154,6 +154,7 @@ final class SessionManager {
     func toggleMaximizePane() {
         guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
         tab.maximizedID = tab.maximizedID == nil ? tab.focusedID : nil
+        persistOpenTabs()
     }
 
     /// ⌘D / ⌘⇧D / 右键:在当前聚焦 pane 上再分出一个 pane(继承 cwd)。每次都新增,支持嵌套。
@@ -164,6 +165,12 @@ final class SessionManager {
         sessions.append(secondary)
         tab.root = tab.root.splitting(leaf: current.id, into: secondary.id, axis: axis, branchID: UUID())
         tab.focusedID = secondary.id
+        persistOpenTabs()
+    }
+
+    /// 拖拽分隔条 / 切焦点等高频变化:合并持久化
+    func layoutChangedSoon() {
+        SessionManagerRegistry.shared.persistAllOpenTabsSoon()
     }
 
     /// ⌘⌥方向键:按几何位置把焦点移到相邻 pane
@@ -209,6 +216,7 @@ final class SessionManager {
         tab.focusedID = sessionID
         session(sessionID)?.focusTerminal()
         clearActivityForSelectedTab()
+        layoutChangedSoon()
     }
 
     // MARK: - 关闭
@@ -275,6 +283,7 @@ final class SessionManager {
         selectedTabID = id
         selected?.focusTerminal()
         clearActivityForSelectedTab()
+        layoutChangedSoon()
     }
 
     /// ⌘1-9
@@ -358,6 +367,16 @@ final class SessionManager {
         }
     }
 
+    /// 会话恢复用的标签快照:布局树 + 焦点/最大化 pane(按叶子 DFS 序号)
+    func encodeTabState(_ tab: PaneTab, scrollbackDirectory: URL?) -> SavedTabState {
+        let leaves = tab.root.leafIDs()
+        return SavedTabState(
+            root: encodeNode(tab.root, scrollbackDirectory: scrollbackDirectory),
+            focusedLeafIndex: leaves.firstIndex(of: tab.focusedID),
+            maximizedLeafIndex: tab.maximizedID.flatMap { leaves.firstIndex(of: $0) }
+        )
+    }
+
     /// 打开工作区:逐标签重建分屏布局(目录已不存在的 pane 退回默认目录)
     func openWorkspace(_ workspace: Workspace) {
         for tabNode in workspace.tabs {
@@ -374,6 +393,21 @@ final class SessionManager {
         guard let tab = tabs.last, tab.root.leafIDs() == [first.id] else { return }
         buildSplits(node, existingLeaf: first.id, in: tab)
         tab.focusedID = first.id
+    }
+
+    /// 会话恢复:重建标签后按叶子序号找回焦点与最大化 pane
+    /// (重建的树形状与快照一致,DFS 序号即可映射回会话)
+    func openTab(from state: SavedTabState) {
+        let countBefore = tabs.count
+        openTab(from: state.root)
+        guard tabs.count > countBefore, let tab = tabs.last else { return }
+        let leaves = tab.root.leafIDs()
+        if let index = state.focusedLeafIndex, leaves.indices.contains(index) {
+            tab.focusedID = leaves[index]
+        }
+        if let index = state.maximizedLeafIndex, leaves.indices.contains(index), leaves.count > 1 {
+            tab.maximizedID = leaves[index]
+        }
     }
 
     private func reattachTicket(_ node: WorkspaceNode) -> PtyReattach? {
@@ -424,12 +458,15 @@ final class SessionManager {
         SessionManagerRegistry.shared.persistAllOpenTabs()
     }
 
-    /// 窗口首次出现时调用:第一个窗口恢复上次的标签页(含分屏结构与屏幕内容,设置可关),
-    /// 后续窗口开默认标签
-    func restoreOrCreateInitialTabs() {
-        guard !isRetired, tabs.isEmpty else { return }
+    /// 窗口首次出现时调用。第一个窗口读档:自己恢复第一组标签,其余窗口的状态挂起到注册表,
+    /// 返回它们的窗口 key 由视图层逐个 openWindow;后续窗口先认领挂起状态,没有才开默认标签。
+    /// 返回值:需要视图层补开的窗口 key 列表(仅首窗口恢复多窗口状态时非空)
+    @discardableResult
+    func restoreOrCreateInitialTabs(windowKey: UUID? = nil) -> [UUID] {
+        guard !isRetired, tabs.isEmpty else { return [] }
+        let registry = SessionManagerRegistry.shared
         // 「移到新窗口」的标签优先领养
-        if let adoption = SessionManagerRegistry.shared.takePendingAdoptTab() {
+        if let adoption = registry.takePendingAdoptTab() {
             for session in adoption.sessions {
                 session.manager = self
                 sessions.append(session)
@@ -437,27 +474,30 @@ final class SessionManager {
             tabs.append(adoption.tab)
             selectedTabID = adoption.tab.id
             persistOpenTabs()
-            return
+            return []
+        }
+        // 多窗口恢复:本窗口是首窗口 openWindow 开出来的后续窗口,认领自己那份状态
+        if let windowKey, let pending = registry.takePendingWindowState(for: windowKey) {
+            restoreWindow(from: pending)
+            return []
         }
         let enabled = UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true
-        guard enabled, SessionManagerRegistry.shared.isFirst(self) else {
+        guard enabled, registry.isFirst(self) else {
             newTab()
-            return
+            return []
         }
         var claimedPtyIDs: Set<UUID> = []
-        if let state = SessionManagerRegistry.loadSavedState(), !state.tabs.isEmpty {
-            claimedPtyIDs = Set(state.tabs.flatMap(\.allPtyIDs))
-            for node in state.tabs {
-                openTab(from: node)
+        var extraWindowKeys: [UUID] = []
+        if let state = SessionManagerRegistry.loadSavedState(), !state.windows.isEmpty {
+            // 全部窗口的保活会话都算已认领:孤儿收养不能抢走还没开出来的窗口的会话
+            claimedPtyIDs = Set(state.allPtyIDs)
+            for window in state.windows.dropFirst() {
+                extraWindowKeys.append(registry.stashPendingWindowState(window))
             }
-            if let index = state.selectedIndex, tabs.indices.contains(index) {
-                selectedTabID = tabs[index].id
-            } else {
-                selectedTabID = tabs.first?.id
-            }
-            // 视图挂载后把键盘焦点交给选中终端(恢复路径没有点击事件可依赖)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.selected?.focusTerminal()
+            restoreWindow(from: state.windows[0])
+            // 上次的 key 窗口找回来(后续窗口开出后会抢走焦点,延迟纠正)
+            if let active = state.activeWindowIndex, active > 0 || !extraWindowKeys.isEmpty {
+                registry.scheduleActiveWindowFocus(managerIndex: active)
             }
         } else if let legacy = UserDefaults.standard.stringArray(forKey: SessionManagerRegistry.openTabsKey), !legacy.isEmpty {
             // 旧版迁移:只有目录列表
@@ -474,6 +514,27 @@ final class SessionManager {
         }
         // 守护进程里 app 状态没记到的活会话(崩溃丢状态等):收养成新标签,不留隐形僵尸
         Task { await adoptOrphanHostSessions(claimed: claimedPtyIDs) }
+        return extraWindowKeys
+    }
+
+    /// 按单个窗口的存档重建:标签 + 选中标签 + 窗口 frame(frame 挂起到 bind 时应用)
+    private func restoreWindow(from state: SavedWindowState) {
+        SessionManagerRegistry.shared.setPendingFrame(state.frame, for: self)
+        for tabState in state.tabs {
+            openTab(from: tabState)
+        }
+        if let index = state.selectedIndex, tabs.indices.contains(index) {
+            selectedTabID = tabs[index].id
+        } else {
+            selectedTabID = tabs.first?.id
+        }
+        // 视图挂载后把键盘焦点交给选中终端(恢复路径没有点击事件可依赖)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.selected?.focusTerminal()
+        }
+        // 重建完成的完整布局(分屏/焦点/最大化)立即落盘:
+        // newTab 触发的中途快照只有首 pane,恢复完就崩溃的话存档会退化
+        persistOpenTabs()
     }
 
     /// 孤儿保活会话收养:LIST 守护进程 → 不在恢复名单里的活会话开新标签接回,
@@ -486,7 +547,12 @@ final class SessionManager {
         let client = PtyHostClient.shared
         guard await client.ensureReady(spawnIfNeeded: false),
               let listing = await client.list() else { return }
-        for info in listing where !claimed.contains(info.id) {
+        // 本次启动自建/已接回的会话不是孤儿:LIST 里 attached 的必然绑在本连接上
+        // (守护进程单队列,无竞态);老守护进程没有 attached 字段,用本地活会话兜底,
+        // 否则恢复期间自建的会话会被当孤儿二次收养(双重 ATTACH 会打断传输)
+        let liveLocalIDs = Set(SessionManagerRegistry.shared.allSessions.compactMap(\.hostPtyID))
+        for info in listing
+        where !claimed.contains(info.id) && info.attached != true && !liveLocalIDs.contains(info.id) {
             if info.alive {
                 newTab(directory: validDirectory(info.cwd),
                        reattach: PtyReattach(id: info.id, offset: info.headOffset))

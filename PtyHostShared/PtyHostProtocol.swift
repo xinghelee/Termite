@@ -87,6 +87,9 @@ struct PtySessionInfo: Codable {
     /// 环形缓冲覆盖的流偏移区间 [headOffset, tailOffset)
     var headOffset: UInt64
     var tailOffset: UInt64
+    /// 当前连接是否已绑定该会话(孤儿判定:绑定中的不是孤儿)。
+    /// Optional:老守护进程的 LIST 没有此字段,解码得 nil,收养方需另行兜底
+    var attached: Bool?
 }
 
 struct PtyError: Codable {

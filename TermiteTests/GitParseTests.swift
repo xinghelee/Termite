@@ -215,26 +215,69 @@ final class CastFileTests: XCTestCase {
 
 final class SavedAppStateTests: XCTestCase {
 
-    func testWorkspaceNodeDecodesWithoutScrollbackField() throws {
-        // 旧数据没有 scrollbackFile 字段也要能解
-        let old = #"{"tabs":[{"cwd":"/tmp"}],"selectedIndex":0}"#
+    /// v1 存档(所有窗口标签压平)迁移为单窗口,选中标签保留
+    func testLegacyFlatStateMigratesToSingleWindow() throws {
+        let old = #"{"tabs":[{"cwd":"/tmp"},{"cwd":"/a"}],"selectedIndex":1}"#
         let state = try JSONDecoder().decode(SavedAppState.self, from: Data(old.utf8))
-        XCTAssertEqual(state.tabs.count, 1)
-        XCTAssertNil(state.tabs[0].scrollbackFile)
-        XCTAssertEqual(state.tabs[0].firstLeafNode.cwd, "/tmp")
+        XCTAssertEqual(state.windows.count, 1)
+        XCTAssertEqual(state.windows[0].tabs.count, 2)
+        XCTAssertEqual(state.windows[0].tabs[0].root.firstLeafNode.cwd, "/tmp")
+        XCTAssertNil(state.windows[0].tabs[0].root.scrollbackFile)
+        XCTAssertEqual(state.windows[0].selectedIndex, 1)
+        XCTAssertNil(state.windows[0].tabs[0].focusedLeafIndex)
+        XCTAssertEqual(state.activeWindowIndex, 0)
     }
 
-    func testSplitTreeRoundTrip() throws {
+    func testMultiWindowRoundTrip() throws {
         let leaf1 = WorkspaceNode(cwd: "/a")
         leaf1.scrollbackFile = "x.txt"
         let root = WorkspaceNode(axis: "h", ratio: 0.3, first: leaf1, second: WorkspaceNode(cwd: "/b"))
-        let state = SavedAppState(tabs: [root], selectedIndex: nil)
+        let window1 = SavedWindowState(
+            tabs: [SavedTabState(root: root, focusedLeafIndex: 1, maximizedLeafIndex: nil)],
+            selectedIndex: 0,
+            frame: "{{100, 200}, {1280, 800}}"
+        )
+        let window2 = SavedWindowState(
+            tabs: [SavedTabState(root: WorkspaceNode(cwd: "/c"))],
+            selectedIndex: nil,
+            frame: nil
+        )
+        let state = SavedAppState(windows: [window1, window2], activeWindowIndex: 1)
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(SavedAppState.self, from: data)
-        XCTAssertEqual(decoded.tabs[0].axis, "h")
-        XCTAssertEqual(decoded.tabs[0].ratio, 0.3)
-        XCTAssertEqual(decoded.tabs[0].firstLeafNode.cwd, "/a")
-        XCTAssertEqual(decoded.tabs[0].firstLeafNode.scrollbackFile, "x.txt")
-        XCTAssertEqual(decoded.tabs[0].second?.cwd, "/b")
+        XCTAssertEqual(decoded.windows.count, 2)
+        XCTAssertEqual(decoded.activeWindowIndex, 1)
+        let tab = decoded.windows[0].tabs[0]
+        XCTAssertEqual(tab.root.axis, "h")
+        XCTAssertEqual(tab.root.ratio, 0.3)
+        XCTAssertEqual(tab.root.firstLeafNode.cwd, "/a")
+        XCTAssertEqual(tab.root.firstLeafNode.scrollbackFile, "x.txt")
+        XCTAssertEqual(tab.root.second?.cwd, "/b")
+        XCTAssertEqual(tab.focusedLeafIndex, 1)
+        XCTAssertEqual(decoded.windows[0].frame, "{{100, 200}, {1280, 800}}")
+        XCTAssertEqual(decoded.windows[1].tabs[0].root.cwd, "/c")
+    }
+
+    /// 空的 v1 存档(没有 tabs 字段)不炸,得到空窗口列表
+    func testEmptyLegacyStateDecodesToNoWindows() throws {
+        let state = try JSONDecoder().decode(SavedAppState.self, from: Data("{}".utf8))
+        XCTAssertTrue(state.windows.isEmpty)
+        XCTAssertNil(state.activeWindowIndex)
+    }
+
+    /// allPtyIDs 聚合所有窗口所有标签(孤儿收养的认领名单必须覆盖未开出的窗口)
+    func testAllPtyIDsSpansAllWindows() throws {
+        let leafA = WorkspaceNode(cwd: "/a")
+        leafA.ptyID = UUID()
+        let leafB = WorkspaceNode(cwd: "/b")
+        leafB.ptyID = UUID()
+        let state = SavedAppState(
+            windows: [
+                SavedWindowState(tabs: [SavedTabState(root: leafA)], selectedIndex: 0, frame: nil),
+                SavedWindowState(tabs: [SavedTabState(root: leafB)], selectedIndex: 0, frame: nil),
+            ],
+            activeWindowIndex: 0
+        )
+        XCTAssertEqual(Set(state.allPtyIDs), Set([leafA.ptyID!, leafB.ptyID!]))
     }
 }

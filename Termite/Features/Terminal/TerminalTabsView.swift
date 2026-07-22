@@ -53,6 +53,7 @@ struct TerminalTabsView: View {
                         },
                         onResize: { branchID, ratio in
                             tab.root = tab.root.settingRatio(branch: branchID, ratio: ratio)
+                            sessionManager.layoutChangedSoon()
                         }
                     )
                     }

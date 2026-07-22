@@ -64,10 +64,71 @@ final class WorkspaceNode: Codable {
     }
 }
 
-/// 整个 App 的会话恢复状态(所有窗口的标签合并)
-struct SavedAppState: Codable {
-    var tabs: [WorkspaceNode]
+/// 恢复用的单个标签状态:布局树 + 焦点/最大化 pane(按叶子在树中的 DFS 序号记录,
+/// 重建时树形状一致,序号即可映射回会话)
+struct SavedTabState: Codable {
+    var root: WorkspaceNode
+    var focusedLeafIndex: Int?
+    var maximizedLeafIndex: Int?
+
+    init(root: WorkspaceNode, focusedLeafIndex: Int? = nil, maximizedLeafIndex: Int? = nil) {
+        self.root = root
+        self.focusedLeafIndex = focusedLeafIndex
+        self.maximizedLeafIndex = maximizedLeafIndex
+    }
+}
+
+/// 单个窗口的恢复状态
+struct SavedWindowState: Codable {
+    var tabs: [SavedTabState]
     var selectedIndex: Int?
+    /// NSStringFromRect 的窗口 frame(屏幕坐标)
+    var frame: String?
+}
+
+/// 整个 App 的会话恢复状态:按窗口分组。
+/// 旧版(v1)是所有窗口标签压平的 {tabs, selectedIndex},解码时迁移为单窗口。
+struct SavedAppState: Codable {
+    var windows: [SavedWindowState]
+    var activeWindowIndex: Int?
+
+    init(windows: [SavedWindowState], activeWindowIndex: Int?) {
+        self.windows = windows
+        self.activeWindowIndex = activeWindowIndex
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case windows, activeWindowIndex
+        case tabs, selectedIndex // v1
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let windows = try container.decodeIfPresent([SavedWindowState].self, forKey: .windows) {
+            self.windows = windows
+            self.activeWindowIndex = try container.decodeIfPresent(Int.self, forKey: .activeWindowIndex)
+            return
+        }
+        let legacyTabs = try container.decodeIfPresent([WorkspaceNode].self, forKey: .tabs) ?? []
+        let legacySelected = try container.decodeIfPresent(Int.self, forKey: .selectedIndex)
+        windows = legacyTabs.isEmpty ? [] : [SavedWindowState(
+            tabs: legacyTabs.map { SavedTabState(root: $0) },
+            selectedIndex: legacySelected,
+            frame: nil
+        )]
+        activeWindowIndex = windows.isEmpty ? nil : 0
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(windows, forKey: .windows)
+        try container.encodeIfPresent(activeWindowIndex, forKey: .activeWindowIndex)
+    }
+
+    /// 全部窗口的保活会话 ID(启动时区分「待接回」与「孤儿」)
+    var allPtyIDs: [UUID] {
+        windows.flatMap { $0.tabs.flatMap(\.root.allPtyIDs) }
+    }
 }
 
 /// 工作区列表(侧边栏「工作区」区块数据源):持久化在 UserDefaults(JSON)

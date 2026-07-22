@@ -210,6 +210,8 @@ final class TerminalSession: Identifiable {
         if await client.create(request) != nil {
             hostPtyID = id
             markTransportReady()
+            // 票据(ptyID)立即落盘:此刻崩溃也能凭它接回刚建的会话
+            manager?.layoutChangedSoon()
         } else {
             client.unbind(id)
             launchLocal(env: env, cwd: cwd)
@@ -233,6 +235,7 @@ final class TerminalSession: Identifiable {
         consumedHostOffset = max(attached.fromOffset, reattach.offset)
         markTransportReady()
         kickRedraw()
+        manager?.layoutChangedSoon()
         return true
     }
 

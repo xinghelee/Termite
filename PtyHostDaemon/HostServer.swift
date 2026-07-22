@@ -175,7 +175,14 @@ final class HostServer {
             }
 
         case .list:
-            reply(PtyFrameCodec.encode(.listing, json: sessions.values.map(\.info)))
+            // 帧在单队列串行处理:先到的 CREATE/ATTACH 必然已进 attached,后到的不在列表里,
+            // 所以 attached 标记对「本次启动自建的会话」是无竞态的孤儿排除依据
+            let listing = sessions.values.map { session in
+                var info = session.info
+                info.attached = client?.attached.contains(session.id) == true
+                return info
+            }
+            reply(PtyFrameCodec.encode(.listing, json: listing))
 
         default:
             log("忽略帧 \(frame.type)")
