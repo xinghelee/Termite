@@ -2,6 +2,8 @@
 
 macOS 原生终端。体验对标 Ghostty,靠**原生 SwiftUI 质感 + 深度 shell 集成的效率功能**做差异化。
 
+![Termite 截图](docs/screenshot.png)
+
 - 系统要求:macOS 15.0+
 - 技术栈:SwiftUI + AppKit,终端引擎 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)(Metal GPU 渲染)
 - 无沙箱、完整文件系统与进程权限,和你习惯的终端行为完全一致
