@@ -4,7 +4,11 @@ macOS 原生终端。体验对标 Ghostty,靠**原生 SwiftUI 质感 + 深度 sh
 
 ![Termite 截图](docs/screenshot.png)
 
-**[⬇️ 下载最新版](https://github.com/xinghelee/Termite/releases/latest)** — DMG 已过 Apple 公证,拖进 Applications 即用
+**[⬇️ 下载最新版](https://github.com/xinghelee/Termite/releases/latest)** — DMG 已过 Apple 公证,拖进 Applications 即用;或用 Homebrew:
+
+```sh
+brew install --cask xinghelee/tap/termite
+```
 
 - 系统要求:macOS 15.0+
 - 技术栈:SwiftUI + AppKit,终端引擎 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)(Metal GPU 渲染)
