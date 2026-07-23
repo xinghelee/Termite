@@ -24,6 +24,10 @@ final class SessionManagerRegistry {
     @ObservationIgnored private let closeInterceptors = NSMapTable<NSWindow, WindowCloseInterceptor>(
         keyOptions: .weakMemory, valueOptions: .strongMemory
     )
+    /// 窗口 → 焦点守卫(侧边栏抢到键盘焦点时还给终端)
+    @ObservationIgnored private let focusGuards = NSMapTable<NSWindow, SidebarFocusGuard>(
+        keyOptions: .weakMemory, valueOptions: .strongMemory
+    )
 
     private init() {
         let center = NotificationCenter.default
@@ -104,6 +108,10 @@ final class SessionManagerRegistry {
         windowMap.setObject(manager, forKey: window)
         if window.isKeyWindow { activeManager = manager }
         installCloseInterceptor(manager: manager, window: window)
+        // bind 会被反复调用,守卫每窗口只装一次
+        if focusGuards.object(forKey: window) == nil {
+            focusGuards.setObject(SidebarFocusGuard(window: window), forKey: window)
+        }
         // 会话恢复:一次性应用上次退出时的窗口位置尺寸(bind 会被反复调用,take 保证只用一次)
         if let frameString = takePendingFrame(for: manager) {
             let frame = NSRectFromString(frameString)
@@ -171,6 +179,11 @@ final class SessionManagerRegistry {
     static var restoreDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Termite/restore", isDirectory: true)
+    }
+
+    /// 窗口 → manager(焦点守卫等窗口级组件用)
+    func manager(of window: NSWindow) -> SessionManager? {
+        windowMap.object(forKey: window)
     }
 
     /// manager → 其窗口(windowMap 的反查)
