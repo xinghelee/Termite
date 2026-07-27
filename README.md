@@ -1,6 +1,10 @@
 # Termite
 
-macOS 原生终端。体验对标 Ghostty,靠**原生 SwiftUI 质感 + 深度 shell 集成的效率功能**做差异化。
+[English](README.en.md)
+
+**关掉窗口,活儿接着跑。**
+
+macOS 原生终端:会话交给守护进程托管,⌘Q 不打断长任务;shell 集成把每条命令变成可跳转、可回看的单元;界面从头用 SwiftUI 写,不是套壳。
 
 ![Termite 截图](docs/screenshot.png)
 
