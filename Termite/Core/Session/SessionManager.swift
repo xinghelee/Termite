@@ -124,13 +124,40 @@ final class SessionManager {
         return session
     }
 
-    /// 侧边栏/命令面板打开项目:已有标签正处于该目录 → 切过去;否则在该目录开新标签
+    /// 侧边栏/命令面板打开项目:标签一旦绑定项目就一直复用它(即使中途 cd 走),
+    /// 否则认领一个正处于该目录的旧标签,再否则在该目录开新标签。
+    /// 绑定让「点一下切过去」始终成立,不会每点一次多开一个标签。
     func openProject(path: String) {
-        if let tab = tabs.first(where: { session($0.focusedID)?.workingDirectory == path }) {
+        if let tab = tabs.first(where: { $0.projectPath == path }) {
+            selectTab(tab.id)
+            return
+        }
+        if let tab = tabs.first(where: {
+            $0.projectPath == nil && session($0.focusedID)?.workingDirectory == path
+        }) {
+            tab.projectPath = path
             selectTab(tab.id)
             return
         }
         newTab(directory: path)
+        tabs.last?.projectPath = path
+        selected?.focusTerminal()
+        persistOpenTabs()
+    }
+
+    /// 侧边栏移除项目:连同绑定到它的标签一起关(顶部标签栏与侧边栏保持一致)
+    func closeProjectTabs(path: String) {
+        for tab in tabs where tab.projectPath == path {
+            closeTab(tab)
+        }
+    }
+
+    /// 该项目绑定的标签里有几个会话在跑命令(移除前的确认提示用)
+    func runningCommandCount(inProject path: String) -> Int {
+        tabs.filter { $0.projectPath == path }
+            .flatMap { $0.root.leafIDs() }
+            .filter { session($0)?.runningCommand == true }
+            .count
     }
 
     private func inheritedDirectory() -> String? {
@@ -373,7 +400,8 @@ final class SessionManager {
         return SavedTabState(
             root: encodeNode(tab.root, scrollbackDirectory: scrollbackDirectory),
             focusedLeafIndex: leaves.firstIndex(of: tab.focusedID),
-            maximizedLeafIndex: tab.maximizedID.flatMap { leaves.firstIndex(of: $0) }
+            maximizedLeafIndex: tab.maximizedID.flatMap { leaves.firstIndex(of: $0) },
+            projectPath: tab.projectPath
         )
     }
 
@@ -401,6 +429,7 @@ final class SessionManager {
         let countBefore = tabs.count
         openTab(from: state.root)
         guard tabs.count > countBefore, let tab = tabs.last else { return }
+        tab.projectPath = state.projectPath
         let leaves = tab.root.leafIDs()
         if let index = state.focusedLeafIndex, leaves.indices.contains(index) {
             tab.focusedID = leaves[index]

@@ -280,4 +280,24 @@ final class SavedAppStateTests: XCTestCase {
         )
         XCTAssertEqual(Set(state.allPtyIDs), Set([leafA.ptyID!, leafB.ptyID!]))
     }
+
+    /// 侧边栏项目绑定要进存档:重启后点项目仍切回原标签,而不是又开一个
+    func testProjectBindingRoundTripsAndOldArchivesDecode() throws {
+        let state = SavedAppState(
+            windows: [SavedWindowState(
+                tabs: [SavedTabState(root: WorkspaceNode(cwd: "/a"), projectPath: "/a")],
+                selectedIndex: 0,
+                frame: nil
+            )],
+            activeWindowIndex: 0
+        )
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(SavedAppState.self, from: data)
+        XCTAssertEqual(decoded.windows[0].tabs[0].projectPath, "/a")
+
+        // 没有该字段的旧存档照常解码,绑定为空
+        let old = #"{"windows":[{"tabs":[{"root":{"cwd":"/tmp"}}]}]}"#
+        let legacy = try JSONDecoder().decode(SavedAppState.self, from: Data(old.utf8))
+        XCTAssertNil(legacy.windows[0].tabs[0].projectPath)
+    }
 }

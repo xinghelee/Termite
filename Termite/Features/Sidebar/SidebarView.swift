@@ -17,7 +17,7 @@ struct SidebarView: View {
                         project: project,
                         isActive: isActive(project),
                         open: { open(project) },
-                        remove: { store.remove(project) }
+                        remove: { remove(project) }
                     )
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -43,7 +43,7 @@ struct SidebarView: View {
                     Text("还没有项目")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-                    Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。点击项目即在该目录打开终端标签。")
+                    Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
@@ -67,15 +67,15 @@ struct SidebarView: View {
                 .ignoresSafeArea()
         }
         .dropDestination(for: URL.self) { urls, _ in
-            var added = false
+            var paths: [String] = []
             for url in urls {
                 var isDirectory: ObjCBool = false
                 if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                    store.add(path: url.path)
-                    added = true
+                    paths.append(url.path)
                 }
             }
-            return added
+            addAndOpen(paths)
+            return !paths.isEmpty
         }
     }
 
@@ -114,14 +114,43 @@ struct SidebarView: View {
         }
     }
 
-    /// 有标签的聚焦会话正处于该项目目录(或其子目录)时,侧边栏行点亮
+    /// 当前标签绑定了项目就认绑定(cd 走了也照样点亮);没绑定则看聚焦会话的 cwd 是否落在项目里
     private func isActive(_ project: Project) -> Bool {
+        if let bound = sessionManager.selectedTab?.projectPath {
+            return bound == project.path
+        }
         guard let cwd = sessionManager.selected?.workingDirectory else { return false }
         return cwd == project.path || cwd.hasPrefix(project.path + "/")
     }
 
     private func open(_ project: Project) {
         sessionManager.openProject(path: project.path)
+    }
+
+    /// 添加项目(+ 或拖入)后立即切到它的工作目录:最后一个成为当前标签
+    private func addAndOpen(_ paths: [String]) {
+        for path in paths {
+            store.add(path: path)
+        }
+        if let last = paths.last {
+            sessionManager.openProject(path: (last as NSString).standardizingPath)
+        }
+    }
+
+    /// 从侧边栏移除项目:绑定它的标签(所有窗口)一起关掉,标签栏不留孤儿
+    private func remove(_ project: Project) {
+        let running = SessionManagerRegistry.shared.runningCommandCount(inProject: project.path)
+        let needsConfirm = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
+        if running > 0, needsConfirm {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "移除「\(project.name)」并关闭它的标签?")
+            alert.informativeText = String(localized: "该项目的标签里还有 \(running) 个命令在运行,关闭会终止它们。")
+            alert.addButton(withTitle: String(localized: "移除并关闭"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        SessionManagerRegistry.shared.closeProjectTabs(path: project.path)
+        store.remove(project)
     }
 
     /// 保存当前布局:弹一个带输入框的确认框取名
@@ -152,33 +181,44 @@ struct SidebarView: View {
         panel.canCreateDirectories = true
         panel.message = String(localized: "选择要固定到侧边栏的项目文件夹(左下角可新建)")
         if panel.runModal() == .OK {
-            for url in panel.urls {
-                store.add(path: url.path)
-            }
+            addAndOpen(panel.urls.map(\.path))
         }
     }
 }
 
-/// 侧边栏区块标题右侧的小图标按钮:悬停有圆形底色响应
+/// 侧边栏区块标题右侧的图标按钮。iOS 导航栏加号的质感:强调色描线、
+/// 24pt 圆形触控区、悬停浮出一层同色淡底、按下回弹一下。
 private struct HeaderIconButton: View {
     let symbol: String
     let help: String
     let action: () -> Void
 
     @State private var hovering = false
+    @State private var theme = ThemeStore.shared
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(hovering ? Color.primary.opacity(0.1) : .clear))
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(theme.current.accentColor.opacity(hovering ? 1 : 0.85))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(theme.current.accentColor.opacity(hovering ? 0.16 : 0)))
+                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.12), value: hovering)
+        .buttonStyle(SpringyIconButtonStyle())
+        .animation(.easeOut(duration: 0.14), value: hovering)
         .onHover { hovering = $0 }
         .help(help)
+    }
+}
+
+/// 按下缩一下再弹回来:iOS 控件的手感,弹簧参数取「快而不飘」
+private struct SpringyIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
 
@@ -272,12 +312,12 @@ private struct ProjectRow: View {
         .onHover { hovering = $0 }
         .onTapGesture(perform: open)
         .contextMenu {
-            Button("在此目录新开标签页") { open() }
+            Button("切换到该项目") { open() }
             Button("在 Finder 中打开") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: project.path)])
             }
             Divider()
-            Button("从侧边栏移除", role: .destructive, action: remove)
+            Button("移除(并关闭其标签)", role: .destructive, action: remove)
         }
         .help(project.path)
     }

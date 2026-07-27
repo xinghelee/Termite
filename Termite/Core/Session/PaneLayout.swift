@@ -175,6 +175,8 @@ final class PaneTab: Identifiable {
     var isBroadcasting = false
     /// 临时最大化的 pane(⇧⌘↩;nil = 正常分屏布局)
     var maximizedID: UUID?
+    /// 绑定的侧边栏项目路径:点同一个项目切回本标签,项目移除时本标签一起关
+    var projectPath: String?
 
     init(sessionID: UUID) {
         self.root = .leaf(sessionID)

@@ -147,6 +147,16 @@ final class SessionManagerRegistry {
 
     var allSessions: [TerminalSession] { managers.flatMap(\.sessions) }
 
+    /// 侧边栏移除项目:所有窗口里绑定该项目的标签一起关(侧边栏是全局列表,标签栏得跟上)
+    func closeProjectTabs(path: String) {
+        for manager in managers { manager.closeProjectTabs(path: path) }
+    }
+
+    /// 所有窗口里该项目绑定标签中正在跑命令的会话数
+    func runningCommandCount(inProject path: String) -> Int {
+        managers.reduce(0) { $0 + $1.runningCommandCount(inProject: path) }
+    }
+
     /// 「移到新窗口」的待领养标签(一次性,新窗口 manager 恢复时消费)
     @ObservationIgnored var pendingAdoptTab: (tab: PaneTab, sessions: [TerminalSession])?
 
