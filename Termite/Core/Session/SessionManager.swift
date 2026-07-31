@@ -96,6 +96,8 @@ final class SessionManager {
         for id in tab.root.leafIDs() {
             session(id)?.hasUnseenActivity = false
         }
+        // 注意力只在用户真正看到该 pane(聚焦)时算处理过,同标签其它 pane 的保留
+        session(tab.focusedID)?.clearAttention()
     }
 
     var selectedTab: PaneTab? { tabs.first { $0.id == selectedTabID } }
@@ -206,6 +208,7 @@ final class SessionManager {
         guard let next = tab.root.neighborLeaf(of: tab.focusedID, direction: direction) else { return }
         tab.focusedID = next
         session(next)?.focusTerminal()
+        session(next)?.clearAttention()
     }
 
     /// 标签 chip 拖拽重排:把 id 移到 target 当前的位置
@@ -349,6 +352,8 @@ final class SessionManager {
               tab.isBroadcasting else { return }
         for id in tab.root.leafIDs() where id != sessionID {
             session(id)?.sendRawInput(bytes)
+            // 广播键入也是在回应它,注意力视为已处理
+            session(id)?.clearAttention()
         }
     }
 

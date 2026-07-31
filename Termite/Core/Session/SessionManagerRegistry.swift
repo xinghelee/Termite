@@ -157,6 +157,62 @@ final class SessionManagerRegistry {
         managers.reduce(0) { $0 + $1.runningCommandCount(inProject: path) }
     }
 
+    // MARK: - pane 注意力汇总(侧边栏提醒点、⌘J 跳转)
+
+    /// 项目级注意力(跨窗口):等待输入 > 命令完成 > 无
+    enum ProjectAttention {
+        case none, finished, needsInput
+    }
+
+    /// 会话算入项目:所在标签绑定了该项目,或其 cwd 落在项目目录下
+    func attention(inProject path: String) -> ProjectAttention {
+        var level = ProjectAttention.none
+        for manager in managers {
+            for tab in manager.tabs {
+                let bound = tab.projectPath == path
+                for sid in tab.root.leafIDs() {
+                    guard let session = manager.session(sid) else { continue }
+                    let cwd = session.workingDirectory
+                    guard bound || cwd == path || cwd?.hasPrefix(path + "/") == true else { continue }
+                    switch session.attention {
+                    case .needsInput: return .needsInput
+                    case .finished: level = .finished
+                    case .none: break
+                    }
+                }
+            }
+        }
+        return level
+    }
+
+    /// 是否存在带注意力的 pane(菜单/命令面板可用态)
+    var hasAttentionSessions: Bool {
+        managers.contains { $0.sessions.contains { $0.attention.isActive } }
+    }
+
+    /// ⌘J:跳到最需要处理的 pane(等待输入优先于完成,同级按进入注意力态最早优先;跨窗口)
+    func focusNextAttention() {
+        var best: (manager: SessionManager, session: TerminalSession, rank: Int, since: Date)?
+        for manager in managers {
+            for session in manager.sessions {
+                let rank: Int
+                switch session.attention {
+                case .needsInput: rank = 2
+                case .finished: rank = 1
+                case .none: continue
+                }
+                let since = session.attentionSince ?? .distantFuture
+                if best == nil || rank > best!.rank || (rank == best!.rank && since < best!.since) {
+                    best = (manager, session, rank, since)
+                }
+            }
+        }
+        guard let best else { return }
+        window(of: best.manager)?.makeKeyAndOrderFront(nil)
+        // focusPane 会选中所在标签并清掉该 pane 的注意力,连按 ⌘J 即遍历所有待处理 pane
+        best.manager.focusPane(best.session.id)
+    }
+
     /// 「移到新窗口」的待领养标签(一次性,新窗口 manager 恢复时消费)
     @ObservationIgnored var pendingAdoptTab: (tab: PaneTab, sessions: [TerminalSession])?
 

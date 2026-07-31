@@ -48,6 +48,18 @@ final class TerminalSession: Identifiable {
     private(set) var hasCommandOutput = false
     /// 后台标签活动:非可见会话有新输出时点亮,聚焦后由 SessionManager 清除
     var hasUnseenActivity = false
+    /// pane 注意力(等待输入 / 命令完成):驱动 pane 徽标与呼吸边框、标签橙点、侧边栏提醒点
+    private(set) var attention: PaneAttention = .none
+    /// 进入注意力态的时间(⌘J 按等待最久优先跳转)
+    private(set) var attentionSince: Date?
+    /// 失焦 pane 命令刚结束的一次性边框闪烁信号(叶子视图消费)
+    private(set) var finishFlash: FinishFlash?
+    @ObservationIgnored private var silenceHeuristic = SilenceHeuristic()
+    @ObservationIgnored private var silenceWatch: Task<Void, Never>?
+    @ObservationIgnored private var lastAttentionNotice = Date.distantPast
+    /// 恢复会话的 backlog 回灌里可能带着历史 BEL,启动初期的响铃不算注意力
+    /// (markTransportReady 时再顺延,覆盖守护进程冷启动慢于此窗口的情况)
+    @ObservationIgnored private var bellArmedAt = Date().addingTimeInterval(5)
     /// 收到过用户输入才把后台输出算作新活动:恢复会话时 shell 启动输出
     /// (zshrc 初始化、首个提示符)会打到所有后台标签,不该点亮绿点
     private var hasReceivedUserInput = false
@@ -274,6 +286,8 @@ final class TerminalSession: Identifiable {
         stopLogging()
         stopCasting()
         gitProbeTask?.cancel()
+        silenceWatch?.cancel()
+        silenceWatch = nil
         if let hostPtyID {
             // 保活会话:⌘W/关窗是明确的「关闭」,连守护进程里的 shell 一起挂断。
             // app 退出(⌘Q)不走这里——socket 断开即自动 detach,shell 继续活着
@@ -320,6 +334,8 @@ final class TerminalSession: Identifiable {
     /// 传输落定(保活接通 / 本地 shell 启动)后调用:补发就绪前攒下的键入
     private func markTransportReady() {
         transportReady = true
+        // 重连的 backlog 在此之后立刻回灌,其中的历史 BEL 不算注意力
+        bellArmedAt = max(bellArmedAt, Date().addingTimeInterval(2))
         guard !pendingInput.isEmpty else { return }
         let buffered = pendingInput
         pendingInput = []
@@ -329,6 +345,7 @@ final class TerminalSession: Identifiable {
     /// 焦点 pane 的用户键入(TermiteTerminalView.send 回调)→ 广播到同标签其它 pane
     func didSendUserInput(_ bytes: [UInt8]) {
         hasReceivedUserInput = true
+        clearAttention()
         manager?.broadcastInput(from: id, bytes: bytes)
     }
 
@@ -347,6 +364,7 @@ final class TerminalSession: Identifiable {
         if !hasUnseenActivity, hasReceivedUserInput, let manager, !manager.isSessionVisible(id) {
             hasUnseenActivity = true
         }
+        trackAttentionOutput()
         appendToLog(bytes)
         appendToCast(bytes)
         scanForLocalURL(bytes)
@@ -395,6 +413,7 @@ final class TerminalSession: Identifiable {
             lastExitCode = code
             lastCommandDuration = duration
             recordCommand(code: code, duration: duration)
+            attentionAfterCommandEnd(code: code, duration: duration)
             notifyIfLongCommand(code: code, duration: duration)
             SessionManagerRegistry.shared.updateDockBadge()
             // 命令可能改了仓库状态(git/编辑器/构建都会),节流刷新脏计数
@@ -418,6 +437,108 @@ final class TerminalSession: Identifiable {
         }
         guard !inForeground else { return }
         NotificationService.postCommandFinished(exitCode: code, duration: duration, title: displayTitle)
+    }
+
+    // MARK: - pane 注意力(等待输入 / 命令完成)
+
+    /// 「完成」注意力的最短命令时长(太短的后台命令靠活动绿点就够)
+    static let finishedAttentionMinDuration: TimeInterval = 5
+
+    /// 注意力检测总开关(下拉终端 manager 为 nil,不参与)
+    private var attentionEnabled: Bool {
+        manager != nil && (UserDefaults.standard.object(forKey: SettingsKeys.attentionDetection) as? Bool ?? true)
+    }
+
+    /// 本 pane 此刻是否被用户盯着(app 激活 + key 窗口 + 选中标签 + 聚焦 pane)
+    private var isFocusedByUser: Bool {
+        guard let manager else { return true }
+        return manager.isSessionVisible(id) && manager.selectedTab?.focusedID == id
+    }
+
+    private func trackAttentionOutput() {
+        silenceHeuristic.recordOutput()
+        if case .needsInput(let fromBell) = attention {
+            if !fromBell {
+                // 静默判定是推测:输出恢复说明还在干活,自动撤销
+                clearAttention()
+            } else if let start = silenceHeuristic.streakStart, let since = attentionSince,
+                      start > since, silenceHeuristic.hadBusyStreak() {
+                // 摇铃后又持续输出:程序自己继续了,铃声已过时
+                clearAttention()
+            }
+        }
+        armSilenceWatch()
+    }
+
+    /// 独立 BEL(OSC 终止符不算):TUI 主动请求注意,如 Claude Code 等确认时摇铃
+    func bellReceived() {
+        guard attentionEnabled, Date() >= bellArmedAt, !isFocusedByUser else { return }
+        setAttention(.needsInput(fromBell: true))
+    }
+
+    /// 命令执行期间盯住输出静默:持续输出(在干活)后静默达阈值 → 等待输入。
+    /// 只在没有活跃 watcher 时起一个,睡到静默判定点再核对,输出恢复就顺延。
+    private func armSilenceWatch() {
+        guard silenceWatch == nil, attentionEnabled, runningCommand else { return }
+        silenceWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.runningCommand,
+                      let remaining = self.silenceHeuristic.remainingSilence() else { break }
+                if remaining <= 0 {
+                    self.silenceDidSettle()
+                    break
+                }
+                try? await Task.sleep(for: .seconds(remaining))
+            }
+            // 被 cancel 的路径由取消方清引用:此刻可能已有新 watcher,不能误清
+            if !Task.isCancelled { self?.silenceWatch = nil }
+        }
+    }
+
+    private func silenceDidSettle() {
+        guard attentionEnabled, runningCommand,
+              silenceHeuristic.hadBusyStreak(), !isFocusedByUser else { return }
+        setAttention(.needsInput(fromBell: false))
+    }
+
+    /// 命令结束:等待输入态已过时;失焦 pane 边框闪一下,长命令转「完成」注意力
+    private func attentionAfterCommandEnd(code: Int?, duration: TimeInterval?) {
+        silenceWatch?.cancel()
+        silenceWatch = nil
+        guard attentionEnabled else { return }
+        guard !isFocusedByUser else {
+            clearAttention()
+            return
+        }
+        let failed = (code ?? 0) != 0
+        finishFlash = FinishFlash(failed: failed, at: Date())
+        clearAttention()
+        if (duration ?? 0) >= Self.finishedAttentionMinDuration {
+            setAttention(.finished(failed: failed))
+        }
+    }
+
+    private func setAttention(_ new: PaneAttention) {
+        guard attention != new else { return }
+        if !attention.isActive { attentionSince = Date() }
+        attention = new
+        if case .needsInput = new { notifyAwaitingInputIfNeeded() }
+    }
+
+    /// 聚焦本 pane / 向它键入时由 SessionManager 调用
+    func clearAttention() {
+        guard attention.isActive else { return }
+        attention = .none
+        attentionSince = nil
+    }
+
+    /// pane 可见(同标签失焦)时呼吸边框已足够;完全不可见或 app 在后台才弹系统通知
+    private func notifyAwaitingInputIfNeeded() {
+        let enabled = UserDefaults.standard.object(forKey: SettingsKeys.notifyAttention) as? Bool ?? true
+        guard enabled, manager?.isSessionVisible(id) != true else { return }
+        guard Date().timeIntervalSince(lastAttentionNotice) > 120 else { return }
+        lastAttentionNotice = Date()
+        NotificationService.postAwaitingInput(title: displayTitle)
     }
 
     // MARK: - 命令位置标记(⌘↑/⌘↓ 跳转、复制输出)
@@ -763,6 +884,64 @@ extension TerminalSession: LocalProcessTerminalViewDelegate {
         state = .exited(exitCode)
         stopLogging()
         onProcessExit?()
+    }
+}
+
+/// pane 注意力:失焦 pane 需要用户处理的信号(等待输入 > 命令完成)
+enum PaneAttention: Equatable {
+    case none
+    /// 前台程序停下来等用户(fromBell:程序主动摇铃;否则为静默启发式判定)
+    case needsInput(fromBell: Bool)
+    /// 长命令在失焦 pane 跑完(failed:退出码非 0)
+    case finished(failed: Bool)
+
+    var needsInput: Bool {
+        if case .needsInput = self { return true }
+        return false
+    }
+
+    var isActive: Bool { self != .none }
+}
+
+/// 失焦 pane 命令结束时的一次性边框闪烁(绿=成功,红=失败)
+struct FinishFlash: Equatable {
+    let failed: Bool
+    let at: Date
+}
+
+/// 静默启发式:TUI(如 Claude Code)不发 OSC 133 提示符标记,无法直接知道它何时停下,
+/// 用「持续输出一段时间后突然静默」近似「停下来等输入」。
+/// vim 一类打开后就安静的程序不满足持续输出条件,不误报。
+struct SilenceHeuristic {
+    /// 输出间隔超过该值视为一段新输出(agent 干活时至少每秒都在刷屏)
+    var streakGap: TimeInterval = 2
+    /// 输出需持续这么久才算「在干活」(短促输出后的静默不算)
+    var minStreak: TimeInterval = 5
+    /// 静默达到该时长即判定「在等输入」
+    var silenceThreshold: TimeInterval = 6
+
+    private(set) var lastOutputAt: Date?
+    private(set) var streakStart: Date?
+
+    mutating func recordOutput(at now: Date = Date()) {
+        if let last = lastOutputAt, now.timeIntervalSince(last) <= streakGap {
+            if streakStart == nil { streakStart = last }
+        } else {
+            streakStart = now
+        }
+        lastOutputAt = now
+    }
+
+    /// 距静默判定点还差多久(≤0 即已达标;从未有输出返回 nil)
+    func remainingSilence(at now: Date = Date()) -> TimeInterval? {
+        guard let last = lastOutputAt else { return nil }
+        return silenceThreshold - now.timeIntervalSince(last)
+    }
+
+    /// 静默前的最后一段输出是否够长(证明之前真在干活)
+    func hadBusyStreak() -> Bool {
+        guard let start = streakStart, let last = lastOutputAt else { return false }
+        return last.timeIntervalSince(start) >= minStreak
     }
 }
 

@@ -16,6 +16,7 @@ struct SidebarView: View {
                     ProjectRow(
                         project: project,
                         isActive: isActive(project),
+                        attention: SessionManagerRegistry.shared.attention(inProject: project.path),
                         open: { open(project) },
                         remove: { remove(project) }
                     )
@@ -270,6 +271,7 @@ private struct WorkspaceRow: View {
 private struct ProjectRow: View {
     let project: Project
     let isActive: Bool
+    var attention: SessionManagerRegistry.ProjectAttention = .none
     let open: () -> Void
     let remove: () -> Void
 
@@ -295,7 +297,18 @@ private struct ProjectRow: View {
                     .truncationMode(.middle)
             }
             Spacer(minLength: 0)
-            if isActive {
+            // 注意力提醒点盖过活动态点:等待输入橙点 > 命令完成强调色点 > 当前项目点
+            if attention == .needsInput {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 7, height: 7)
+                    .help("该项目有分屏在等待输入(⌘J 跳转)")
+            } else if attention == .finished {
+                Circle()
+                    .fill(theme.accentColor)
+                    .frame(width: 6, height: 6)
+                    .help("该项目有命令已完成")
+            } else if isActive {
                 Circle()
                     .fill(theme.accentColor)
                     .frame(width: 5, height: 5)

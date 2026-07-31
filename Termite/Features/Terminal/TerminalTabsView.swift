@@ -166,6 +166,10 @@ struct TerminalTabsView: View {
         tab.root.leafIDs().contains { sessionManager.session($0)?.hasUnseenActivity == true }
     }
 
+    private func hasAttention(_ tab: PaneTab) -> Bool {
+        tab.root.leafIDs().contains { sessionManager.session($0)?.attention.needsInput == true }
+    }
+
     /// 标题栏左侧:侧边栏切换 + 标签 chips + 新建标签(「+」贴着标签条,符合浏览器习惯)
     private var leadingControls: some View {
         HStack(spacing: 6) {
@@ -209,6 +213,7 @@ struct TerminalTabsView: View {
                             paneCount: tab.root.leafIDs().count,
                             isSelected: tab.id == sessionManager.selectedTabID,
                             hasActivity: hasActivity(tab),
+                            hasAttention: hasAttention(tab),
                             select: { sessionManager.selectTab(tab.id) },
                             close: { sessionManager.requestCloseTab(tab) }
                         )
@@ -472,15 +477,14 @@ private struct PaneTreeView: View {
         switch node {
         case .leaf(let sid):
             if let session = sessionManager.session(sid) {
-                TerminalPaneView(session: session)
-                    .id(sid)
-                    .overlay(
-                        Rectangle()
-                            .stroke(borderColor(sid), lineWidth: 1.5)
-                            .allowsHitTesting(false)
-                    )
-                    // 点非聚焦 pane 时先聚焦(不吞掉终端本身的交互)
-                    .onTapGesture { if sid != focusedID { onFocus(sid) } }
+                PaneLeafView(
+                    session: session,
+                    isFocused: sid == focusedID,
+                    showsFocus: showsFocus,
+                    broadcasting: broadcasting,
+                    onFocus: { onFocus(sid) }
+                )
+                .id(sid)
             } else {
                 Color.clear
             }
@@ -530,12 +534,88 @@ private struct PaneTreeView: View {
             onResize: onResize
         )
     }
+}
 
-    private func borderColor(_ sid: UUID) -> Color {
-        // 广播时所有 pane 橙色边框;否则仅聚焦 pane 强调色边框
-        if broadcasting { return .orange.opacity(0.7) }
-        if showsFocus, sid == focusedID { return ThemeStore.shared.current.accentColor.opacity(0.55) }
-        return .clear
+/// 叶子 pane:终端 + 状态边框(广播 / 等待输入呼吸 / 聚焦)+ 注意力徽标 + 命令结束闪烁
+private struct PaneLeafView: View {
+    let session: TerminalSession
+    let isFocused: Bool
+    let showsFocus: Bool
+    let broadcasting: Bool
+    let onFocus: () -> Void
+
+    /// 命令结束的一次性边框闪烁(绿=成功,红=失败),动画淡出
+    @State private var flashOpacity: Double = 0
+    @State private var flashFailed = false
+
+    var body: some View {
+        TerminalPaneView(session: session)
+            .overlay(
+                Rectangle()
+                    .stroke(flashFailed ? Color.red : Color.green, lineWidth: 2)
+                    .opacity(flashOpacity)
+                    .allowsHitTesting(false)
+            )
+            .overlay(borderOverlay)
+            .overlay(alignment: .topTrailing) { attentionBadge }
+            // 点非聚焦 pane 时先聚焦(不吞掉终端本身的交互)
+            .onTapGesture { if !isFocused { onFocus() } }
+            .onChange(of: session.finishFlash) { _, flash in
+                guard flash != nil, !isFocused else { return }
+                flashFailed = flash?.failed == true
+                flashOpacity = 0.9
+                withAnimation(.easeOut(duration: 1.2)) { flashOpacity = 0 }
+            }
+    }
+
+    @ViewBuilder private var borderOverlay: some View {
+        if broadcasting {
+            // 广播时所有 pane 橙色边框
+            Rectangle()
+                .stroke(Color.orange.opacity(0.7), lineWidth: 1.5)
+                .allowsHitTesting(false)
+        } else if session.attention.needsInput {
+            // 等待输入:橙色呼吸边框,把视线引过去
+            Rectangle()
+                .stroke(Color.orange, lineWidth: 2)
+                .phaseAnimator([0.85, 0.3]) { border, phase in
+                    border.opacity(phase)
+                } animation: { _ in .easeInOut(duration: 0.8) }
+                .allowsHitTesting(false)
+        } else if showsFocus, isFocused {
+            Rectangle()
+                .stroke(ThemeStore.shared.current.accentColor.opacity(0.55), lineWidth: 1.5)
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder private var attentionBadge: some View {
+        switch session.attention {
+        case .needsInput:
+            badge(String(localized: "等待输入"), symbol: "keyboard.badge.ellipsis", tint: .orange)
+        case .finished(let failed):
+            badge(failed ? String(localized: "命令失败") : String(localized: "已完成"),
+                  symbol: failed ? "xmark.circle.fill" : "checkmark.circle.fill",
+                  tint: failed ? .red : .green)
+        case .none:
+            EmptyView()
+        }
+    }
+
+    /// pane 右上角的注意力徽标(点击整个 pane 即聚焦并消解)
+    private func badge(_ text: String, symbol: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.system(size: 10.5, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3.5)
+        .background(Capsule().fill(tint.opacity(0.9)))
+        .padding(8)
+        .help(String(localized: "点击聚焦此分屏"))
     }
 }
 
@@ -604,6 +684,7 @@ private struct TerminalTabChip: View {
     let paneCount: Int
     let isSelected: Bool
     var hasActivity = false
+    var hasAttention = false
     let select: () -> Void
     let close: () -> Void
 
@@ -611,9 +692,14 @@ private struct TerminalTabChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            // 圆点只承载例外状态:命令在跑转菊花、后台新输出强调色点、进程退出红点;
-            // 空闲是常态,不显示指示,避免整排绿点噪音
-            if focusedSession?.runningCommand == true {
+            // 圆点只承载例外状态:分屏等待输入橙点、命令在跑转菊花、后台新输出强调色点、
+            // 进程退出红点;空闲是常态,不显示指示,避免整排绿点噪音
+            if hasAttention {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 7, height: 7)
+                    .help("有分屏在等待输入")
+            } else if focusedSession?.runningCommand == true {
                 ProgressView()
                     .controlSize(.mini)
                     .frame(width: 8, height: 8)

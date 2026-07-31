@@ -254,6 +254,11 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut(.downArrow, modifiers: [.command, .option])
 
+            Button("聚焦等待输入的分屏") {
+                SessionManagerRegistry.shared.focusNextAttention()
+            }
+            .keyboardShortcut("j", modifiers: .command)
+
             Divider()
 
             Button("下拉终端") {

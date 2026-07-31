@@ -156,6 +156,8 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.pasteProtection) private var pasteProtection = true
     @AppStorage(SettingsKeys.confirmBeforeClosingTab) private var confirmBeforeClosingTab = true
     @AppStorage(SettingsKeys.notifyLongCommand) private var notifyLongCommand = true
+    @AppStorage(SettingsKeys.attentionDetection) private var attentionDetection = true
+    @AppStorage(SettingsKeys.notifyAttention) private var notifyAttention = true
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.sessionPersistence) private var sessionPersistence = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
@@ -174,6 +176,9 @@ private struct BehaviorSettingsTab: View {
             Section("会话") {
                 Toggle("关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)", isOn: $confirmBeforeClosingTab)
                 Toggle("后台长命令(≥10s)完成时系统通知", isOn: $notifyLongCommand)
+                Toggle("检测分屏等待输入(响铃 / 长输出后静默),点亮橙色提醒", isOn: $attentionDetection)
+                Toggle("分屏等待输入时系统通知", isOn: $notifyAttention)
+                    .disabled(!attentionDetection)
                 Toggle("启动时恢复上次的标签页(工作目录)", isOn: $restoreSessions)
                 Toggle("退出后保留会话(重启无缝接回,命令继续跑)", isOn: $sessionPersistence)
                     .disabled(!restoreSessions)

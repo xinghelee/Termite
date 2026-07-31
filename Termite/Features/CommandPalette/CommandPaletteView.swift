@@ -42,6 +42,15 @@ struct CommandPaletteView: View {
                 m.requestSearch()
             },
             PaletteCommand(
+                id: "focus-attention",
+                title: String(localized: "聚焦等待输入的分屏"),
+                subtitle: "⌘J",
+                icon: "bell.badge",
+                isEnabled: SessionManagerRegistry.shared.hasAttentionSessions
+            ) {
+                SessionManagerRegistry.shared.focusNextAttention()
+            },
+            PaletteCommand(
                 id: "timeline",
                 title: m.isTimelineVisible ? String(localized: "关闭命令时间线") : String(localized: "打开命令时间线"),
                 subtitle: "⌘I",

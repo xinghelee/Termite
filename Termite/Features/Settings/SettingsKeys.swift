@@ -25,6 +25,10 @@ enum SettingsKeys {
     static let newTabInheritsCwd = "shell.newTabInheritsCwd"
     /// 后台长命令完成时系统通知
     static let notifyLongCommand = "session.notifyLongCommand"
+    /// pane 注意力检测(响铃 / 持续输出后静默 → 等待输入提醒)
+    static let attentionDetection = "session.attentionDetection"
+    /// pane 等待输入时系统通知
+    static let notifyAttention = "session.notifyAttention"
     /// 启动时恢复上次的标签页(工作目录)
     static let restoreSessions = "session.restoreOnLaunch"
     /// 退出后保留会话:shell 活在 termite-ptyhost 守护进程里,重启无缝接回(依赖启动恢复开启)

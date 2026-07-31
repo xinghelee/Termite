@@ -110,6 +110,13 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         }
     }
 
+    /// 独立 BEL(SwiftTerm 解析器只在 C0 响铃时回调,OSC 终止符不算):
+    /// TUI 主动请求注意 → pane 注意力系统
+    override func bell(source: Terminal) {
+        super.bell(source: source)
+        session?.bellReceived()
+    }
+
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard inputEnabled else { return }
         pauseCursorBlinkForInput()
