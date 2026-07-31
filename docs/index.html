@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Termite — 关掉窗口,活儿接着跑 · macOS 原生终端</title>
+<meta name="description" content="Termite 是 macOS 原生终端:会话交给守护进程托管,⌘Q 不打断长任务;shell 集成把每条命令变成可跳转、可回看的单元;SwiftUI 从头写,不是套壳。">
+<meta property="og:title" content="Termite — 关掉窗口,活儿接着跑">
+<meta property="og:description" content="macOS 原生终端:⌘Q 不打断长任务,命令级导航,内置 Git 面板。免费开源。">
+<meta property="og:image" content="https://termite.xinghelee.com/screenshot.png">
+<meta property="og:url" content="https://termite.xinghelee.com">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0F0C'/%3E%3Ctext x='10' y='44' font-family='Menlo,monospace' font-size='34' font-weight='bold' fill='%232EE6A8'%3E%E2%9D%AF%3C/text%3E%3Crect x='34' y='18' width='14' height='28' fill='%232EE6A8'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0A0F0C;
+  --bg-elev:#101712;
+  --bg-window:#0D1310;
+  --line:#1E2B24;
+  --ink:#DCE7E0;
+  --muted:#7E9188;
+  --faint:#55665E;
+  --emerald:#2EE6A8;
+  --emerald-deep:#0F9D6E;
+  --amber:#E5B567;
+  --red:#E0685E;
+  --mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--emerald-deep);color:#fff}
+a{color:var(--emerald);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--emerald);outline-offset:3px;border-radius:2px}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ---------- nav ---------- */
+nav{
+  position:sticky;top:0;z-index:10;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:56px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink)}
+.brand:hover{text-decoration:none}
+.brand .glyph{color:var(--emerald)}
+.brand .block{display:inline-block;width:8px;height:17px;background:var(--emerald);vertical-align:-3px;margin-left:1px}
+.nav-links{display:flex;align-items:center;gap:22px;font-size:14px}
+.nav-links a{color:var(--muted)}
+.nav-links a:hover{color:var(--ink);text-decoration:none}
+.nav-links a.dl{
+  color:#04120C;background:var(--emerald);font-weight:600;
+  padding:7px 16px;border-radius:8px;
+}
+.nav-links a.dl:hover{background:#4FF0BA}
+
+/* ---------- hero ---------- */
+header{padding:88px 0 40px;text-align:left}
+.eyebrow{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.08em;margin-bottom:22px}
+.eyebrow b{color:var(--amber);font-weight:500}
+h1{
+  font-size:clamp(34px,6.2vw,58px);
+  font-weight:700;line-height:1.25;letter-spacing:.01em;
+  margin-bottom:20px;
+}
+h1 .glyph{color:var(--emerald);font-family:var(--mono);margin-right:.18em}
+h1 .block{display:inline-block;width:.5em;height:1em;background:var(--emerald);vertical-align:-.12em;margin-left:.12em;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.lede{font-size:18px;color:var(--muted);max-width:620px;margin-bottom:34px}
+.lede b{color:var(--ink);font-weight:500}
+.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:14px}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  background:var(--emerald);color:#04120C;font-weight:700;font-size:16px;
+  padding:13px 26px;border-radius:10px;border:none;cursor:pointer;
+  transition:transform .12s ease,background .12s ease;
+}
+.btn:hover{background:#4FF0BA;text-decoration:none;transform:translateY(-1px)}
+.brew{
+  display:inline-flex;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:13.5px;color:var(--muted);
+  background:var(--bg-elev);border:1px solid var(--line);border-radius:10px;
+  padding:12px 16px;
+}
+.brew .dollar{color:var(--faint)}
+.brew code{color:var(--ink)}
+.brew button{
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-family:var(--mono);font-size:12px;padding:2px 6px;border-radius:5px;
+}
+.brew button:hover{color:var(--emerald)}
+.hero-meta{font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+.hero-meta span+span::before{content:"·";margin:0 10px;color:var(--line)}
+
+/* ---------- demo window ---------- */
+.demo{padding:36px 0 30px}
+.window{
+  background:var(--bg-window);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.7),0 0 0 1px rgba(46,230,168,.04);
+  overflow:hidden;
+  position:relative;
+  transition:opacity .5s ease,transform .5s ease;
+}
+.window.detached{opacity:.34;transform:scale(.985)}
+.titlebar{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 14px;border-bottom:1px solid var(--line);
+  background:var(--bg-elev);
+}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.r{background:#FF5F57}.dot.y{background:#FEBC2E}.dot.g{background:#28C840}
+.tab{
+  font-family:var(--mono);font-size:12px;color:var(--muted);
+  background:var(--bg-window);border:1px solid var(--line);border-radius:7px;
+  padding:3px 12px;margin-left:10px;
+}
+.tab .live{color:var(--emerald)}
+.term{
+  font-family:var(--mono);font-size:13.5px;line-height:1.85;
+  padding:18px 20px;min-height:264px;
+  white-space:pre-wrap;word-break:break-all;
+}
+.term .p{color:var(--emerald);font-weight:700}
+.term .cmd{color:var(--ink)}
+.term .out{color:var(--muted)}
+.term .ok{color:var(--emerald)}
+.term .dim{color:var(--faint)}
+.term .caret{display:inline-block;width:8px;height:15px;background:var(--emerald);vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
+.statusbar{
+  display:flex;align-items:center;gap:16px;
+  font-family:var(--mono);font-size:11.5px;color:var(--faint);
+  border-top:1px solid var(--line);padding:8px 16px;background:var(--bg-elev);
+}
+.statusbar .branch{color:var(--amber)}
+.statusbar .right{margin-left:auto}
+.statusbar .daemon{color:var(--emerald);display:none}
+.window.detached .statusbar .daemon{display:inline}
+.window.detached .statusbar .normal{display:none}
+.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--emerald);margin-right:6px;animation:pulse 1.2s ease infinite}
+@keyframes pulse{50%{opacity:.25}}
+.keycap-layer{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:0;transition:opacity .3s ease;
+}
+.keycap-layer.show{opacity:1}
+.keycap{
+  font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);
+  background:rgba(16,23,18,.92);border:1px solid var(--line);
+  border-bottom-width:3px;border-radius:12px;
+  padding:14px 26px;
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+}
+.keycap small{display:block;font-size:11px;font-weight:400;color:var(--muted);text-align:center;margin-top:4px}
+.demo-cap{
+  font-family:var(--mono);font-size:12.5px;color:var(--faint);
+  text-align:center;margin-top:16px;
+}
+.demo-cap b{color:var(--muted);font-weight:500}
+
+/* ---------- command-block sections ---------- */
+main{padding:40px 0 0}
+.cmdblock{margin:0 0 64px}
+.cmdline{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:15px;
+  padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:8px;
+}
+.cmdline .p{color:var(--emerald);font-weight:700}
+.cmdline .c{color:var(--ink);font-weight:600}
+.cmdline .flag{color:var(--amber)}
+.cmdline .meta{margin-left:auto;font-size:12px;color:var(--faint)}
+.cmdline .meta .ok{color:var(--emerald)}
+.cmdblock h2{
+  font-size:24px;font-weight:700;letter-spacing:.01em;
+  margin:22px 0 8px;
+}
+.cmdblock .sub{color:var(--muted);max-width:640px;margin-bottom:26px}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.feat{
+  background:var(--bg-elev);border:1px solid var(--line);border-radius:12px;
+  padding:16px 18px;
+}
+.feat h3{font-size:15px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.feat p{font-size:13.5px;color:var(--muted);line-height:1.7}
+.feat p code{font-family:var(--mono);font-size:12px;color:var(--amber)}
+kbd{
+  font-family:var(--mono);font-size:11.5px;color:var(--emerald);
+  background:var(--bg-window);border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:5px;padding:2px 7px;white-space:nowrap;
+}
+
+/* ---------- screenshot ---------- */
+.shot{margin:0 0 64px}
+.shot img{
+  width:100%;height:auto;display:block;border-radius:14px;
+  border:1px solid var(--line);
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.7);
+}
+.shot figcaption{
+  font-family:var(--mono);font-size:12.5px;color:var(--faint);
+  text-align:center;margin-top:14px;
+}
+
+/* ---------- install ---------- */
+.install{
+  background:var(--bg-elev);border:1px solid var(--line);border-radius:18px;
+  padding:44px 40px;margin-bottom:72px;text-align:center;
+}
+.install h2{font-size:26px;margin-bottom:10px}
+.install .sub{color:var(--muted);margin-bottom:28px}
+.install .cta-row{justify-content:center}
+.install .fine{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-top:20px}
+.install .fine a{color:var(--muted)}
+
+/* ---------- footer ---------- */
+footer{
+  border-top:1px solid var(--line);
+  padding:30px 0 44px;
+  font-family:var(--mono);font-size:12.5px;color:var(--faint);
+}
+.foot-inner{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+footer a{color:var(--muted)}
+footer .spacer{flex:1}
+
+@media (max-width:680px){
+  .feat-grid{grid-template-columns:1fr}
+  header{padding-top:56px}
+  .cmdline .meta{display:none}
+  .install{padding:34px 22px}
+  .term{min-height:300px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="brand" href="#"><span><span class="glyph">❯</span><span class="block"></span></span>Termite</a>
+    <div class="nav-links">
+      <a href="https://github.com/xinghelee/Termite">GitHub</a>
+      <a href="https://github.com/xinghelee/Termite/blob/main/README.en.md">English</a>
+      <a class="dl" href="https://github.com/xinghelee/Termite/releases/latest">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="wrap">
+  <p class="eyebrow">macOS 原生终端 · SwiftUI 从头写,不是套壳 · <b>免费开源</b></p>
+  <h1><span class="glyph">❯</span>关掉窗口,<br>活儿接着跑<span class="block"></span></h1>
+  <p class="lede">会话交给守护进程托管,<b>⌘Q 不打断长任务</b>;shell 集成把每条命令变成可跳转、可回看的单元;内置 Git 面板,图形历史、词级 diff、blame 一应俱全。</p>
+  <div class="cta-row">
+    <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载 Termite</a>
+    <span class="brew"><span class="dollar">$</span><code id="brewCmd">brew install --cask xinghelee/tap/termite</code><button id="brewCopy" aria-label="复制安装命令">复制</button></span>
+  </div>
+  <p class="hero-meta"><span>macOS 15.0+</span><span>Apple 公证</span><span>Apple Silicon &amp; Intel</span></p>
+</header>
+
+<section class="demo wrap" aria-label="会话保活演示">
+  <div class="window" id="demoWin">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="tab"><span class="live">●</span> make release</span>
+    </div>
+    <div class="term" id="demoTerm" aria-hidden="true"></div>
+    <div class="statusbar">
+      <span>zsh · ~/dev/app</span>
+      <span class="branch">⎇ main</span>
+      <span class="right normal" id="demoStatus">运行中 · 4s</span>
+      <span class="right daemon"><span class="pulse"></span>termite-ptyhost · 会话已托管,构建继续运行</span>
+    </div>
+    <div class="keycap-layer" id="keycapLayer"></div>
+  </div>
+  <p class="demo-cap">真实行为演示:<b>⌘Q 退出 App,构建不中断;重新打开,无缝接回。</b></p>
+</section>
+
+<main class="wrap">
+
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite sessions</span><span class="flag">--keepalive</span><span class="meta"><span class="ok">✓ 0</span> · 3ms</span></div>
+    <h2>会话保活与完整恢复</h2>
+    <p class="sub">PTY 由 <code style="font-family:var(--mono);font-size:14px;color:var(--amber)">termite-ptyhost</code> 守护进程持有,App 的生死与你的 shell 无关。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>退出不杀会话 <kbd>⌘Q</kbd></h3><p>退出 App 后 shell 继续运行,重新打开无缝接回。<kbd>⌘W</kbd> 才是真正结束会话。</p></div>
+      <div class="feat"><h3>多窗口完整恢复</h3><p>窗口 frame、焦点、最大化状态、标签与分屏结构、scrollback,全量找回。</p></div>
+      <div class="feat"><h3>新标签继承当前目录</h3><p>在哪个目录开新标签,就从哪个目录开始。</p></div>
+      <div class="feat"><h3>会话录制与回放</h3><p>asciinema 格式(.cast)录制,内置回放窗口,可拖动进度重演。</p></div>
+    </div>
+  </section>
+
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite shell</span><span class="flag">--integrate</span><span class="meta"><span class="ok">✓ 0</span> · 7ms</span></div>
+    <h2>Shell 集成,零配置</h2>
+    <p class="sub">zsh / bash / fish 自动挂钩 OSC 133 命令标记,每条命令都是一个可操作的单元。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>命令间跳转 <kbd>⌘↑</kbd><kbd>⌘↓</kbd></h3><p>在命令之间瞬移;<kbd>⌘⇧C</kbd> 一键复制上条命令的完整输出。</p></div>
+      <div class="feat"><h3>退出码与耗时</h3><p>每条命令的退出码、耗时实时显示在状态栏;长命令(≥10s)后台完成时发系统通知。</p></div>
+      <div class="feat"><h3>历史全局搜索 <kbd>⌘⇧H</kbd></h3><p>命令历史 SQLite 落盘(剥掉提示符),全局模糊搜索,自动生成日报。</p></div>
+      <div class="feat"><h3>命令时间线 <kbd>⌘I</kbd></h3><p>按时间浏览每条命令及其输出,同一命令的两次输出可直接 Diff。</p></div>
+    </div>
+  </section>
+
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite git</span><span class="flag">--panel</span><span class="meta"><span class="ok">✓ 0</span> · 12ms</span></div>
+    <h2>Git 集成</h2>
+    <p class="sub">不离开终端,把仓库看清楚、改明白。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>Git 面板 <kbd>⌘G</kbd></h3><p>SourceTree 式图形提交历史、词级高亮 diff、blame、单文件修改历史、图片改动预览。</p></div>
+      <div class="feat"><h3>完整操作</h3><p>暂存 / 取消暂存 / 丢弃、分支切换、cherry-pick / revert,全部图形化完成。</p></div>
+      <div class="feat"><h3>状态栏常驻分支</h3><p>直读 <code>.git/HEAD</code>,零子进程;提交身份就在旁边,点击即可编辑。</p></div>
+      <div class="feat"><h3>独立历史窗口</h3><p>图形历史可开独立窗口,自由缩放,泳道不断线。</p></div>
+    </div>
+  </section>
+
+  <figure class="shot">
+    <img src="screenshot.png" alt="Termite 界面截图:深色主题,左侧项目侧边栏,内嵌运行中的 Claude Code 会话,底部状态栏显示分支与命令状态" loading="lazy">
+    <figcaption>20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
+  </figure>
+
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite nav</span><span class="flag">--panels</span><span class="meta"><span class="ok">✓ 0</span> · 5ms</span></div>
+    <h2>面板与导航</h2>
+    <p class="sub">键盘不离手,去哪都是一步。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>命令面板 <kbd>⌘P</kbd></h3><p>模糊搜索所有动作与主题;<kbd>⌘O</kbd> frecency 目录跳转器,<kbd>⇧⌘E</kbd> 文件浏览器。</p></div>
+      <div class="feat"><h3>Quake 下拉终端 <kbd>⌃⌥⌘Space</kbd></h3><p>全局热键随叫随到(可自定义),无需辅助功能权限。</p></div>
+      <div class="feat"><h3>侧边栏项目切换</h3><p>常用项目文件夹一列排开,点一下就切;Dock 图标拖入文件夹直接开标签。</p></div>
+      <div class="feat"><h3>端口面板与 CLI</h3><p>谁占了哪个端口一目了然;<code>termite</code> 命令行工具从任何地方打开新标签。</p></div>
+    </div>
+  </section>
+
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite feel</span><span class="flag">--details</span><span class="meta"><span class="ok">✓ 0</span> · 2ms</span></div>
+    <h2>终端手感</h2>
+    <p class="sub">该有的都有,细节不将就。终端引擎 <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,Metal GPU 渲染。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>无限分屏</h3><p><kbd>⌘⌥方向键</kbd> 在窗格间移动,<kbd>⇧⌘↩</kbd> 最大化单格,支持向所有窗格广播输入。</p></div>
+      <div class="feat"><h3>粘贴保护</h3><p>多行粘贴与危险内容(<code>rm -rf</code>、<code>sudo</code>…)先确认再执行。</p></div>
+      <div class="feat"><h3>顺手的小事</h3><p>选中即复制、中键粘贴、标签拖拽排序、标签拖出成窗、光标只在焦点窗格闪烁。</p></div>
+      <div class="feat"><h3>内置 imgcat</h3><p>终端里直接看图;结构化输出查看器自动嗅探 JSON / CSV。</p></div>
+    </div>
+  </section>
+
+  <section class="install" id="install">
+    <h2>装上试试</h2>
+    <p class="sub">DMG 已过 Apple 公证,拖进 Applications 即用。</p>
+    <div class="cta-row">
+      <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载最新版</a>
+      <span class="brew"><span class="dollar">$</span><code>brew install --cask xinghelee/tap/termite</code><button id="brewCopy2" aria-label="复制安装命令">复制</button></span>
+    </div>
+    <p class="fine">macOS 15.0+ · 开源免费 · <a href="https://github.com/xinghelee/Termite#从源码构建">从源码构建</a></p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot-inner">
+    <span><span style="color:var(--emerald)">❯</span> Termite</span>
+    <a href="https://github.com/xinghelee/Termite">GitHub</a>
+    <a href="https://github.com/xinghelee/Termite/releases">Releases</a>
+    <a href="https://github.com/xinghelee/Termite/blob/main/README.en.md">English</a>
+    <span class="spacer"></span>
+    <span>© 2026 xinghe · 引擎 <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var term = document.getElementById('demoTerm');
+  var win = document.getElementById('demoWin');
+  var layer = document.getElementById('keycapLayer');
+  var status = document.getElementById('demoStatus');
+
+  var FINAL =
+    '<span class="p">❯</span> <span class="cmd">make release</span>\n' +
+    '<span class="out">▸ xcodegen generate</span>\n' +
+    '<span class="out">▸ Compiling PtyHostDaemon</span>\n' +
+    '<span class="out">▸ Compiling Termite <span class="dim">(arm64)</span></span>\n' +
+    '<span class="out">▸ Signing Termite.app</span>\n' +
+    '<span class="ok">▸ Build succeeded</span> <span class="dim">· 2m 14s</span>\n' +
+    '<span class="p">❯</span> <span class="caret"></span>';
+
+  if (reduced) { term.innerHTML = FINAL; status.textContent = '✓ 0 · 2m14s'; return; }
+
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  function typeCmd(text){
+    return new Promise(function(resolve){
+      var i = 0;
+      term.innerHTML = '<span class="p">❯</span> <span class="cmd" id="typing"></span><span class="caret"></span>';
+      var t = document.getElementById('typing');
+      (function tick(){
+        if (i < text.length) { t.textContent += text[i++]; setTimeout(tick, 55); }
+        else resolve();
+      })();
+    });
+  }
+
+  function addLine(html){
+    var caret = term.querySelector('.caret');
+    if (caret) caret.remove();
+    term.innerHTML += '\n' + html;
+  }
+
+  function keycap(main, sub){
+    layer.innerHTML = '<div class="keycap">' + main + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
+    layer.classList.add('show');
+  }
+  function keycapHide(){ layer.classList.remove('show'); }
+
+  async function play(){
+    win.classList.remove('detached');
+    keycapHide();
+    status.textContent = '运行中 · 0s';
+    await sleep(700);
+    await typeCmd('make release');
+    await sleep(350);
+    addLine('<span class="out">▸ xcodegen generate</span>');
+    status.textContent = '运行中 · 2s';
+    await sleep(650);
+    addLine('<span class="out">▸ Compiling PtyHostDaemon</span>');
+    status.textContent = '运行中 · 5s';
+    await sleep(750);
+    addLine('<span class="out">▸ Compiling Termite <span class="dim">(arm64)</span></span>');
+    status.textContent = '运行中 · 9s';
+    await sleep(1100);
+
+    keycap('⌘ Q', '退出 Termite');
+    await sleep(650);
+    win.classList.add('detached');
+    await sleep(2300);
+
+    keycap('重新打开 Termite', '会话无缝接回');
+    await sleep(650);
+    win.classList.remove('detached');
+    await sleep(500);
+    keycapHide();
+    await sleep(400);
+    addLine('<span class="out">▸ Signing Termite.app</span>');
+    await sleep(600);
+    addLine('<span class="ok">▸ Build succeeded</span> <span class="dim">· 2m 14s</span>');
+    status.textContent = '✓ 0 · 2m14s';
+    await sleep(400);
+    addLine('<span class="p">❯</span> <span class="caret"></span>');
+    await sleep(6000);
+    play();
+  }
+  play();
+
+  function bindCopy(id){
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', function(){
+      navigator.clipboard.writeText('brew install --cask xinghelee/tap/termite').then(function(){
+        btn.textContent = '已复制';
+        setTimeout(function(){ btn.textContent = '复制'; }, 1600);
+      });
+    });
+  }
+  bindCopy('brewCopy'); bindCopy('brewCopy2');
+})();
+</script>
+</body>
+</html>
