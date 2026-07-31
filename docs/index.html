@@ -102,72 +102,9 @@ h1 .block{display:inline-block;width:.5em;height:1em;background:var(--emerald);v
 .hero-meta{font-family:var(--mono);font-size:12.5px;color:var(--faint)}
 .hero-meta span+span::before{content:"·";margin:0 10px;color:var(--line)}
 
-/* ---------- demo window ---------- */
+/* ---------- hero screenshot ---------- */
 .demo{padding:36px 0 30px}
-.window{
-  background:var(--bg-window);
-  border:1px solid var(--line);
-  border-radius:14px;
-  box-shadow:0 30px 80px -20px rgba(0,0,0,.7),0 0 0 1px rgba(46,230,168,.04);
-  overflow:hidden;
-  position:relative;
-  transition:opacity .5s ease,transform .5s ease;
-}
-.window.detached{opacity:.34;transform:scale(.985)}
-.titlebar{
-  display:flex;align-items:center;gap:8px;
-  padding:11px 14px;border-bottom:1px solid var(--line);
-  background:var(--bg-elev);
-}
-.dot{width:12px;height:12px;border-radius:50%}
-.dot.r{background:#FF5F57}.dot.y{background:#FEBC2E}.dot.g{background:#28C840}
-.tab{
-  font-family:var(--mono);font-size:12px;color:var(--muted);
-  background:var(--bg-window);border:1px solid var(--line);border-radius:7px;
-  padding:3px 12px;margin-left:10px;
-}
-.tab .live{color:var(--emerald)}
-.term{
-  font-family:var(--mono);font-size:13.5px;line-height:1.85;
-  padding:18px 20px;min-height:264px;
-  white-space:pre-wrap;word-break:break-all;
-}
-.term .p{color:var(--emerald);font-weight:700}
-.term .cmd{color:var(--ink)}
-.term .out{color:var(--muted)}
-.term .ok{color:var(--emerald)}
-.term .dim{color:var(--faint)}
-.term .caret{display:inline-block;width:8px;height:15px;background:var(--emerald);vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
-.statusbar{
-  display:flex;align-items:center;gap:16px;
-  font-family:var(--mono);font-size:11.5px;color:var(--faint);
-  border-top:1px solid var(--line);padding:8px 16px;background:var(--bg-elev);
-}
-.statusbar .branch{color:var(--amber)}
-.statusbar .right{margin-left:auto}
-.statusbar .daemon{color:var(--emerald);display:none}
-.window.detached .statusbar .daemon{display:inline}
-.window.detached .statusbar .normal{display:none}
-.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--emerald);margin-right:6px;animation:pulse 1.2s ease infinite}
-@keyframes pulse{50%{opacity:.25}}
-.keycap-layer{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  pointer-events:none;opacity:0;transition:opacity .3s ease;
-}
-.keycap-layer.show{opacity:1}
-.keycap{
-  font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);
-  background:rgba(16,23,18,.92);border:1px solid var(--line);
-  border-bottom-width:3px;border-radius:12px;
-  padding:14px 26px;
-  box-shadow:0 18px 50px rgba(0,0,0,.6);
-}
-.keycap small{display:block;font-size:11px;font-weight:400;color:var(--muted);text-align:center;margin-top:4px}
-.demo-cap{
-  font-family:var(--mono);font-size:12.5px;color:var(--faint);
-  text-align:center;margin-top:16px;
-}
-.demo-cap b{color:var(--muted);font-weight:500}
+.demo .shot{margin:0}
 
 /* ---------- command-block sections ---------- */
 main{padding:40px 0 0}
@@ -239,7 +176,6 @@ footer .spacer{flex:1}
   header{padding-top:56px}
   .cmdline .meta{display:none}
   .install{padding:34px 22px}
-  .term{min-height:300px}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -271,22 +207,11 @@ footer .spacer{flex:1}
   <p class="hero-meta"><span>macOS 15.0+</span><span>Apple 公证</span><span>Apple Silicon &amp; Intel</span></p>
 </header>
 
-<section class="demo wrap" aria-label="会话保活演示">
-  <div class="window" id="demoWin">
-    <div class="titlebar">
-      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-      <span class="tab"><span class="live">●</span> make release</span>
-    </div>
-    <div class="term" id="demoTerm" aria-hidden="true"></div>
-    <div class="statusbar">
-      <span>zsh · ~/dev/app</span>
-      <span class="branch">⎇ main</span>
-      <span class="right normal" id="demoStatus">运行中 · 4s</span>
-      <span class="right daemon"><span class="pulse"></span>termite-ptyhost · 会话已托管,构建继续运行</span>
-    </div>
-    <div class="keycap-layer" id="keycapLayer"></div>
-  </div>
-  <p class="demo-cap">真实行为演示:<b>⌘Q 退出 App,构建不中断;重新打开,无缝接回。</b></p>
+<section class="demo wrap">
+  <figure class="shot">
+    <img src="screenshot.png" alt="Termite 界面截图:深色主题,左侧项目侧边栏,内嵌运行中的 Claude Code 会话,底部状态栏显示分支与命令状态">
+    <figcaption>20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
+  </figure>
 </section>
 
 <main class="wrap">
@@ -326,11 +251,6 @@ footer .spacer{flex:1}
       <div class="feat"><h3>独立历史窗口</h3><p>图形历史可开独立窗口,自由缩放,泳道不断线。</p></div>
     </div>
   </section>
-
-  <figure class="shot">
-    <img src="screenshot.png" alt="Termite 界面截图:深色主题,左侧项目侧边栏,内嵌运行中的 Claude Code 会话,底部状态栏显示分支与命令状态" loading="lazy">
-    <figcaption>20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
-  </figure>
 
   <section class="cmdblock">
     <div class="cmdline"><span class="p">❯</span><span class="c">termite nav</span><span class="flag">--panels</span><span class="meta"><span class="ok">✓ 0</span> · 5ms</span></div>
@@ -381,88 +301,6 @@ footer .spacer{flex:1}
 
 <script>
 (function(){
-  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var term = document.getElementById('demoTerm');
-  var win = document.getElementById('demoWin');
-  var layer = document.getElementById('keycapLayer');
-  var status = document.getElementById('demoStatus');
-
-  var FINAL =
-    '<span class="p">❯</span> <span class="cmd">make release</span>\n' +
-    '<span class="out">▸ xcodegen generate</span>\n' +
-    '<span class="out">▸ Compiling PtyHostDaemon</span>\n' +
-    '<span class="out">▸ Compiling Termite <span class="dim">(arm64)</span></span>\n' +
-    '<span class="out">▸ Signing Termite.app</span>\n' +
-    '<span class="ok">▸ Build succeeded</span> <span class="dim">· 2m 14s</span>\n' +
-    '<span class="p">❯</span> <span class="caret"></span>';
-
-  if (reduced) { term.innerHTML = FINAL; status.textContent = '✓ 0 · 2m14s'; return; }
-
-  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
-
-  function typeCmd(text){
-    return new Promise(function(resolve){
-      var i = 0;
-      term.innerHTML = '<span class="p">❯</span> <span class="cmd" id="typing"></span><span class="caret"></span>';
-      var t = document.getElementById('typing');
-      (function tick(){
-        if (i < text.length) { t.textContent += text[i++]; setTimeout(tick, 55); }
-        else resolve();
-      })();
-    });
-  }
-
-  function addLine(html){
-    var caret = term.querySelector('.caret');
-    if (caret) caret.remove();
-    term.innerHTML += '\n' + html;
-  }
-
-  function keycap(main, sub){
-    layer.innerHTML = '<div class="keycap">' + main + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
-    layer.classList.add('show');
-  }
-  function keycapHide(){ layer.classList.remove('show'); }
-
-  async function play(){
-    win.classList.remove('detached');
-    keycapHide();
-    status.textContent = '运行中 · 0s';
-    await sleep(700);
-    await typeCmd('make release');
-    await sleep(350);
-    addLine('<span class="out">▸ xcodegen generate</span>');
-    status.textContent = '运行中 · 2s';
-    await sleep(650);
-    addLine('<span class="out">▸ Compiling PtyHostDaemon</span>');
-    status.textContent = '运行中 · 5s';
-    await sleep(750);
-    addLine('<span class="out">▸ Compiling Termite <span class="dim">(arm64)</span></span>');
-    status.textContent = '运行中 · 9s';
-    await sleep(1100);
-
-    keycap('⌘ Q', '退出 Termite');
-    await sleep(650);
-    win.classList.add('detached');
-    await sleep(2300);
-
-    keycap('重新打开 Termite', '会话无缝接回');
-    await sleep(650);
-    win.classList.remove('detached');
-    await sleep(500);
-    keycapHide();
-    await sleep(400);
-    addLine('<span class="out">▸ Signing Termite.app</span>');
-    await sleep(600);
-    addLine('<span class="ok">▸ Build succeeded</span> <span class="dim">· 2m 14s</span>');
-    status.textContent = '✓ 0 · 2m14s';
-    await sleep(400);
-    addLine('<span class="p">❯</span> <span class="caret"></span>');
-    await sleep(6000);
-    play();
-  }
-  play();
-
   function bindCopy(id){
     var btn = document.getElementById(id);
     if (!btn) return;
