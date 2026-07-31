@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Termite — macOS 原生终端</title>
-<meta name="description" content="Termite 是 macOS 原生终端:会话交给守护进程托管,⌘Q 不打断长任务;shell 集成把每条命令变成可跳转、可回看的单元;SwiftUI 从头写,不是套壳。">
+<meta name="description" content="Termite 是 macOS 原生终端:退出 App 任务照样跑,回来无缝接上;命令可跳转、可回看、可搜索,内置完整 Git 面板。SwiftUI 从头写,免费开源。">
 <meta property="og:title" content="Termite — macOS 原生终端">
 <meta property="og:description" content="macOS 原生终端:⌘Q 不打断长任务,命令级导航,内置 Git 面板。免费开源。">
 <meta property="og:image" content="https://termite.xinghelee.com/screenshot.png">
@@ -72,12 +72,10 @@ h1{
   font-family:var(--mono);
   font-size:clamp(34px,6.2vw,58px);
   font-weight:700;line-height:1.25;letter-spacing:.01em;
-  margin-bottom:20px;
+  margin-bottom:28px;
 }
 h1 .glyph{color:var(--emerald);font-family:var(--mono);margin-right:.18em}
 @keyframes blink{50%{opacity:0}}
-.lede{font-size:18px;color:var(--muted);max-width:620px;margin-bottom:34px}
-.lede b{color:var(--ink);font-weight:500}
 .cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:14px}
 .btn{
   display:inline-flex;align-items:center;gap:9px;
@@ -199,7 +197,6 @@ footer .spacer{flex:1}
 <header class="wrap">
   <p class="eyebrow">macOS 原生终端 · SwiftUI 从头写,不是套壳 · <b>免费开源</b></p>
   <h1><span class="glyph">❯</span>Termite</h1>
-  <p class="lede">会话交给守护进程托管,<b>⌘Q 不打断长任务</b>;shell 集成把每条命令变成可跳转、可回看的单元;内置 Git 面板,图形历史、词级 diff、blame 一应俱全。</p>
   <div class="cta-row">
     <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载 Termite</a>
     <span class="brew"><span class="dollar">$</span><code id="brewCmd">brew install --cask xinghelee/tap/termite</code><button id="brewCopy" aria-label="复制安装命令">复制</button></span>
