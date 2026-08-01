@@ -555,12 +555,6 @@ final class SessionManager {
             if let active = state.activeWindowIndex, active > 0 || !extraWindowKeys.isEmpty {
                 registry.scheduleActiveWindowFocus(managerIndex: active)
             }
-        } else if let legacy = UserDefaults.standard.stringArray(forKey: SessionManagerRegistry.openTabsKey), !legacy.isEmpty {
-            // 旧版迁移:只有目录列表
-            for dir in legacy {
-                newTab(directory: validDirectory(dir))
-            }
-            selectedTabID = tabs.first?.id
         } else {
             newTab()
         }

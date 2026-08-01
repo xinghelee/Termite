@@ -259,8 +259,11 @@ final class SessionManagerRegistry {
 
     // MARK: - 打开标签持久化(按窗口分组:布局树 + 可选 scrollback 快照)
 
-    static let openTabsKey = "session.openTabDirectories" // 旧版迁移用
     static let savedStateKey = "session.savedState"
+    /// 旧版(纯目录列表)存档 key:迁移分支已删,但要持续清除。
+    /// 教训:关窗后 app 退出会以空 managers 覆写 v2 存档,恢复曾掉进这个化石列表,
+    /// 把早已删掉的目录复活成标签(目录失效还会经"继承 cwd"克隆出重复标签)
+    static let legacyOpenTabsKey = "session.openTabDirectories"
 
     static var restoreDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -309,6 +312,7 @@ final class SessionManagerRegistry {
         let state = SavedAppState(windows: windows, activeWindowIndex: activeWindowIndex)
         guard let data = try? JSONEncoder().encode(state) else { return }
         UserDefaults.standard.set(data, forKey: Self.savedStateKey)
+        UserDefaults.standard.removeObject(forKey: Self.legacyOpenTabsKey)
     }
 
     static func loadSavedState() -> SavedAppState? {
