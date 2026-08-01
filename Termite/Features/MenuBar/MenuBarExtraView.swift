@@ -17,6 +17,12 @@ struct MenuBarExtraView: View {
     }
 
     var body: some View {
+        if let update = UpdateChecker.shared.available {
+            Button("升级到 Termite \(update.version)…") {
+                UpdateChecker.shared.openDownload()
+            }
+            Divider()
+        }
         let waiting = SessionManagerRegistry.shared.awaitingInputSessions
         if !waiting.isEmpty {
             Text("等待输入")

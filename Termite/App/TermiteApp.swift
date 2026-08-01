@@ -56,6 +56,11 @@ struct TermiteApp: App {
         ThemeStore.shared.applyWindowChrome()
         ShellIntegration.ensureInstalled()
         QuickTerminalController.shared.registerHotKeyIfEnabled()
+        // 更新检查让位启动恢复:延后几秒再发网络请求
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            UpdateChecker.shared.checkOnLaunch()
+        }
         // Metal 已回归默认开启;当年"回落默认关"的一次性迁移(resetToOff.v1)已删,
         // 存量显式 false 视为用户主动关闭,予以保留
     }
@@ -108,6 +113,18 @@ struct TerminalCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            if let update = UpdateChecker.shared.available {
+                Button("升级到 Termite \(update.version)…") {
+                    UpdateChecker.shared.openDownload()
+                }
+            } else {
+                Button("检查更新…") {
+                    UpdateChecker.shared.checkInteractively()
+                }
+            }
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("新建窗口") {
                 openWindow(id: "main", value: UUID())

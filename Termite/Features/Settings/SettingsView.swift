@@ -161,6 +161,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.sessionPersistence) private var sessionPersistence = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
+    @AppStorage(SettingsKeys.autoCheckUpdates) private var autoCheckUpdates = true
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
     @AppStorage(SettingsKeys.quickTerminalHotkey) private var quickTerminalHotkey = QuickTerminalHotkey.ctrlOptCmdSpace.rawValue
     @AppStorage(SettingsKeys.fileOpenAppPath) private var openAppPath = ""
@@ -185,6 +186,7 @@ private struct BehaviorSettingsTab: View {
                     .disabled(!restoreSessions)
             }
             Section("通用") {
+                Toggle("自动检查更新(GitHub Release,每日至多一次)", isOn: $autoCheckUpdates)
                 Toggle("在菜单栏显示图标", isOn: $menuBarExtraEnabled)
                 Toggle("下拉终端(全局热键)", isOn: $quickTerminalEnabled)
                     .onChange(of: quickTerminalEnabled) { _, on in

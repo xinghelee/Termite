@@ -47,4 +47,6 @@ enum SettingsKeys {
     static let fileOpenAppPath = "fileBrowser.openAppPath"
     /// ⌘点击 file:line 用的编辑器 .app 路径(空 = 自动探测常见编辑器)
     static let editorAppPath = "terminal.editorAppPath"
+    /// 启动时自动检查 GitHub Release 新版本(24h 至多一次)
+    static let autoCheckUpdates = "app.autoCheckUpdates"
 }

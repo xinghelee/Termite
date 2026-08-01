@@ -38,6 +38,16 @@ enum NotificationService {
         center.add(request)
     }
 
+    /// 自动检查发现新版本(点击通知激活 app 后经菜单下载)
+    static func postUpdateAvailable(version: String) {
+        let center = center()
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Termite \(version) 已发布")
+        content.body = String(localized: "在菜单「Termite → 检查更新」中下载升级。")
+        let request = UNNotificationRequest(identifier: "update-\(version)", content: content, trigger: nil)
+        center.add(request)
+    }
+
     private static func compact(_ duration: TimeInterval) -> String {
         if duration < 60 { return String(format: "%.0fs", duration) }
         let minutes = Int(duration) / 60
