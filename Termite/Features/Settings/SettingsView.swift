@@ -164,6 +164,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.quickTerminal) private var quickTerminalEnabled = true
     @AppStorage(SettingsKeys.quickTerminalHotkey) private var quickTerminalHotkey = QuickTerminalHotkey.ctrlOptCmdSpace.rawValue
     @AppStorage(SettingsKeys.fileOpenAppPath) private var openAppPath = ""
+    @AppStorage(SettingsKeys.editorAppPath) private var editorAppPath = ""
     @State private var cliMessage: String?
 
     var body: some View {
@@ -220,6 +221,22 @@ private struct BehaviorSettingsTab: View {
                     }
                 }
                 Text("双击文件或右键「打开」时使用;留空跟随 macOS 的默认程序关联。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("编辑器") {
+                HStack {
+                    Text("⌘点击 file:line 打开")
+                    Spacer()
+                    Text(EditorLauncher.displayName)
+                        .foregroundStyle(.secondary)
+                    Button("选择…") {
+                        EditorLauncher.chooseApp { editorAppPath = $0 }
+                    }
+                    if !editorAppPath.isEmpty {
+                        Button("自动检测") { editorAppPath = "" }
+                    }
+                }
+                Text("⌘点击终端输出里的 路径:行号(如 src/main.swift:42)在编辑器中打开;VS Code / Cursor / Zed / Xcode 可直达行号。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("命令行工具") {

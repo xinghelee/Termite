@@ -258,6 +258,17 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // SwiftTerm 未实现菜单校验,自动校验会把自定义项判为禁用;这里手动管理启用态
         menu.autoenablesItems = false
 
+        // 右键点在 file:line 引用上:首项直达编辑器
+        if let (path, match) = fileLink(at: event) {
+            pendingFileLink = (path, match.line, match.column)
+            let display = (path as NSString).lastPathComponent + (match.line.map { ":\($0)" } ?? "")
+            let openItem = NSMenuItem(title: String(localized: "在编辑器中打开 \(display)"), action: #selector(termiteOpenFileLink), keyEquivalent: "")
+            openItem.target = self
+            openItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+            menu.addItem(openItem)
+            menu.addItem(.separator())
+        }
+
         let copyItem = NSMenuItem(title: String(localized: "复制"), action: #selector(copy(_:)), keyEquivalent: "c")
         copyItem.target = self
         menu.addItem(copyItem)
@@ -333,6 +344,43 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     @objc private func termiteFind() {
         MainActor.assumeIsolated { SessionManager.shared.requestSearch() }
+    }
+
+    // MARK: - file:line 点击跳转
+
+    private var pendingFileLink: (path: String, line: Int?, column: Int?)?
+
+    @objc private func termiteOpenFileLink() {
+        guard let link = pendingFileLink else { return }
+        EditorLauncher.open(path: link.path, line: link.line, column: link.column)
+    }
+
+    /// 屏幕点 → (终端列, 可视区行)。SwiftTerm 未公开 cellDimension,借 caretFrame 的尺寸(恒等于单元格)
+    private func hitCell(_ event: NSEvent) -> (col: Int, row: Int)? {
+        let cell = caretFrame.size
+        guard cell.width > 0, cell.height > 0 else { return nil }
+        let point = convert(event.locationInWindow, from: nil)
+        let col = Int(point.x / cell.width)
+        let row = Int((frame.height - point.y) / cell.height)
+        guard col >= 0, row >= 0 else { return nil }
+        return (col, row)
+    }
+
+    /// 事件位置命中 file:line 且文件真实存在时返回(绝对路径, 匹配)
+    private func fileLink(at event: NSEvent) -> (path: String, match: FileLinkDetector.Match)? {
+        guard let (col, row) = hitCell(event),
+              let line = getTerminal().getLine(row: row) else { return nil }
+        let text = line.translateToString(trimRight: true)
+        guard let match = FileLinkDetector.match(in: text, column: col) else { return nil }
+        let cwd = MainActor.assumeIsolated { session?.workingDirectory }
+        return FileLinkDetector.resolve(match, cwd: cwd).map { ($0, match) }
+    }
+
+    @discardableResult
+    private func handleFileLinkClick(_ event: NSEvent) -> Bool {
+        guard let (path, match) = fileLink(at: event) else { return false }
+        EditorLauncher.open(path: path, line: match.line, column: match.column)
+        return true
     }
 
     // MARK: - IME 组词期间隐藏光标
@@ -417,6 +465,9 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func mouseUp(with event: NSEvent) {
         super.mouseUp(with: event)
+        // ⌘点击输出里的 file:line(如 src/main.swift:42、traceback)→ 编辑器打开;
+        // 放在 super 之后:URL 链接点击已被 SwiftTerm 消费,这里只处理它不认识的文件引用
+        if event.modifierFlags.contains(.command), handleFileLinkClick(event) { return }
         // 选中即复制(Unix 习惯,默认关):拖选结束后有选区就写入剪贴板
         let enabled = UserDefaults.standard.bool(forKey: SettingsKeys.copyOnSelect)
         guard enabled, let text = getSelection(), !text.isEmpty else { return }

@@ -45,4 +45,6 @@ enum SettingsKeys {
     static let mouseReporting = "terminal.mouseReporting"
     /// 文件浏览器「打开」用的 .app 路径(空 = 跟随系统默认程序)
     static let fileOpenAppPath = "fileBrowser.openAppPath"
+    /// ⌘点击 file:line 用的编辑器 .app 路径(空 = 自动探测常见编辑器)
+    static let editorAppPath = "terminal.editorAppPath"
 }
