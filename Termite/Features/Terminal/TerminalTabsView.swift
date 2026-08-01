@@ -276,9 +276,18 @@ struct TerminalTabsView: View {
         }
     }
 
-    /// 标题栏右侧按钮组:面板开关(时间线 / Git / 文件)+ 主题面板
+    /// 标题栏右侧按钮组:面板开关(时间线 / Git / 文件)+ 主题面板;有新版时头部多一枚下载入口
     private var panelButtons: some View {
         HStack(spacing: 2) {
+            if let update = UpdateChecker.shared.available {
+                PanelIconButton(
+                    symbol: "arrow.down.circle.fill",
+                    help: String(localized: "升级到 Termite \(update.version)"),
+                    tint: ThemeStore.shared.current.accentColor
+                ) {
+                    UpdateChecker.shared.openDownload()
+                }
+            }
             PanelIconButton(
                 symbol: "clock.arrow.circlepath",
                 help: String(localized: "命令时间线(⌘I)"),
