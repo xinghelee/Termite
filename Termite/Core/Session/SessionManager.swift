@@ -147,16 +147,35 @@ final class SessionManager {
         persistOpenTabs()
     }
 
-    /// 侧边栏移除项目:连同绑定到它的标签一起关(顶部标签栏与侧边栏保持一致)
+    /// 标签的项目归属:显式绑定优先,否则聚焦会话 cwd 前缀匹配侧边栏项目
+    /// (恢复来的 / CLI 开出的标签常无绑定,只认 projectPath 会漏掉它们)
+    func projectGroup(of tab: PaneTab) -> String? {
+        if let bound = tab.projectPath { return bound }
+        guard let cwd = session(tab.focusedID)?.workingDirectory else { return nil }
+        return ProjectStore.shared.projects.first { cwd == $0.path || cwd.hasPrefix($0.path + "/") }?.path
+    }
+
+    /// 标签栏可见标签:当前项目的 + 不属于任何项目的散标签
+    /// (散标签没有侧边栏入口,藏起来就永远选不到了,只能始终可见)
+    var visibleTabs: [PaneTab] {
+        let current = selectedTab.flatMap { projectGroup(of: $0) }
+        return tabs.filter { tab in
+            let group = projectGroup(of: tab)
+            return group == current || group == nil
+        }
+    }
+
+    /// 侧边栏移除项目:归属它的标签(含未绑定但 cwd 在项目下的)一起关,shell 一并终止。
+    /// 手动移除必须清干净,否则漏掉的标签会随关窗存档在下次启动时复活
     func closeProjectTabs(path: String) {
-        for tab in tabs where tab.projectPath == path {
+        for tab in tabs where projectGroup(of: tab) == path {
             closeTab(tab)
         }
     }
 
-    /// 该项目绑定的标签里有几个会话在跑命令(移除前的确认提示用)
+    /// 该项目归属标签里有几个会话在跑命令(移除前的确认提示用)
     func runningCommandCount(inProject path: String) -> Int {
-        tabs.filter { $0.projectPath == path }
+        tabs.filter { projectGroup(of: $0) == path }
             .flatMap { $0.root.leafIDs() }
             .filter { session($0)?.runningCommand == true }
             .count
@@ -316,10 +335,11 @@ final class SessionManager {
         layoutChangedSoon()
     }
 
-    /// ⌘1-9
+    /// ⌘1-9(按标签栏可见顺序,与过滤后的 chips 一致)
     func select(index: Int) {
-        guard tabs.indices.contains(index) else { return }
-        selectTab(tabs[index].id)
+        let visible = visibleTabs
+        guard visible.indices.contains(index) else { return }
+        selectTab(visible[index].id)
     }
 
     func requestSearch() {
@@ -515,7 +535,9 @@ final class SessionManager {
             restoreWindow(from: pending)
             return []
         }
-        let enabled = UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true
+        // 单测宿主不读用户存档:避免把真实会话在测试现场重建一遍(也不该收养孤儿)
+        let enabled = (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
         guard enabled, registry.isFirst(self) else {
             newTab()
             return []

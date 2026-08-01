@@ -283,6 +283,9 @@ final class SessionManagerRegistry {
 
     /// 常规变化只存布局(cwd/分屏/比例);退出与关窗时带上 scrollback 快照
     func persistAllOpenTabs(includeScrollback: Bool = false) {
+        // 单测宿主与正式 app 共用同一份存档:宿主退出时的回写会覆盖用户真实会话
+        // (本地会话无保活票据,窗口内容也是测试现场),跑一次测试就污染一次,禁写
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         // 即时写让挂起的合并写作废,防止迟到的布局写覆盖带 scrollback 的完整存档
         persistDebounce?.cancel()
         let dir = Self.restoreDirectory

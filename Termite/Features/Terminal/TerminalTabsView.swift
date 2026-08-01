@@ -206,7 +206,8 @@ struct TerminalTabsView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
-                    ForEach(sessionManager.tabs) { tab in
+                    // 只展示当前项目的标签(+ 无归属的散标签);切项目走侧边栏
+                    ForEach(sessionManager.visibleTabs) { tab in
                         TerminalTabChip(
                             tab: tab,
                             focusedSession: sessionManager.session(tab.focusedID),
