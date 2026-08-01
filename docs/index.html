@@ -138,7 +138,7 @@ kbd{
 
 /* ---------- screenshot ---------- */
 .shot{margin:0 0 64px}
-.shot img{
+.shot img,.shot video{
   width:100%;height:auto;display:block;border-radius:14px;
   border:1px solid var(--line);
   box-shadow:0 30px 80px -20px rgba(0,0,0,.7);
@@ -206,8 +206,9 @@ footer .spacer{flex:1}
 
 <section class="demo wrap">
   <figure class="shot">
-    <img src="screenshot.png" alt="Termite 界面截图:深色主题,左侧项目侧边栏,内嵌运行中的 Claude Code 会话,底部状态栏显示分支与命令状态">
-    <figcaption>20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
+    <video src="termite-demo.mp4" poster="screenshot.png" autoplay muted loop playsinline controls
+           aria-label="Termite 演示:侧边栏项目切换、无限分屏、neofetch 与 imgcat 内联图片"></video>
+    <figcaption>1 分钟演示 · 20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
   </figure>
 </section>
 

@@ -6,7 +6,7 @@
 
 The interface is SwiftUI from the ground up, not a wrapper; shell integration turns every command into a unit you can jump to and revisit; Git panel, infinite splits, command palette, and 20 themes work out of the box.
 
-![Termite screenshot](docs/screenshot.png)
+![Termite demo](docs/termite-demo.gif)
 
 **[⬇️ Download the latest release](https://github.com/xinghelee/Termite/releases/latest)** — the DMG is notarized by Apple, so just drag it into Applications. Or use Homebrew:
 

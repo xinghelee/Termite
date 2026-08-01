@@ -6,7 +6,7 @@
 
 界面从头用 SwiftUI 写,不是套壳;shell 集成把每条命令变成可跳转、可回看的单元;Git 面板、无限分屏、命令面板、20 套主题,开箱即用。
 
-![Termite 截图](docs/screenshot.png)
+![Termite 演示](docs/termite-demo.gif)
 
 **[⬇️ 下载最新版](https://github.com/xinghelee/Termite/releases/latest)** — DMG 已过 Apple 公证,拖进 Applications 即用;或用 Homebrew:
 
