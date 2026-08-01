@@ -2,9 +2,9 @@
 
 [English](README.en.md)
 
-**关掉窗口,活儿接着跑。**
+**为 macOS 而写的原生终端。**
 
-macOS 原生终端:会话交给守护进程托管,⌘Q 不打断长任务;shell 集成把每条命令变成可跳转、可回看的单元;界面从头用 SwiftUI 写,不是套壳。
+界面从头用 SwiftUI 写,不是套壳;shell 集成把每条命令变成可跳转、可回看的单元;Git 面板、无限分屏、命令面板、20 套主题,开箱即用。
 
 ![Termite 截图](docs/screenshot.png)
 
@@ -20,10 +20,9 @@ brew install --cask xinghelee/tap/termite
 
 ## 核心特性
 
-### 会话保活与恢复
+### 会话恢复
 
-- **退出不杀会话**:`termite-ptyhost` 守护进程托管 PTY,⌘Q 退出 App 后 shell 继续运行,重新打开无缝接回;⌘W 才是真正结束会话
-- **多窗口完整恢复**:窗口 frame、焦点、最大化状态、标签与分屏结构、scrollback 全量找回
+- **多窗口完整恢复**:重新打开 App,窗口 frame、焦点、最大化状态、标签与分屏结构、scrollback 全量找回
 - 新标签继承当前目录
 
 ### Shell 集成(自动注入,零配置)
@@ -72,7 +71,7 @@ xcodebuild -project Termite.xcodeproj -scheme Termite -configuration Release bui
 | Target | 说明 |
 |---|---|
 | `Termite` | 主 App |
-| `PtyHostDaemon` | `termite-ptyhost` 会话保活守护进程(构建后拷入 App bundle) |
+| `PtyHostDaemon` | `termite-ptyhost` PTY 守护进程(构建后拷入 App bundle) |
 | `TermiteTests` | 单元测试 |
 
 ## 项目结构

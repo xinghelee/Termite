@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Termite — macOS 原生终端</title>
-<meta name="description" content="Termite 是 macOS 原生终端:退出 App 任务照样跑,回来无缝接上;命令可跳转、可回看、可搜索,内置完整 Git 面板。SwiftUI 从头写,免费开源。">
+<meta name="description" content="Termite 是 macOS 原生终端:命令可跳转、可回看、可搜索,内置完整 Git 面板,无限分屏与 20 套主题。SwiftUI 从头写,免费开源。">
 <meta property="og:title" content="Termite — macOS 原生终端">
-<meta property="og:description" content="macOS 原生终端:⌘Q 不打断长任务,命令级导航,内置 Git 面板。免费开源。">
+<meta property="og:description" content="macOS 原生终端:命令级导航,内置 Git 面板,SwiftUI 从头写。免费开源。">
 <meta property="og:image" content="https://termite.xinghelee.com/screenshot.png">
 <meta property="og:url" content="https://termite.xinghelee.com">
 <meta property="og:type" content="website">
@@ -214,12 +214,12 @@ footer .spacer{flex:1}
 <main class="wrap">
 
   <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite sessions</span><span class="flag">--keepalive</span><span class="meta"><span class="ok">✓ 0</span> · 3ms</span></div>
-    <h2>会话保活与完整恢复</h2>
-    <p class="sub">PTY 由 <code style="font-family:var(--mono);font-size:14px;color:var(--amber)">termite-ptyhost</code> 守护进程持有,App 的生死与你的 shell 无关。</p>
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite sessions</span><span class="flag">--restore</span><span class="meta"><span class="ok">✓ 0</span> · 3ms</span></div>
+    <h2>完整会话恢复</h2>
+    <p class="sub">重新打开 App,一切回到你离开时的样子。</p>
     <div class="feat-grid">
-      <div class="feat"><h3>退出不杀会话 <kbd>⌘Q</kbd></h3><p>退出 App 后 shell 继续运行,重新打开无缝接回。<kbd>⌘W</kbd> 才是真正结束会话。</p></div>
-      <div class="feat"><h3>多窗口完整恢复</h3><p>窗口 frame、焦点、最大化状态、标签与分屏结构、scrollback,全量找回。</p></div>
+      <div class="feat"><h3>多窗口完整恢复</h3><p>窗口 frame、焦点、最大化状态,全量找回。</p></div>
+      <div class="feat"><h3>标签与分屏原样保留</h3><p>标签顺序、分屏结构、scrollback,一个不少。</p></div>
       <div class="feat"><h3>新标签继承当前目录</h3><p>在哪个目录开新标签,就从哪个目录开始。</p></div>
       <div class="feat"><h3>会话录制与回放</h3><p>asciinema 格式(.cast)录制,内置回放窗口,可拖动进度重演。</p></div>
     </div>

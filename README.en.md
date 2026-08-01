@@ -2,9 +2,9 @@
 
 [中文](README.md)
 
-**Close the window. Your work keeps running.**
+**A native terminal, written for macOS.**
 
-A native macOS terminal: sessions are owned by a background daemon, so ⌘Q never interrupts a long job; shell integration turns every command into a unit you can jump to and revisit; the interface is SwiftUI from the ground up, not a wrapper.
+The interface is SwiftUI from the ground up, not a wrapper; shell integration turns every command into a unit you can jump to and revisit; Git panel, infinite splits, command palette, and 20 themes work out of the box.
 
 ![Termite screenshot](docs/screenshot.png)
 
@@ -20,10 +20,9 @@ brew install --cask xinghelee/tap/termite
 
 ## Core features
 
-### Session persistence and restore
+### Session restore
 
-- **Quitting doesn't kill your shells**: the `termite-ptyhost` daemon owns the PTYs, so shells keep running after you ⌘Q the app and reattach seamlessly when you reopen it. ⌘W is what actually ends a session.
-- **Full multi-window restore**: window frames, focus, maximized pane, tabs and split layout, and scrollback all come back.
+- **Full multi-window restore**: reopen the app and window frames, focus, maximized pane, tabs and split layout, and scrollback all come back.
 - New tabs inherit the current directory.
 
 ### Shell integration (auto-injected, zero config)
@@ -72,7 +71,7 @@ Or just `open Termite.xcodeproj` and run it from Xcode. The project has three ta
 | Target | Purpose |
 |---|---|
 | `Termite` | The app |
-| `PtyHostDaemon` | `termite-ptyhost`, the session-persistence daemon (copied into the app bundle after building) |
+| `PtyHostDaemon` | `termite-ptyhost`, the PTY daemon (copied into the app bundle after building) |
 | `TermiteTests` | Unit tests |
 
 ## Project layout
