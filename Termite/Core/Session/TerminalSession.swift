@@ -336,6 +336,10 @@ final class TerminalSession: Identifiable {
         transportReady = true
         // 重连的 backlog 在此之后立刻回灌,其中的历史 BEL 不算注意力
         bellArmedAt = max(bellArmedAt, Date().addingTimeInterval(2))
+        // 视图常在 create 应答前就挂载到真实尺寸,那次 winsize 同步因传输未就绪被丢弃,
+        // PTY 停在 init 的 800×600 推算网格。表现:新分屏首个提示符按旧列宽换行、
+        // PROMPT_SP 残留反白 %、zle 光标错位到下次任意 resize 才恢复。此处按当前网格补一次
+        terminalView.syncPtyWindowSize()
         guard !pendingInput.isEmpty else { return }
         let buffered = pendingInput
         pendingInput = []

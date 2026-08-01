@@ -48,7 +48,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     /// (表现:视图 126 列而 ls 只看到 84 列 → 单列输出)。尺寸稳定后手动同步,按列行数去重。
     private var lastSyncedGrid = (cols: 0, rows: 0)
 
-    private func syncPtyWindowSize() {
+    func syncPtyWindowSize() {
         let terminal = getTerminal()
         guard terminal.cols != lastSyncedGrid.cols || terminal.rows != lastSyncedGrid.rows else { return }
         if let session, session.usesHostTransport {
