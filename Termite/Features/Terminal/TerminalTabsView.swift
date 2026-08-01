@@ -563,8 +563,9 @@ private struct PaneLeafView: View {
             )
             .overlay(borderOverlay)
             .overlay(alignment: .topTrailing) { attentionBadge }
-            // 点非聚焦 pane 时先聚焦(不吞掉终端本身的交互)
-            .onTapGesture { if !isFocused { onFocus() } }
+            // 点 pane 即聚焦并抢回键盘:即使 UI 已标聚焦,first responder 也可能
+            // 在别处(滚动条/侧边栏),无条件 focusTerminal 让「点一下就能打字」永远成立
+            .onTapGesture { onFocus() }
             .onChange(of: session.finishFlash) { _, flash in
                 guard flash != nil, !isFocused else { return }
                 flashFailed = flash?.failed == true
@@ -705,7 +706,14 @@ private struct TerminalTabChip: View {
     private func commitRename() {
         guard tab.isRenaming else { return }
         sessionManager.renameTab(tab, to: editText)
-        sessionManager.selected?.focusTerminal()
+        refocusTerminal()
+    }
+
+    /// TextField 收起后交还键盘:推迟一拍,否则它移出视图树时
+    /// AppKit 会再分配一次 first responder(常落到相邻滚动条),把这次的抢回来
+    private func refocusTerminal() {
+        let manager = sessionManager
+        DispatchQueue.main.async { manager.selected?.focusTerminal() }
     }
 
     var body: some View {
@@ -742,7 +750,7 @@ private struct TerminalTabChip: View {
                     .onExitCommand {
                         // Esc 放弃修改
                         tab.isRenaming = false
-                        sessionManager.selected?.focusTerminal()
+                        refocusTerminal()
                     }
                     .onAppear {
                         editText = title

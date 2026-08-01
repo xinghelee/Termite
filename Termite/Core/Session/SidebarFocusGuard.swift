@@ -19,17 +19,23 @@ final class SidebarFocusGuard {
     }
 
     private static func bounceIfSidebar(_ window: NSWindow) {
-        guard let view = window.firstResponder as? NSView, isInSidebarColumn(view) else { return }
+        guard let view = window.firstResponder as? NSView, shouldBounce(view) else { return }
         // 推迟一拍:让 AppKit 结束当前 makeFirstResponder 流程,也给点击项目行
-        // (openProject → focusTerminal)让路;届时焦点仍在侧边栏才出手
+        // (openProject → focusTerminal)让路;届时焦点仍在小偷手里才出手
         DispatchQueue.main.async {
-            guard let current = window.firstResponder as? NSView, isInSidebarColumn(current),
+            guard let current = window.firstResponder as? NSView, shouldBounce(current),
                   let manager = SessionManagerRegistry.shared.manager(of: window),
                   let session = manager.selected,
                   session.terminalView.window === window else { return }
-            log.notice("侧边栏抢到键盘焦点(\(type(of: current), privacy: .public)),已还给终端")
+            log.notice("键盘焦点被抢(\(type(of: current), privacy: .public)),已还给终端")
             window.makeFirstResponder(session.terminalView)
         }
+    }
+
+    /// 永远不该持有键盘焦点的控件:侧边栏列,以及滚动条(重命名输入框等
+    /// 临时控件收起后,AppKit 会把 first responder 交给相邻 scroller)
+    private static func shouldBounce(_ view: NSView) -> Bool {
+        view is NSScroller || isInSidebarColumn(view)
     }
 
     /// view 是否位于最外层 NSSplitView(NavigationSplitView 的分栏容器)的第一列。
