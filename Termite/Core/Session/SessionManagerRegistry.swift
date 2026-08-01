@@ -49,6 +49,7 @@ final class SessionManagerRegistry {
                 registry.persistAllOpenTabs(includeScrollback: true)
                 manager.shutdownAll()
                 registry.managers.removeAll { $0 === manager }
+                registry.windowGeneration += 1
                 // managersByKey 保留退役条目:关窗后 SwiftUI 仍可能求值该窗口视图,
                 // 让它拿回退役 manager(不再孵 shell),而不是新建一个
                 if registry.activeManager === manager {
@@ -90,7 +91,12 @@ final class SessionManagerRegistry {
     func register(_ manager: SessionManager) {
         managers.append(manager)
         if activeManager == nil { activeManager = manager }
+        windowGeneration += 1
     }
+
+    /// 窗口(manager)增删的代数计数。managers 数组是 @ObservationIgnored,
+    /// 菜单栏徽标等 SwiftUI 消费者读它以便在开/关窗口后重扫会话集
+    private(set) var windowGeneration = 0
 
     /// 按窗口 key 取 manager(没有则建):视图树重建时返回同一实例
     func manager(for key: UUID) -> SessionManager {
@@ -211,6 +217,20 @@ final class SessionManagerRegistry {
         window(of: best.manager)?.makeKeyAndOrderFront(nil)
         // focusPane 会选中所在标签并清掉该 pane 的注意力,连按 ⌘J 即遍历所有待处理 pane
         best.manager.focusPane(best.session.id)
+    }
+
+    /// 等待输入的 pane(菜单栏徽标与列表用),最久等待的在前
+    var awaitingInputSessions: [TerminalSession] {
+        managers.flatMap { manager in manager.sessions.filter { $0.attention.needsInput } }
+            .sorted { ($0.attentionSince ?? .distantFuture) < ($1.attentionSince ?? .distantFuture) }
+    }
+
+    /// 菜单栏列表点击跳转到指定 pane:激活 App(点菜单栏时 App 多半不在前台)→ 其窗口 → 聚焦
+    func focusSession(_ sessionID: UUID) {
+        guard let manager = managers.first(where: { $0.session(sessionID) != nil }) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window(of: manager)?.makeKeyAndOrderFront(nil)
+        manager.focusPane(sessionID)
     }
 
     /// 「移到新窗口」的待领养标签(一次性,新窗口 manager 恢复时消费)

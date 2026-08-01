@@ -89,16 +89,16 @@ struct TermiteApp: App {
             SettingsView()
         }
 
-        // 菜单栏常驻入口(设置里可关)
+        // 菜单栏常驻入口(设置里可关):有 pane 等待输入时图标带数字角标
         MenuBarExtra(
-            "Termite",
-            systemImage: "terminal",
             isInserted: .init(
                 get: { UserDefaults.standard.object(forKey: SettingsKeys.menuBarExtra) as? Bool ?? true },
                 set: { UserDefaults.standard.set($0, forKey: SettingsKeys.menuBarExtra) }
             )
         ) {
             MenuBarExtraView()
+        } label: {
+            MenuBarAttentionLabel()
         }
     }
 }
