@@ -220,6 +220,10 @@ struct TerminalTabsView: View {
                         )
                         .id(tab.id)
                         .contextMenu {
+                            Button("重命名") {
+                                sessionManager.selectTab(tab.id)
+                                tab.isRenaming = true
+                            }
                             Button("移到新窗口") {
                                 sessionManager.detachTabToNewWindow(tab)
                                 openWindow(id: "main", value: UUID())
@@ -689,7 +693,20 @@ private struct TerminalTabChip: View {
     let select: () -> Void
     let close: () -> Void
 
+    @Environment(SessionManager.self) private var sessionManager
     @State private var isHovering = false
+    @State private var editText = ""
+    @FocusState private var renameFocused: Bool
+
+    private var title: String {
+        tab.customTitle ?? focusedSession?.displayTitle ?? String(localized: "终端")
+    }
+
+    private func commitRename() {
+        guard tab.isRenaming else { return }
+        sessionManager.renameTab(tab, to: editText)
+        sessionManager.selected?.focusTerminal()
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -715,10 +732,31 @@ private struct TerminalTabChip: View {
                     .frame(width: 6, height: 6)
                     .help("进程已退出")
             }
-            Text(focusedSession?.displayTitle ?? String(localized: "终端"))
-                .font(.system(size: 12))
-                .lineLimit(1)
-                .frame(maxWidth: 150)
+            if tab.isRenaming {
+                TextField("", text: $editText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .frame(width: 110)
+                    .focused($renameFocused)
+                    .onSubmit { commitRename() }
+                    .onExitCommand {
+                        // Esc 放弃修改
+                        tab.isRenaming = false
+                        sessionManager.selected?.focusTerminal()
+                    }
+                    .onAppear {
+                        editText = title
+                        renameFocused = true
+                    }
+                    .onChange(of: renameFocused) { _, focused in
+                        if !focused { commitRename() } // 点别处失焦即提交
+                    }
+            } else {
+                Text(title)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .frame(maxWidth: 150)
+            }
             if paneCount > 1 {
                 Text("\(paneCount)")
                     .font(.system(size: 9, weight: .semibold).monospacedDigit())
@@ -748,6 +786,11 @@ private struct TerminalTabChip: View {
         .foregroundStyle(isSelected ? .primary : .secondary)
         .contentShape(Capsule())
         .animation(.easeOut(duration: 0.12), value: isHovering)
+        // 双击重命名(先注册,优先于单击选中;首击仍会触发 select,正好选中被改名的标签)
+        .onTapGesture(count: 2) {
+            guard !tab.isRenaming else { return }
+            tab.isRenaming = true
+        }
         .onTapGesture(perform: select)
         .onHover { isHovering = $0 }
     }

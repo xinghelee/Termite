@@ -177,6 +177,10 @@ final class PaneTab: Identifiable {
     var maximizedID: UUID?
     /// 绑定的侧边栏项目路径:点同一个项目切回本标签,项目移除时本标签一起关
     var projectPath: String?
+    /// 用户自定义标签名(双击/右键重命名);nil = 跟随聚焦会话自动标题
+    var customTitle: String?
+    /// 标签名行内编辑中(双击或右键「重命名」触发,不持久化)
+    var isRenaming = false
 
     init(sessionID: UUID) {
         self.root = .leaf(sessionID)

@@ -72,13 +72,16 @@ struct SavedTabState: Codable {
     var maximizedLeafIndex: Int?
     /// 绑定的侧边栏项目路径(重启后点项目仍切回这个标签)
     var projectPath: String?
+    /// 用户自定义标签名(重启保留)
+    var customTitle: String?
 
     init(root: WorkspaceNode, focusedLeafIndex: Int? = nil, maximizedLeafIndex: Int? = nil,
-         projectPath: String? = nil) {
+         projectPath: String? = nil, customTitle: String? = nil) {
         self.root = root
         self.focusedLeafIndex = focusedLeafIndex
         self.maximizedLeafIndex = maximizedLeafIndex
         self.projectPath = projectPath
+        self.customTitle = customTitle
     }
 }
 

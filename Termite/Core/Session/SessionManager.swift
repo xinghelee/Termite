@@ -230,6 +230,14 @@ final class SessionManager {
         session(next)?.clearAttention()
     }
 
+    /// 双击 / 右键重命名标签:空名回落聚焦会话的自动标题
+    func renameTab(_ tab: PaneTab, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        tab.customTitle = trimmed.isEmpty ? nil : trimmed
+        tab.isRenaming = false
+        persistOpenTabs()
+    }
+
     /// 标签 chip 拖拽重排:把 id 移到 target 当前的位置
     func moveTab(_ id: PaneTab.ID, before targetID: PaneTab.ID) {
         guard id != targetID,
@@ -426,7 +434,8 @@ final class SessionManager {
             root: encodeNode(tab.root, scrollbackDirectory: scrollbackDirectory),
             focusedLeafIndex: leaves.firstIndex(of: tab.focusedID),
             maximizedLeafIndex: tab.maximizedID.flatMap { leaves.firstIndex(of: $0) },
-            projectPath: tab.projectPath
+            projectPath: tab.projectPath,
+            customTitle: tab.customTitle
         )
     }
 
@@ -455,6 +464,7 @@ final class SessionManager {
         openTab(from: state.root)
         guard tabs.count > countBefore, let tab = tabs.last else { return }
         tab.projectPath = state.projectPath
+        tab.customTitle = state.customTitle
         let leaves = tab.root.leafIDs()
         if let index = state.focusedLeafIndex, leaves.indices.contains(index) {
             tab.focusedID = leaves[index]
