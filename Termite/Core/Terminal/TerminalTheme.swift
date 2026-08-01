@@ -14,7 +14,7 @@ struct TerminalTheme: Identifiable, Equatable, Codable {
     let cursor: String
     let selection: String
     /// 强调色(选中态、按钮、光标条),界面与终端共用
-    let accent: String
+    var accent: String
     /// 16 色 ANSI(黑红绿黄蓝品青白 + 亮色)
     let ansi: [String]
 
@@ -45,6 +45,14 @@ struct TerminalTheme: Identifiable, Equatable, Codable {
 
     /// 窗口应使用的外观(强制,以免深色主题在浅色系统里露出灰边)
     var appearanceName: NSAppearance.Name { isDark ? .darkAqua : .aqua }
+
+    /// 以项目 accent 覆盖强调色:所有由 accent 派生的界面色跟着变
+    func withAccent(_ hex: String?) -> TerminalTheme {
+        guard let hex, !hex.isEmpty else { return self }
+        var copy = self
+        copy.accent = hex
+        return copy
+    }
 }
 
 extension TerminalTheme {

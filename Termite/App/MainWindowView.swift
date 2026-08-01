@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 主窗口:终端区(标签 + 分屏)+ ⌘P 命令面板覆盖层。
@@ -26,7 +27,10 @@ struct MainWindowView: View {
     }
 
     private func content(_ manager: SessionManager) -> some View {
-        ZStack {
+        // 项目 accent:覆盖本窗口的强调色与标题栏底色,多窗口跑不同项目时一眼分辨
+        let projectAccent = ProjectStore.shared.current(for: manager)?.accentHex
+        let effectiveTheme = theme.current.withAccent(projectAccent)
+        return ZStack {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
                 SidebarView()
                     .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
@@ -94,12 +98,14 @@ struct MainWindowView: View {
                 manager.portsPresented = false
             }
         }
-        .tint(theme.current.accentColor)
+        .tint(effectiveTheme.accentColor)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.palette.isPresented)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)
         .background(WindowConfigurator(
             appearanceName: theme.current.appearanceName,
-            backgroundColor: theme.current.backgroundNSColor,
+            backgroundColor: projectAccent.map {
+                theme.current.backgroundNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
+            } ?? theme.current.backgroundNSColor,
             onWindow: { window in
                 SessionManagerRegistry.shared.bind(manager, to: window)
             }

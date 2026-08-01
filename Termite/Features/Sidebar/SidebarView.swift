@@ -279,12 +279,19 @@ private struct ProjectRow: View {
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
+    /// 项目专属色:设置后文件夹图标常年带色(Finder 标签的认知),未设置跟随主题
+    private var projectColor: Color? {
+        project.accentHex.map { Color(nsColor: NSColor(hex: $0)) }
+    }
+
+    private var rowAccent: Color { projectColor ?? theme.accentColor }
+
     var body: some View {
         HStack(spacing: 8) {
             // Finder 式裸图标:固定宽度对齐成列,活动态用强调色
             Image(systemName: "folder.fill")
                 .font(.system(size: 13))
-                .foregroundStyle(isActive ? theme.accentColor : Color.secondary)
+                .foregroundStyle(projectColor?.opacity(isActive ? 1 : 0.8) ?? (isActive ? theme.accentColor : Color.secondary))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 1.5) {
                 Text(project.name)
@@ -305,12 +312,12 @@ private struct ProjectRow: View {
                     .help("该项目有分屏在等待输入(⌘J 跳转)")
             } else if attention == .finished {
                 Circle()
-                    .fill(theme.accentColor)
+                    .fill(rowAccent)
                     .frame(width: 6, height: 6)
                     .help("该项目有命令已完成")
             } else if isActive {
                 Circle()
-                    .fill(theme.accentColor)
+                    .fill(rowAccent)
                     .frame(width: 5, height: 5)
             }
         }
@@ -318,7 +325,7 @@ private struct ProjectRow: View {
         .padding(.vertical, 5)
         .background(
             Capsule()
-                .fill(isActive ? theme.accentSoft : (hovering ? Color.primary.opacity(0.06) : .clear))
+                .fill(isActive ? rowAccent.opacity(0.16) : (hovering ? Color.primary.opacity(0.06) : .clear))
         )
         .contentShape(Capsule())
         .animation(.easeOut(duration: 0.12), value: hovering)
@@ -328,6 +335,19 @@ private struct ProjectRow: View {
             Button("切换到该项目") { open() }
             Button("在 Finder 中打开") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: project.path)])
+            }
+            Divider()
+            Menu("项目颜色") {
+                ForEach(ProjectAccentPreset.all) { preset in
+                    Toggle(isOn: Binding(
+                        get: { project.accentHex == preset.hex },
+                        set: { on in ProjectStore.shared.setAccent(on ? preset.hex : nil, for: project.id) }
+                    )) {
+                        Label { Text(preset.name) } icon: { Image(nsImage: preset.swatchImage) }
+                    }
+                }
+                Divider()
+                Button("跟随主题") { ProjectStore.shared.setAccent(nil, for: project.id) }
             }
             Divider()
             Button("移除(并关闭其标签)", role: .destructive, action: remove)
