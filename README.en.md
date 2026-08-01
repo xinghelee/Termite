@@ -88,3 +88,7 @@ TermiteTests/  unit tests
 ```
 
 Design notes (in Chinese) live in [DESIGN.md](DESIGN.md).
+
+## License
+
+[GPL-3.0](LICENSE). Free to use, modify and redistribute; modified distributions must remain open source under the same license.

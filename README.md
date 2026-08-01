@@ -88,3 +88,7 @@ TermiteTests/  单元测试
 ```
 
 设计文档见 [DESIGN.md](DESIGN.md)。
+
+## 许可
+
+[GPL-3.0](LICENSE)。自由使用、修改与再分发;分发修改版需以同一许可开放源码。
