@@ -692,6 +692,12 @@ private struct PaneLeafView: View {
 
     var body: some View {
         TerminalPaneView(session: session)
+            .overlay(alignment: .bottom) {
+                if session.composerDraft != nil {
+                    CommandComposerView(session: session)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
             .overlay(
                 Rectangle()
                     .stroke(flashFailed ? Color.red : Color.green, lineWidth: 2)
@@ -775,6 +781,47 @@ private struct PaneLeafView: View {
         .background(Capsule().fill(tint.opacity(0.9)))
         .padding(8)
         .help(String(localized: "点击聚焦此分屏"))
+    }
+}
+
+/// ⌘E 命令行浮层编辑器:把提示符处已键入的命令捞出来,像文本一样自由编辑
+/// (鼠标选择 / 多行 / 撤销),⌘↩ 回填并执行,↩ 仅回填,Esc 取消
+private struct CommandComposerView: View {
+    @Bindable var session: TerminalSession
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextEditor(text: $text)
+                .font(.system(size: FontPrefs.font().pointSize, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 64, maxHeight: 180)
+                .focused($focused)
+            HStack {
+                Text("⌘↩ 回填并执行 · Esc 取消")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("取消") { session.cancelComposeCommand() }
+                Button("回填") { session.applyComposedCommand(text, execute: false) }
+                Button("回填并执行") { session.applyComposedCommand(text, execute: true) }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10).fill(.regularMaterial))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(ThemeStore.shared.current.accentColor.opacity(0.5), lineWidth: 1)
+        )
+        .padding(12)
+        .onAppear {
+            text = session.composerDraft ?? ""
+            focused = true
+        }
+        .onExitCommand { session.cancelComposeCommand() }
     }
 }
 

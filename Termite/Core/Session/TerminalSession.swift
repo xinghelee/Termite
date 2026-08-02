@@ -327,6 +327,7 @@ final class TerminalSession: Identifiable {
 
     func sendRawInput(_ bytes: [UInt8]) {
         hasReceivedUserInput = true
+        trackCommandOrigin(bytes)
         guard transportReady else {
             pendingInput += bytes
             return
@@ -358,6 +359,88 @@ final class TerminalSession: Identifiable {
         hasReceivedUserInput = true
         clearAttention()
         manager?.broadcastInput(from: id, bytes: bytes)
+    }
+
+    // MARK: - ⌘E 命令行浮层编辑(issue #3:像编辑文本一样编辑命令)
+
+    /// 浮层编辑器内容(非 nil = 呈现浮层);OSC 133 B 记录的命令起点用于捕获已键入文本
+    var composerDraft: String?
+    @ObservationIgnored private var commandOrigin: (row: Int, col: Int)?
+
+    /// 命令起点追踪:shell 集成只发 A/C/D 不发 B,拿不到「提示符结束」标记。
+    /// 改在提示符后第一个可见字符按下的瞬间记录光标位置——回显尚未返回,
+    /// 此刻光标就是输入区起点,与 B 等价;且无集成的 ssh 远端同样适用。
+    /// 回车/⌃C 清锚,下一条命令的首个可见字符重新记录;转义序列(方向键等)不算
+    private func trackCommandOrigin(_ bytes: [UInt8]) {
+        guard !runningCommand else { return }
+        var inEscape = false
+        for b in bytes {
+            if b == 0x1b { inEscape = true; continue }
+            if inEscape {
+                // CSI/SS3 的终结字节是字母或 ~,之前的参数字节一律跳过
+                if (0x40...0x7e).contains(b), b != 0x5b, b != 0x4f { inEscape = false }
+                continue
+            }
+            if b == 0x0d || b == 0x03 {
+                commandOrigin = nil
+                continue
+            }
+            if commandOrigin == nil, b >= 0x20, b != 0x7f {
+                let terminal = terminalView.getTerminal()
+                guard !terminal.isCurrentBufferAlternate else { return }
+                commandOrigin = (currentScrollInvariantRow(), terminal.buffer.x)
+            }
+        }
+    }
+
+    /// ⌘E:把提示符处已键入的命令捞进浮层(命令运行中 / TUI 下不可用)
+    func beginComposeCommand() {
+        guard case .running = state, !runningCommand,
+              !terminalView.getTerminal().isCurrentBufferAlternate else { return }
+        composerDraft = capturedCommandText() ?? ""
+    }
+
+    func cancelComposeCommand() {
+        composerDraft = nil
+        focusTerminal()
+    }
+
+    /// 浮层确认:⌃E+⌃U 清空 zle 当前缓冲,回填编辑后的命令(bracketed paste 保多行)
+    func applyComposedCommand(_ text: String, execute: Bool) {
+        composerDraft = nil
+        sendRawInput([0x05, 0x15]) // ⌃E 行尾 + ⌃U kill-whole-line
+        if terminalView.getTerminal().bracketedPasteMode {
+            sendText("\u{1b}[200~" + text + "\u{1b}[201~")
+        } else {
+            // 无括号粘贴时换行会逐行执行,降级为单行
+            sendText(text.replacingOccurrences(of: "\n", with: " "))
+        }
+        if execute { sendRawInput([0x0d]) }
+        focusTerminal()
+    }
+
+    /// 从命令起点(OSC 133 B 的行列)读到光标位置,折行拼接为逻辑行。
+    /// 末行在光标列截断:RPROMPT、autosuggestions 幽灵补全都渲染在光标之后,不能捞
+    private func capturedCommandText() -> String? {
+        guard let origin = commandOrigin else { return nil }
+        let terminal = terminalView.getTerminal()
+        let cursorRow = currentScrollInvariantRow()
+        guard cursorRow >= origin.row else { return nil }
+        var lines: [String] = []
+        for row in origin.row...cursorRow {
+            guard let line = terminal.getScrollInvariantLine(row: row) else { break }
+            var text = line.translateToString(trimRight: true)
+            if row == cursorRow {
+                text = String(text.prefix(terminal.buffer.x))
+            }
+            if row == origin.row {
+                text = String(text.dropFirst(min(origin.col, text.count)))
+            }
+            lines.append(text)
+        }
+        // 屏幕折行是同一逻辑行,直接拼接
+        let text = lines.joined()
+        return text.trimmingCharacters(in: .whitespaces).isEmpty ? "" : text
     }
 
     /// ⌘K:清空回滚缓冲与屏幕(ED2 + ED3 + 归位),shell 下次重绘提示符
@@ -404,8 +487,10 @@ final class TerminalSession: Identifiable {
             runningCommand = false
             recordCommandMark()
         case .commandStart:
-            break
+            // 提示符画完、命令输入区起点:⌘E 捕获已键入内容的锚
+            commandOrigin = (currentScrollInvariantRow(), terminalView.getTerminal().buffer.x)
         case .outputStart:
+            commandOrigin = nil
             runningCommand = true
             commandStartedAt = Date()
             commandRunningSince = commandStartedAt
