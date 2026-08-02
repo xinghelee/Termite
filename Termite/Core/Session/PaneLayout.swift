@@ -175,6 +175,8 @@ final class PaneTab: Identifiable {
     var isBroadcasting = false
     /// 临时最大化的 pane(⇧⌘↩;nil = 正常分屏布局)
     var maximizedID: UUID?
+    /// 巡视模式(⇧⌘\):所有 pane 等宽横排、分页滑动;布局树不动,关掉即还原
+    var isCarousel = false
     /// 绑定的侧边栏项目路径:点同一个项目切回本标签,项目移除时本标签一起关
     var projectPath: String?
     /// 用户自定义标签名(双击/右键重命名);nil = 跟随聚焦会话自动标题

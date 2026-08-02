@@ -201,8 +201,17 @@ final class SessionManager {
     /// ⇧⌘↩:临时最大化当前 pane / 还原分屏布局
     func toggleMaximizePane() {
         guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
+        tab.isCarousel = false
         tab.maximizedID = tab.maximizedID == nil ? tab.focusedID : nil
         persistOpenTabs()
+    }
+
+    /// ⇧⌘\:巡视模式开关——所有 pane 等宽横排分页滑动,再按一次还原分屏布局
+    func toggleCarousel() {
+        guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
+        tab.maximizedID = nil
+        tab.isCarousel.toggle()
+        selected?.focusTerminal()
     }
 
     /// ⌘D / ⌘⇧D / 右键:在当前聚焦 pane 上再分出一个 pane(继承 cwd)。每次都新增,支持嵌套。
@@ -221,10 +230,21 @@ final class SessionManager {
         SessionManagerRegistry.shared.persistAllOpenTabsSoon()
     }
 
-    /// ⌘⌥方向键:按几何位置把焦点移到相邻 pane
+    /// ⌘⌥方向键:按几何位置把焦点移到相邻 pane;巡视模式下左右即翻页(横排序)
     func focusNeighborPane(_ direction: PaneDirection) {
         guard let tab = selectedTab else { return }
-        guard let next = tab.root.neighborLeaf(of: tab.focusedID, direction: direction) else { return }
+        let next: UUID?
+        if tab.isCarousel {
+            let leaves = tab.root.leafIDs()
+            guard let index = leaves.firstIndex(of: tab.focusedID) else { return }
+            switch direction {
+            case .left, .up: next = index > 0 ? leaves[index - 1] : nil
+            case .right, .down: next = index + 1 < leaves.count ? leaves[index + 1] : nil
+            }
+        } else {
+            next = tab.root.neighborLeaf(of: tab.focusedID, direction: direction)
+        }
+        guard let next else { return }
         tab.focusedID = next
         session(next)?.focusTerminal()
         session(next)?.clearAttention()

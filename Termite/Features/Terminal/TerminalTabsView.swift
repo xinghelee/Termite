@@ -24,7 +24,9 @@ struct TerminalTabsView: View {
                     broadcastBanner
                 }
                 HStack(spacing: 0) {
-                    if let maximizedID = tab.maximizedID,
+                    if tab.isCarousel, tab.root.leafIDs().count > 1 {
+                        PaneCarouselView(tab: tab)
+                    } else if let maximizedID = tab.maximizedID,
                        let maximized = sessionManager.session(maximizedID) {
                         // ⇧⌘↩ 最大化:只渲染该 pane,右上角挂还原提示
                         TerminalPaneView(session: maximized)
@@ -288,6 +290,17 @@ struct TerminalTabsView: View {
                     UpdateChecker.shared.openDownload()
                 }
             }
+            if let tab = sessionManager.selectedTab, tab.root.leafIDs().count > 1 {
+                PanelIconButton(
+                    symbol: "rectangle.split.3x1",
+                    help: String(localized: "巡视分屏:等宽横排滑动(⇧⌘\\)"),
+                    tint: tab.isCarousel ? ThemeStore.shared.current.accentColor : nil
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        sessionManager.toggleCarousel()
+                    }
+                }
+            }
             PanelIconButton(
                 symbol: "clock.arrow.circlepath",
                 help: String(localized: "命令时间线(⌘I)"),
@@ -470,6 +483,114 @@ private struct SessionTitleCapsule: View {
         .animation(.easeOut(duration: 0.12), value: hovering)
         .onHover { hovering = $0 }
         .help("在 Finder 中打开 \(directoryText)")
+    }
+}
+
+/// 巡视模式的横滑改道:SwiftTerm 吞掉 deltaY==0 的滚动且 scrollWheel 不可覆写,
+/// 横滑到不了外层分页 ScrollView。本地事件监视器按手势起始的主导轴分流:
+/// 落在终端上的横向手势(含惯性,整段同一路由)喂给分页容器,竖向仍是终端回滚。
+/// 仅巡视视图在屏时安装(引用计数,多窗口各自巡视也只装一个监视器);
+/// 平铺模式下终端没有 NSScrollView 祖先,天然不接管
+@MainActor
+private final class CarouselScrollRouter {
+    static let shared = CarouselScrollRouter()
+    private var monitor: Any?
+    private var installCount = 0
+    /// 本轮触控板手势是否已判定为横滑
+    private var routing = false
+
+    func install() {
+        installCount += 1
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            MainActor.assumeIsolated { self?.route(event) ?? event }
+        }
+    }
+
+    func remove() {
+        installCount = max(0, installCount - 1)
+        guard installCount == 0, let monitor else { return }
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
+        routing = false
+    }
+
+    private func route(_ event: NSEvent) -> NSEvent? {
+        guard let content = event.window?.contentView else { return event }
+        let point = content.convert(event.locationInWindow, from: nil)
+        guard let hit = content.hitTest(point) else { return event }
+        var terminal: NSView?
+        var cursor: NSView? = hit
+        while let view = cursor {
+            if view is TermiteTerminalView { terminal = view; break }
+            cursor = view.superview
+        }
+        guard let terminal else { routing = false; return event }
+        var pager: NSScrollView?
+        cursor = terminal.superview
+        while let view = cursor {
+            if let scrollView = view as? NSScrollView { pager = scrollView; break }
+            cursor = view.superview
+        }
+        guard let pager else { routing = false; return event }
+        if event.phase == .began || (event.phase == [] && event.momentumPhase == []) {
+            routing = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        }
+        guard routing else { return event }
+        pager.scrollWheel(with: event)
+        if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended {
+            routing = false
+        }
+        return nil
+    }
+}
+
+/// 巡视模式(⇧⌘\):当前标签所有 pane 等宽横排、分页吸附滑动;
+/// 滑到哪页焦点就到哪个 pane(顺带消解注意力),点击部分露出的 pane 也会吸附过去。
+/// 布局树不参与渲染但原样保留,退出即还原
+private struct PaneCarouselView: View {
+    let tab: PaneTab
+    @Environment(SessionManager.self) private var sessionManager
+    /// 当前吸附的 pane(scrollPosition 双向同步;与 focusedID 互跟,靠值判等防环)
+    @State private var snappedID: UUID?
+
+    var body: some View {
+        let leaves = tab.root.leafIDs()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(leaves, id: \.self) { sid in
+                    if let session = sessionManager.session(sid) {
+                        PaneLeafView(
+                            session: session,
+                            isFocused: sid == tab.focusedID,
+                            showsFocus: true,
+                            broadcasting: tab.isBroadcasting,
+                            onFocus: { sessionManager.focusPane(sid) }
+                        )
+                        // 88% 宽:露出下一页边缘,提示还能继续滑
+                        .containerRelativeFrame(.horizontal) { length, _ in length * 0.88 }
+                        .id(sid)
+                    }
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .contentMargins(.horizontal, 12, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: $snappedID)
+        .onChange(of: snappedID) { _, snapped in
+            guard let snapped, snapped != tab.focusedID else { return }
+            sessionManager.focusPane(snapped)
+        }
+        .onChange(of: tab.focusedID) { _, focused in
+            guard snappedID != focused else { return }
+            withAnimation(.easeOut(duration: 0.25)) { snappedID = focused }
+        }
+        .onAppear {
+            snappedID = tab.focusedID
+            CarouselScrollRouter.shared.install()
+        }
+        .onDisappear { CarouselScrollRouter.shared.remove() }
     }
 }
 
