@@ -225,6 +225,14 @@ final class SessionManagerRegistry {
             .sorted { ($0.attentionSince ?? .distantFuture) < ($1.attentionSince ?? .distantFuture) }
     }
 
+    /// 快速回复:不切换焦点,把文本直接发进指定会话并消解其注意力
+    /// (菜单栏子菜单 / 通知动作 / pane 徽标右键共用)
+    func quickReply(_ sessionID: UUID, text: String) {
+        guard let session = managers.lazy.compactMap({ $0.session(sessionID) }).first else { return }
+        session.sendText(text)
+        session.clearAttention()
+    }
+
     /// 菜单栏列表点击跳转到指定 pane:激活 App(点菜单栏时 App 多半不在前台)→ 其窗口 → 聚焦
     func focusSession(_ sessionID: UUID) {
         guard let manager = managers.first(where: { $0.session(sessionID) != nil }) else { return }

@@ -27,7 +27,21 @@ struct MenuBarExtraView: View {
         if !waiting.isEmpty {
             Text("等待输入")
             ForEach(waiting, id: \.id) { session in
-                Button(menuTitle(for: session)) {
+                // 点击 = 跳转过去;悬停展开快速回复,不离开当前上下文打发掉 agent 的打断
+                Menu {
+                    Button("回车确认") {
+                        SessionManagerRegistry.shared.quickReply(session.id, text: "\r")
+                    }
+                    Button("发送 y") {
+                        SessionManagerRegistry.shared.quickReply(session.id, text: "y\r")
+                    }
+                    Divider()
+                    Button("跳转过去") {
+                        SessionManagerRegistry.shared.focusSession(session.id)
+                    }
+                } label: {
+                    Text(menuTitle(for: session))
+                } primaryAction: {
                     SessionManagerRegistry.shared.focusSession(session.id)
                 }
             }

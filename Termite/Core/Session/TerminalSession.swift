@@ -440,7 +440,7 @@ final class TerminalSession: Identifiable {
             inForeground = NSApp.isActive // 下拉终端:App 前台即视为可见
         }
         guard !inForeground else { return }
-        NotificationService.postCommandFinished(exitCode: code, duration: duration, title: displayTitle)
+        NotificationService.postCommandFinished(exitCode: code, duration: duration, title: displayTitle, sessionID: id)
     }
 
     // MARK: - pane 注意力(等待输入 / 命令完成)
@@ -542,7 +542,7 @@ final class TerminalSession: Identifiable {
         guard enabled, manager?.isSessionVisible(id) != true else { return }
         guard Date().timeIntervalSince(lastAttentionNotice) > 120 else { return }
         lastAttentionNotice = Date()
-        NotificationService.postAwaitingInput(title: displayTitle)
+        NotificationService.postAwaitingInput(title: displayTitle, sessionID: id)
     }
 
     // MARK: - 命令位置标记(⌘↑/⌘↓ 跳转、复制输出)

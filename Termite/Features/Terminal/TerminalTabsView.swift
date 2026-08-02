@@ -682,6 +682,8 @@ private struct PaneLeafView: View {
     /// 命令结束的一次性边框闪烁(绿=成功,红=失败),动画淡出
     @State private var flashOpacity: Double = 0
     @State private var flashFailed = false
+    /// 徽标右键「快速回复…」的气泡输入框
+    @State private var quickReplyOpen = false
 
     var body: some View {
         TerminalPaneView(session: session)
@@ -729,6 +731,22 @@ private struct PaneLeafView: View {
         switch session.attention {
         case .needsInput:
             badge(String(localized: "等待输入"), symbol: "keyboard.badge.ellipsis", tint: .orange)
+                // 右键快速回复:不切焦点就地打发掉 agent 的打断
+                .contextMenu {
+                    Button("回车确认") {
+                        session.sendText("\r")
+                        session.clearAttention()
+                    }
+                    Button("发送 y") {
+                        session.sendText("y\r")
+                        session.clearAttention()
+                    }
+                    Divider()
+                    Button("快速回复…") { quickReplyOpen = true }
+                }
+                .popover(isPresented: $quickReplyOpen, arrowEdge: .bottom) {
+                    QuickReplyPopover(session: session, isPresented: $quickReplyOpen)
+                }
         case .finished(let failed):
             badge(failed ? String(localized: "命令失败") : String(localized: "已完成"),
                   symbol: failed ? "xmark.circle.fill" : "checkmark.circle.fill",
@@ -752,6 +770,35 @@ private struct PaneLeafView: View {
         .background(Capsule().fill(tint.opacity(0.9)))
         .padding(8)
         .help(String(localized: "点击聚焦此分屏"))
+    }
+}
+
+/// 徽标「快速回复…」气泡:一行输入直接发进该 pane(回车或按钮发送,不切换焦点)
+private struct QuickReplyPopover: View {
+    let session: TerminalSession
+    @Binding var isPresented: Bool
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField(String(localized: "发送到该分屏"), text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 240)
+                .focused($focused)
+                .onSubmit(send)
+            Button("发送", action: send)
+        }
+        .padding(10)
+        .onAppear { focused = true }
+    }
+
+    private func send() {
+        defer { isPresented = false }
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.isEmpty else { return }
+        session.sendText(line + "\r")
+        session.clearAttention()
     }
 }
 
