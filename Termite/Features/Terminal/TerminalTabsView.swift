@@ -579,6 +579,11 @@ private struct PaneCarouselView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $snappedID)
         .onChange(of: snappedID) { _, snapped in
+            // 翻到哪页都把全部 pane 标脏:屏外挂载的 Metal 图层可能停摆,
+            // 缓冲区有内容却不画,滑到面前是空白
+            for sid in tab.root.leafIDs() {
+                sessionManager.session(sid)?.terminalView.needsDisplay = true
+            }
             guard let snapped, snapped != tab.focusedID else { return }
             sessionManager.focusPane(snapped)
         }

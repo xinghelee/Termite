@@ -204,6 +204,7 @@ final class SessionManager {
         tab.isCarousel = false
         tab.maximizedID = tab.maximizedID == nil ? tab.focusedID : nil
         persistOpenTabs()
+        nudgePanesAfterRelayout(tab)
     }
 
     /// ⇧⌘\:巡视模式开关——所有 pane 等宽横排分页滑动,再按一次还原分屏布局
@@ -212,6 +213,22 @@ final class SessionManager {
         tab.maximizedID = nil
         tab.isCarousel.toggle()
         selected?.focusTerminal()
+        nudgePanesAfterRelayout(tab)
+    }
+
+    /// 巡视/最大化整屏重排的动画会连发中间尺寸的 SIGWINCH,部分 TUI(grok cli 等)
+    /// 漏掉末次重绘停在空白。布局落定后给每个 pane 补一记尺寸轻推,强制按最终尺寸重画
+    private func nudgePanesAfterRelayout(_ tab: PaneTab) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let self else { return }
+            for id in tab.root.leafIDs() {
+                guard let session = self.session(id) else { continue }
+                session.kickRedraw()
+                // 搬家可能让 Metal 停摆(光标在、正文空白),重启渲染器 + 标脏双保险
+                session.terminalView.restartMetalRenderer()
+                session.terminalView.needsDisplay = true
+            }
+        }
     }
 
     /// 巡视模式 ⌘←→ 翻页;非巡视时不动作(菜单项吞掉按键也无副作用,终端本就不用 ⌘方向键)

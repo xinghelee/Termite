@@ -265,12 +265,19 @@ final class TerminalSession: Identifiable {
     }
 
     /// 尺寸抖一下再复原:TIOCSWINSZ 只在尺寸变化时发 SIGWINCH。
-    /// 重连后屏幕内容是快照回灌的,靠这一下让 zle / 全屏 TUI 重绘到真实状态
-    private func kickRedraw() {
+    /// 重连后屏幕内容是快照回灌的,靠这一下让 zle / 全屏 TUI 重绘到真实状态;
+    /// 巡视/最大化整屏重排后也用它兜底(动画期间 SIGWINCH 连发,部分 TUI 漏掉末次重绘)
+    func kickRedraw() {
         guard let hostPtyID else { return }
         let terminal = terminalView.getTerminal()
         PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: max(terminal.rows - 1, 1))
-        PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: terminal.rows)
+        // 两步必须隔开:ssh 会话里 SIGWINCH 会合并,紧挨着发 ssh 只读到复原后的尺寸,
+        // 与远端一致就不转发,远端 TUI(grok/deepseek cli 等)收不到任何变化、不重画
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, let hostPtyID = self.hostPtyID else { return }
+            let terminal = self.terminalView.getTerminal()
+            PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: terminal.rows)
+        }
     }
 
     /// 视图网格尺寸变化(保活模式经协议转发,替代 LocalProcess 的 ioctl)

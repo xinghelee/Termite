@@ -17,13 +17,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window != nil, !metalConfigured {
-            metalConfigured = true
-            // 默认开;设置可关,切换即时生效
-            if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
-                try? setUseMetal(true)
-            }
-        }
+        configureMetalIfReady()
         // 标签切换时视图此刻才挂进窗口:selectTab 里的 makeFirstResponder 那时 window 还是 nil,
         // 在这里把键盘焦点接过来(修「恢复后切标签无法输入」)
         if window != nil, let session, session.manager?.selected === session {
@@ -42,7 +36,29 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func layout() {
         super.layout()
+        configureMetalIfReady()
         syncPtyWindowSize()
+    }
+
+    /// Metal 只在「已挂窗 + 拿到真实尺寸」后启用一次:巡视模式滚动容器里
+    /// 首挂载的视图初始 frame 可能为零,此刻建 Metal 渲染器绘制层是废的,
+    /// 之后标脏也画不出来(表现:缓冲区有内容却永远空白)。没就位就等下一次布局
+    private func configureMetalIfReady() {
+        guard window != nil, !metalConfigured, bounds.width > 10, bounds.height > 10 else { return }
+        metalConfigured = true
+        // 默认开;设置可关,切换即时生效
+        if UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true {
+            try? setUseMetal(true)
+        }
+    }
+
+    /// 巡视/最大化布局切换后由 SessionManager 调用:视图在容器间搬家可能让
+    /// Metal 渲染器停摆(缓冲区有内容、光标在,正文空白),关开一轮强制重建
+    func restartMetalRenderer() {
+        guard metalConfigured,
+              UserDefaults.standard.object(forKey: SettingsKeys.metalRenderer) as? Bool ?? true else { return }
+        try? setUseMetal(false)
+        try? setUseMetal(true)
     }
 
     /// Metal 渲染路径下引擎不再回调 sizeChanged,PTY winsize 滞留在启动值
