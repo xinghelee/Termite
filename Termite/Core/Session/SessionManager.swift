@@ -214,6 +214,12 @@ final class SessionManager {
         selected?.focusTerminal()
     }
 
+    /// 巡视模式 ⌘←→ 翻页;非巡视时不动作(菜单项吞掉按键也无副作用,终端本就不用 ⌘方向键)
+    func carouselPage(_ direction: PaneDirection) {
+        guard selectedTab?.isCarousel == true else { return }
+        focusNeighborPane(direction)
+    }
+
     /// ⌘D / ⌘⇧D / 右键:在当前聚焦 pane 上再分出一个 pane(继承 cwd)。每次都新增,支持嵌套。
     func splitFocused(axis: SplitAxis) {
         guard let tab = selectedTab, let current = selected else { return }

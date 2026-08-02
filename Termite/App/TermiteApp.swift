@@ -249,6 +249,16 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("\\", modifiers: [.command, .shift])
 
+            Button("巡视:上一屏") {
+                SessionManager.shared.carouselPage(.left)
+            }
+            .keyboardShortcut(.leftArrow, modifiers: .command)
+
+            Button("巡视:下一屏") {
+                SessionManager.shared.carouselPage(.right)
+            }
+            .keyboardShortcut(.rightArrow, modifiers: .command)
+
             Button("广播输入到所有分屏") {
                 SessionManager.shared.toggleBroadcast()
             }

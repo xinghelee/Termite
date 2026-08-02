@@ -1,5 +1,6 @@
 import AppKit
 import SwiftTerm
+import SwiftUI
 
 /// 终端视图子类(内嵌本地 PTY):
 /// - 粘贴保护:多行或含危险命令(sudo/rm -rf/dd/mkfs 等)先弹预览确认,设置可关
@@ -70,12 +71,37 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // 永远不会绘制(显隐动画由 NSScrollView 私有管理),但宽度仍被预留,
         // 表现为右侧空白条且看不到滚动位置。legacy 样式可正常绘制(同 Berth #8)
         scrollerStyle = .legacy
+        addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         registerForDraggedTypes([.fileURL])
         scrollerStyle = .legacy
+        addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
+    }
+
+    // MARK: - 捏合进出巡视模式(Safari 标签概览惯例:捏合=摊平总览,张开=还原)
+
+    /// 一次手势只触发一次(阈值处切换,不等抬手,跟手感更好)
+    private var magnifyTriggered = false
+
+    @objc private func handleMagnify(_ recognizer: NSMagnificationGestureRecognizer) {
+        switch recognizer.state {
+        case .began:
+            magnifyTriggered = false
+        case .changed:
+            guard !magnifyTriggered, let manager = session?.manager, let tab = manager.selectedTab else { return }
+            if recognizer.magnification < -0.15, !tab.isCarousel, tab.root.leafIDs().count > 1 {
+                magnifyTriggered = true
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { manager.toggleCarousel() }
+            } else if recognizer.magnification > 0.15, tab.isCarousel {
+                magnifyTriggered = true
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { manager.toggleCarousel() }
+            }
+        default:
+            break
+        }
     }
 
     deinit {

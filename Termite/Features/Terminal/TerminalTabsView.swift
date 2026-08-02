@@ -567,8 +567,8 @@ private struct PaneCarouselView: View {
                             broadcasting: tab.isBroadcasting,
                             onFocus: { sessionManager.focusPane(sid) }
                         )
-                        // 88% 宽:露出下一页边缘,提示还能继续滑
-                        .containerRelativeFrame(.horizontal) { length, _ in length * 0.88 }
+                        // 50% 宽:一屏并排看到两页
+                        .containerRelativeFrame(.horizontal) { length, _ in length * 0.50 }
                         .id(sid)
                     }
                 }
