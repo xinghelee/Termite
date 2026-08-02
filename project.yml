@@ -61,6 +61,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.termite.app
         SWIFT_VERSION: "5.0"
+        # 编译器提取 SwiftUI 字面量与 String(localized:) 进 String Catalog
+        SWIFT_EMIT_LOC_STRINGS: true
         # 终端不能开沙箱(需要完整文件系统/进程权限),也不加 entitlements。
         # 用稳定开发证书签名(而非 ad-hoc),避免每次重建被系统当陌生 app。
         CODE_SIGN_STYLE: Automatic
