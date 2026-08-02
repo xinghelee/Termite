@@ -690,8 +690,18 @@ private struct PaneLeafView: View {
     /// 徽标右键「快速回复…」的气泡输入框
     @State private var quickReplyOpen = false
 
+    /// 双击标题条改名的输入框状态
+    @State private var renamePrompt = false
+    @State private var renameText = ""
+
     var body: some View {
-        TerminalPaneView(session: session)
+        VStack(spacing: 0) {
+            // 自定义分屏名 = 专属标题条(占布局空间,零遮挡;起了名才有,iTerm 惯例)
+            if let name = session.customName {
+                paneNameHeader(name)
+            }
+            TerminalPaneView(session: session)
+        }
             .overlay(alignment: .bottom) {
                 if session.composerDraft != nil {
                     CommandComposerView(session: session)
@@ -706,6 +716,13 @@ private struct PaneLeafView: View {
             )
             .overlay(borderOverlay)
             .overlay(alignment: .topTrailing) { attentionBadge }
+            .alert("重命名分屏", isPresented: $renamePrompt) {
+                TextField(session.displayTitle, text: $renameText)
+                Button("确定") { session.setCustomName(renameText) }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("留空恢复自动标题(目录 / 程序名)。")
+            }
             // 点 pane 即聚焦并抢回键盘:即使 UI 已标聚焦,first responder 也可能
             // 在别处(滚动条/侧边栏),无条件 focusTerminal 让「点一下就能打字」永远成立
             .onTapGesture { onFocus() }
@@ -715,6 +732,30 @@ private struct PaneLeafView: View {
                 flashOpacity = 0.9
                 withAnimation(.easeOut(duration: 1.2)) { flashOpacity = 0 }
             }
+    }
+
+    /// 分屏专属标题条:名字 + 双击改名;与终端同宽,内容整体下移不遮字
+    private func paneNameHeader(_ name: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "tag.fill")
+                .font(.system(size: 8))
+                .foregroundStyle(.tertiary)
+            Text(name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isFocused ? .primary : .secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 22)
+        .frame(maxWidth: .infinity)
+        .background(ThemeStore.shared.current.chromeBackground)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            renameText = session.customName ?? ""
+            renamePrompt = true
+        }
+        .help(String(localized: "双击重命名"))
     }
 
     @ViewBuilder private var borderOverlay: some View {

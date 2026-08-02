@@ -463,6 +463,7 @@ final class SessionManager {
             // 保活票据:重启后凭 (会话 ID, 已消费偏移) 无缝接回守护进程里的 shell
             encoded.ptyID = session(sid)?.hostPtyID
             encoded.ptyOffset = session(sid)?.consumedHostOffset
+            encoded.paneName = session(sid)?.customName
             if let scrollbackDirectory,
                let text = session(sid)?.scrollbackSnapshot() {
                 let name = UUID().uuidString + ".txt"
@@ -507,6 +508,7 @@ final class SessionManager {
         let first = newTab(directory: validDirectory(firstLeaf.cwd),
                            scrollback: restoredScrollback(firstLeaf),
                            reattach: reattachTicket(firstLeaf))
+        first.customName = firstLeaf.paneName
         guard let tab = tabs.last, tab.root.leafIDs() == [first.id] else { return }
         buildSplits(node, existingLeaf: first.id, in: tab)
         tab.focusedID = first.id
@@ -547,6 +549,7 @@ final class SessionManager {
         let secondary = makeSession(directory: validDirectory(bLeaf.cwd),
                                     scrollback: restoredScrollback(bLeaf),
                                     reattach: reattachTicket(bLeaf))
+        secondary.customName = bLeaf.paneName
         sessions.append(secondary)
         tab.root = tab.root.splitting(
             leaf: existingLeaf,

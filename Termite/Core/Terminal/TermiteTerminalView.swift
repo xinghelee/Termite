@@ -372,6 +372,11 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         vItem.image = NSImage(systemSymbolName: "rectangle.split.1x2", accessibilityDescription: nil)
         menu.addItem(vItem)
 
+        let renameItem = NSMenuItem(title: String(localized: "重命名分屏…"), action: #selector(termiteRenamePane), keyEquivalent: "")
+        renameItem.target = self
+        renameItem.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
+        menu.addItem(renameItem)
+
         let closePaneItem = NSMenuItem(title: String(localized: "关闭此分屏"), action: #selector(termiteClosePane), keyEquivalent: "")
         closePaneItem.target = self
         closePaneItem.image = NSImage(systemSymbolName: "xmark.rectangle", accessibilityDescription: nil)
@@ -422,6 +427,28 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     @objc private func termiteClosePane() {
         MainActor.assumeIsolated { SessionManager.shared.requestCloseCurrent() }
+    }
+
+    /// 重命名分屏(reddit 用户建议):同目录多 agent 靠名字区分,
+    /// 名字流经 chip / 菜单栏等待列表 / 系统通知 / 巡视徽标所有出口
+    @objc private func termiteRenamePane() {
+        MainActor.assumeIsolated {
+            guard let session else { return }
+            let alert = NSAlert()
+            alert.messageText = String(localized: "重命名分屏")
+            alert.informativeText = String(localized: "留空恢复自动标题(目录 / 程序名)。")
+            let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+            field.stringValue = session.customName ?? ""
+            field.placeholderString = session.displayTitle
+            alert.accessoryView = field
+            alert.addButton(withTitle: String(localized: "确定"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            alert.window.initialFirstResponder = field
+            if alert.runModal() == .alertFirstButtonReturn {
+                session.setCustomName(field.stringValue)
+            }
+            window?.makeFirstResponder(self)
+        }
     }
 
     @objc private func termiteFind() {

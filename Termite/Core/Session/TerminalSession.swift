@@ -86,8 +86,19 @@ final class TerminalSession: Identifiable {
     let shellPath: String
     var shellName: String { (shellPath as NSString).lastPathComponent }
 
-    /// 标签 chip / 标题胶囊显示名:OSC 标题(压缩为最后一段目录)> cwd 目录名 > shell 名
+    /// 用户自定义分屏名(右键「重命名分屏」;区分同目录多 agent),优先于一切自动标题
+    var customName: String?
+
+    /// 空白/空串回落自动标题;改名随手落盘
+    func setCustomName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        customName = trimmed.isEmpty ? nil : trimmed
+        manager?.layoutChangedSoon()
+    }
+
+    /// 标签 chip / 标题胶囊显示名:自定义名 > OSC 标题(压缩为最后一段目录)> cwd 目录名 > shell 名
     var displayTitle: String {
+        if let customName { return customName }
         if !title.isEmpty { return Self.compactTitle(title) }
         if let dir = workingDirectory {
             let short = (dir as NSString).abbreviatingWithTildeInPath

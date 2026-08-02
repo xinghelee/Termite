@@ -24,6 +24,8 @@ final class WorkspaceNode: Codable {
     /// 会话保活:守护进程里的会话 ID + 已消费输出偏移(重启后无缝接回;工作区模板不用)
     var ptyID: UUID?
     var ptyOffset: UInt64?
+    /// 用户自定义分屏名(重启保留;区分同目录多 agent)
+    var paneName: String?
 
     init(cwd: String?) {
         self.cwd = cwd

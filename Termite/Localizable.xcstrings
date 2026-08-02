@@ -362,6 +362,16 @@
         }
       }
     },
+    "⌘↩ 回填并执行 · Esc 取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘↩ insert & run · Esc cancel"
+          }
+        }
+      }
+    },
     "⌘点击 file:line 打开": {
       "localizations": {
         "en": {
@@ -1113,6 +1123,46 @@
         }
       }
     },
+    "双击重命名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-click to rename"
+          }
+        }
+      }
+    },
+    "发送": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        }
+      }
+    },
+    "发送 y": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send y"
+          }
+        }
+      }
+    },
+    "发送到该分屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send to that pane"
+          }
+        }
+      }
+    },
     "取消": {
       "localizations": {
         "en": {
@@ -1239,6 +1289,36 @@
         }
       }
     },
+    "回填": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insert"
+          }
+        }
+      }
+    },
+    "回填并执行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insert & Run"
+          }
+        }
+      }
+    },
+    "回复…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply…"
+          }
+        }
+      }
+    },
     "回放录制文件…": {
       "localizations": {
         "en": {
@@ -1275,6 +1355,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Return inserts the command (doesn’t run) · newest first"
+          }
+        }
+      }
+    },
+    "回车确认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press Enter"
           }
         }
       }
@@ -1609,6 +1699,46 @@
         }
       }
     },
+    "巡视:上一屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carousel: Previous"
+          }
+        }
+      }
+    },
+    "巡视:下一屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carousel: Next"
+          }
+        }
+      }
+    },
+    "巡视分屏(等宽横排滑动)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pane Carousel (equal-width swipe)"
+          }
+        }
+      }
+    },
+    "巡视分屏:等宽横排滑动(⇧⌘\\)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pane carousel: equal-width swipe (⇧⌘\\)"
+          }
+        }
+      }
+    },
     "工作区": {
       "localizations": {
         "en": {
@@ -1805,6 +1935,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record Session (asciinema)…"
+          }
+        }
+      }
+    },
+    "快速回复…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick Reply…"
           }
         }
       }
@@ -2609,6 +2749,16 @@
         }
       }
     },
+    "留空恢复自动标题(目录 / 程序名)。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave empty to restore the automatic title (directory / program name)."
+          }
+        }
+      }
+    },
     "登录 Shell(默认)": {
       "localizations": {
         "en": {
@@ -2625,6 +2775,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No directory history yet — cd around and it’ll be remembered (needs shell integration)"
+          }
+        }
+      }
+    },
+    "确定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -2925,6 +3085,16 @@
         }
       }
     },
+    "编辑命令行(浮层)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Command Line (Composer)…"
+          }
+        }
+      }
+    },
     "编辑器": {
       "localizations": {
         "en": {
@@ -3171,6 +3341,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jump to Directory…"
+          }
+        }
+      }
+    },
+    "跳转过去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jump There"
           }
         }
       }
@@ -3461,6 +3641,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename"
+          }
+        }
+      }
+    },
+    "重命名分屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Pane"
+          }
+        }
+      }
+    },
+    "重命名分屏…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Pane…"
           }
         }
       }
