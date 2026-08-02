@@ -28,6 +28,14 @@ brew install --cask xinghelee/tap/termite
 - **Awaiting-input alerts**: when an agent stops and waits, the pane gets a breathing orange border, a menu bar badge and a notification; ⌘J jumps to the longest-waiting one
 - **Quick reply in place**: type a reply right on the notification, or right-click the pane badge for "Press Enter / Send y" — without leaving what you're doing
 
+### Worktree splits: one worktree per agent (new in 1.15)
+
+Parallel agents sharing one working tree turn your diff into soup — so `git worktree` is one right-click away:
+
+- **Right-click → "Split into New Worktree…"**: type a name to create a branch, or fuzzy-search thousands of existing branches (local + remote) and check one out; branches already checked out open their existing worktree
+- New branches start from your current branch; the directory lives next to the repo (`repo-branch`); **the pane is auto-named after the branch**
+- **Right-click → "Clean Up This Worktree"**: refuses on uncommitted changes (can force), the branch survives for merging
+
 ### Session restore
 
 - **Full multi-window restore**: reopen the app and window frames, focus, maximized pane, tabs and split layout, and scrollback all come back.

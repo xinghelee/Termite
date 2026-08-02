@@ -231,6 +231,18 @@ footer .spacer{flex:1}
   </section>
 
   <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite worktree</span><span class="flag">--split</span><span class="meta"><span class="ok">✓ 0</span> · 8ms</span></div>
+    <h2>Worktree 分屏</h2>
+    <p class="sub">并行 agent 共用一个工作树,diff 会混成一锅。把 <code>git worktree</code> 做成一次右键:每个 agent 一个隔离的工作树。</p>
+    <div class="feat-grid">
+      <div class="feat"><h3>新建或检出</h3><p>输入名字新建分支,或模糊搜索几千个已有分支(本地 + 远程)直接检出,不卡。</p></div>
+      <div class="feat"><h3>已有 Worktree 直接打开</h3><p>已被检出的分支带标识,一键分屏进它现有的目录,不撞 git 报错。</p></div>
+      <div class="feat"><h3>分屏名 = 分支名</h3><p>目录在仓库同级,pane 自动以分支命名,巡视模式里一眼认出谁是谁。</p></div>
+      <div class="feat"><h3>清理有保护</h3><p>未提交改动先拦截(可强制);分支保留,合并完再删。</p></div>
+    </div>
+  </section>
+
+  <section class="cmdblock">
     <div class="cmdline"><span class="p">❯</span><span class="c">termite sessions</span><span class="flag">--restore</span><span class="meta"><span class="ok">✓ 0</span> · 3ms</span></div>
     <h2>完整会话恢复</h2>
     <p class="sub">重新打开 App,一切回到你离开时的样子。</p>
