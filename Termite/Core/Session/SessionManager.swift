@@ -310,6 +310,7 @@ final class SessionManager {
             if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
         }
         persistOpenTabs()
+        closeWindowIfEmpty()
     }
 
     /// 整个标签关闭(标签 chip 的 ×):有命令在跑时确认后连同其所有 pane 一起关
@@ -331,6 +332,17 @@ final class SessionManager {
         tabs.removeAll { $0.id == tab.id }
         if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
         persistOpenTabs()
+        closeWindowIfEmpty()
+    }
+
+    /// 最后一个标签关闭后直接关窗,不停留在欢迎页(终端惯例;issue #2)。
+    /// 延迟一拍:不在 SwiftUI 动作回调里同步拆窗口
+    private func closeWindowIfEmpty() {
+        guard tabs.isEmpty else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.tabs.isEmpty else { return }
+            SessionManagerRegistry.shared.window(of: self)?.performClose(nil)
+        }
     }
 
     // MARK: - 选择
