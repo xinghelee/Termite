@@ -20,7 +20,7 @@ brew install --cask xinghelee/tap/termite
 
 ## 核心特性
 
-### 巡视模式:管一群 AI agent(1.12 新增)
+### 巡视模式 agent(1.12 新增)
 
 ![巡视模式](docs/carousel-demo.gif)
 
