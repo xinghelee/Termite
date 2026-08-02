@@ -20,6 +20,14 @@ brew install --cask xinghelee/tap/termite
 
 ## Core features
 
+### Pane Carousel: babysit a fleet of AI agents (new in 1.12)
+
+![Pane Carousel](docs/carousel-demo.gif)
+
+- **⇧⌘\ or pinch**: every pane laid out side-by-side at equal width — swipe through them on the trackpad; focus follows the page, ⌘←→ to page by keyboard
+- **Awaiting-input alerts**: when an agent stops and waits, the pane gets a breathing orange border, a menu bar badge and a notification; ⌘J jumps to the longest-waiting one
+- **Quick reply in place**: type a reply right on the notification, or right-click the pane badge for "Press Enter / Send y" — without leaving what you're doing
+
 ### Session restore
 
 - **Full multi-window restore**: reopen the app and window frames, focus, maximized pane, tabs and split layout, and scrollback all come back.
