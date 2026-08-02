@@ -310,6 +310,26 @@
         }
       }
     },
+    "Worktree 创建失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't create worktree"
+          }
+        }
+      }
+    },
+    "Worktree 清理失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't remove worktree"
+          }
+        }
+      }
+    },
     "git 提交邮箱(全局),点击编辑": {
       "localizations": {
         "en": {
@@ -326,6 +346,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Git commit email (repo override), click to edit"
+          }
+        }
+      }
+    },
+    "git 退出码 %d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "git exited with %d"
           }
         }
       }
@@ -429,6 +459,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Previous Command"
+          }
+        }
+      }
+    },
+    "上下": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stacked"
           }
         }
       }
@@ -573,6 +614,16 @@
         }
       }
     },
+    "不是链接 worktree:%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a linked worktree: %@"
+          }
+        }
+      }
+    },
     "与上次运行的输出对比": {
       "localizations": {
         "en": {
@@ -669,6 +720,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Today’s Report"
+          }
+        }
+      }
+    },
+    "以此名字创建新分支,worktree 目录放在仓库同级(仓库名-名字),新分屏直接进入;分屏名即分支名。": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creates a new branch with this name; the worktree directory lives next to the repo (repo-name). The new pane opens inside it, named after the branch."
           }
         }
       }
@@ -1013,6 +1075,17 @@
         }
       }
     },
+    "分支名": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Branch name"
+          }
+        }
+      }
+    },
     "切换到该项目": {
       "localizations": {
         "en": {
@@ -1059,6 +1132,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clipboard"
+          }
+        }
+      }
+    },
+    "加载分支…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading branches…"
           }
         }
       }
@@ -1189,6 +1272,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Applies to new tabs. Started as a login shell (argv[0] prefixed with -)."
+          }
+        }
+      }
+    },
+    "名字不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name cannot be empty"
           }
         }
       }
@@ -1425,6 +1518,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search scrollback"
+          }
+        }
+      }
+    },
+    "在新 Worktree 中分屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split into New Worktree"
+          }
+        }
+      }
+    },
+    "在新 Worktree 中分屏…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split into New Worktree…"
           }
         }
       }
@@ -1689,6 +1802,16 @@
         }
       }
     },
+    "将运行 git worktree remove 并关闭该分屏;分支保留,合并后可自行删除。有未提交改动时会先失败。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs git worktree remove and closes the pane. The branch is kept so you can merge it. Uncommitted changes make removal fail first."
+          }
+        }
+      }
+    },
     "尚未获取到工作目录": {
       "localizations": {
         "en": {
@@ -1779,6 +1902,17 @@
         }
       }
     },
+    "左右": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Side by side"
+          }
+        }
+      }
+    },
     "左右分屏": {
       "localizations": {
         "en": {
@@ -1849,6 +1983,16 @@
         }
       }
     },
+    "已有 Worktree": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has worktree"
+          }
+        }
+      }
+    },
     "布局 %lld": {
       "localizations": {
         "en": {
@@ -1875,6 +2019,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Broadcast Input to All Panes"
+          }
+        }
+      }
+    },
+    "强制删除(丢弃未提交改动)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Force Remove (discard uncommitted changes)"
           }
         }
       }
@@ -1965,6 +2119,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore System Default"
+          }
+        }
+      }
+    },
+    "打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
           }
         }
       }
@@ -2205,6 +2369,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "New"
+          }
+        }
+      }
+    },
+    "新分支名,或搜索已有分支…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New branch name, or search existing branches…"
+          }
+        }
+      }
+    },
+    "新分支基于当前分支 · 目录与仓库同级": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New branch from your current branch · directory next to the repo"
+          }
+        }
+      }
+    },
+    "新分支基于当前分支,目录与仓库同级(仓库名-分支名),新分屏直接进入。": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creates a new branch from your current one; the worktree directory lives next to the repo (repo-branch). The new pane opens inside it."
+          }
+        }
+      }
+    },
+    "新建分支": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New branch"
           }
         }
       }
@@ -2509,6 +2715,16 @@
         }
       }
     },
+    "检出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Out"
+          }
+        }
+      }
+    },
     "检查更新…": {
       "localizations": {
         "en": {
@@ -2595,6 +2811,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Project Folder"
+          }
+        }
+      }
+    },
+    "清理此 Worktree(移除并关闭)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean Up This Worktree (remove & close)…"
           }
         }
       }
@@ -2769,12 +2995,32 @@
         }
       }
     },
+    "目录与仓库同级 · 分屏名=分支名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory next to the repo · pane named after the branch"
+          }
+        }
+      }
+    },
     "目录历史为空 —— cd 到处走走,这里会记住(需 shell 集成)": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No directory history yet — cd around and it’ll be remembered (needs shell integration)"
+          }
+        }
+      }
+    },
+    "目录已存在:%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory already exists: %@"
           }
         }
       }
@@ -2845,6 +3091,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove and Close"
+          }
+        }
+      }
+    },
+    "移除此 Worktree?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this worktree?"
           }
         }
       }
@@ -3355,6 +3611,16 @@
         }
       }
     },
+    "输入新分支名,或搜索已有分支": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a new branch name, or search existing branches"
+          }
+        }
+      }
+    },
     "输出对比": {
       "localizations": {
         "en": {
@@ -3471,6 +3737,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Process exited"
+          }
+        }
+      }
+    },
+    "远程": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "remote"
           }
         }
       }

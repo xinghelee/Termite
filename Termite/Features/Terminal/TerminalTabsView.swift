@@ -91,6 +91,19 @@ struct TerminalTabsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ThemeStore.shared.current.chromeBackground)
+        // 「在新 Worktree 中分屏」居中模态(遮罩点击即取消)
+        .overlay {
+            if let prompting = sessionManager.sessions.first(where: { $0.worktreePromptPresented }) {
+                ZStack {
+                    Color.black.opacity(0.25)
+                        .onTapGesture {
+                            prompting.worktreePromptPresented = false
+                            prompting.focusTerminal()
+                        }
+                    WorktreePromptView(session: prompting)
+                }
+            }
+        }
         // chips/胶囊/按钮组自带胶囊样式,macOS 26 需隐藏系统工具栏 item 的玻璃底,避免双层背景
         .toolbar {
             if #available(macOS 26.0, *) {
@@ -822,6 +835,230 @@ private struct PaneLeafView: View {
         .background(Capsule().fill(tint.opacity(0.9)))
         .padding(8)
         .help(String(localized: "点击聚焦此分屏"))
+    }
+}
+
+/// 「在新 Worktree 中分屏」居中模态:一个输入框身兼二职——输入新名字建分支,
+/// 或模糊搜索已有分支(本地+远程)检出。几千分支不卡的关键:一次性加载进内存、
+/// 匹配用 FuzzyMatcher、渲染只取前 50 条。↑↓ 选择,回车执行,Esc 取消
+private struct WorktreePromptView: View {
+    @Bindable var session: TerminalSession
+    @Environment(SessionManager.self) private var sessionManager
+    @State private var name = ""
+    @State private var axis: SplitAxis = .horizontal
+    @State private var branches: [WorktreeService.Branch]?
+    @State private var selection = 0
+    @FocusState private var focused: Bool
+
+    private enum Option: Hashable {
+        case create(String)
+        case checkout(WorktreeService.Branch)
+    }
+
+    /// 首行「新建」(有输入时) + 模糊匹配的已有分支(最多 50 条,分数降序)
+    private var options: [Option] {
+        let query = name.trimmingCharacters(in: .whitespaces)
+        var list: [Option] = query.isEmpty ? [] : [.create(query)]
+        guard let branches else { return list }
+        let matches: [WorktreeService.Branch]
+        if query.isEmpty {
+            matches = Array(branches.prefix(50))
+        } else {
+            matches = branches
+                .compactMap { b in FuzzyMatcher.score(query: query, candidate: b.name).map { (b, $0) } }
+                .sorted { $0.1 > $1.1 }
+                .prefix(50)
+                .map(\.0)
+        }
+        list += matches.map { .checkout($0) }
+        return list
+    }
+
+    var body: some View {
+        let options = self.options
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(ThemeStore.shared.current.accentColor)
+                Text("在新 Worktree 中分屏")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Text("目录与仓库同级 · 分屏名=分支名")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+            }
+            TextField(String(localized: "新分支名,或搜索已有分支…"), text: $name)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.large)
+                .font(.system(size: 14, design: .monospaced))
+                .focused($focused)
+                .onSubmit { apply(options) }
+                .onKeyPress(.upArrow) {
+                    selection = max(0, selection - 1); return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    selection = min(max(0, options.count - 1), selection + 1); return .handled
+                }
+                .onChange(of: name) { _, _ in selection = 0 }
+            optionList(options)
+            HStack(spacing: 10) {
+                // 巡航模式是横排队列,新 pane 只能向右追加,方向没得选
+                if sessionManager.selectedTab?.isCarousel != true {
+                    Picker("", selection: $axis) {
+                        Image(systemName: "rectangle.split.2x1")
+                            .help(String(localized: "左右分屏")).tag(SplitAxis.horizontal)
+                        Image(systemName: "rectangle.split.1x2")
+                            .help(String(localized: "上下分屏")).tag(SplitAxis.vertical)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .controlSize(.large)
+                    .frame(width: 170)
+                }
+                Spacer()
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(confirmTitle(options), action: { apply(options) })
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(options.isEmpty)
+            }
+        }
+        .padding(18)
+        .frame(width: 440)
+        .background(RoundedRectangle(cornerRadius: 14).fill(.regularMaterial))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(ThemeStore.shared.current.borderColor, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 28, y: 12)
+        .onAppear {
+            focused = true
+            let cwd = session.workingDirectory
+            Task {
+                branches = (try? await WorktreeService.branches(near: cwd ?? ".")) ?? []
+            }
+        }
+        .onExitCommand { dismiss() }
+    }
+
+    @ViewBuilder private func optionList(_ options: [Option]) -> some View {
+        if branches == nil {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("加载分支…").font(.system(size: 11.5)).foregroundStyle(.secondary)
+            }
+            .frame(height: 40)
+        } else if options.isEmpty {
+            Text("输入新分支名,或搜索已有分支")
+                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                .frame(height: 40)
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 1) {
+                        ForEach(Array(options.enumerated()), id: \.element) { index, option in
+                            optionRow(option, selected: index == min(selection, options.count - 1))
+                                .id(index)
+                                .onTapGesture {
+                                    selection = index
+                                    apply(options)
+                                }
+                        }
+                    }
+                }
+                // 高度贴内容(行高约 28),条目多才滚动,少时不留空白
+                .frame(height: min(220, CGFloat(options.count) * 28))
+                .onChange(of: selection) { _, index in
+                    proxy.scrollTo(index)
+                }
+            }
+        }
+    }
+
+    private func optionRow(_ option: Option, selected: Bool) -> some View {
+        HStack(spacing: 8) {
+            switch option {
+            case .create(let name):
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(ThemeStore.shared.current.accentColor)
+                Text("新建分支")
+                    .foregroundStyle(.secondary)
+                Text(name).fontWeight(.semibold)
+            case .checkout(let branch):
+                Image(systemName: branch.worktreePath != nil ? "folder.badge.gearshape" : "arrow.triangle.branch")
+                    .foregroundStyle(branch.worktreePath != nil
+                        ? AnyShapeStyle(ThemeStore.shared.current.accentColor)
+                        : AnyShapeStyle(.secondary))
+                Text(branch.name)
+                if branch.worktreePath != nil {
+                    tagCapsule(String(localized: "已有 Worktree"), tinted: true)
+                } else if branch.isRemote {
+                    tagCapsule(String(localized: "远程"), tinted: false)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 12.5, design: .monospaced))
+        .lineLimit(1)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(selected ? ThemeStore.shared.current.accentColor.opacity(0.22) : .clear)
+        )
+        .contentShape(Rectangle())
+    }
+
+    /// 行尾小标签:「已有 Worktree」强调色 /「远程」灰
+    private func tagCapsule(_ text: String, tinted: Bool) -> some View {
+        Text(text)
+            .font(.system(size: 9.5, weight: .semibold))
+            .padding(.horizontal, 5).padding(.vertical, 1.5)
+            .background(Capsule().fill(tinted
+                ? ThemeStore.shared.current.accentColor.opacity(0.2)
+                : Color.primary.opacity(0.12)))
+            .foregroundStyle(tinted
+                ? AnyShapeStyle(ThemeStore.shared.current.accentColor)
+                : AnyShapeStyle(.secondary))
+    }
+
+    private func confirmTitle(_ options: [Option]) -> LocalizedStringKey {
+        switch options[safe: min(selection, options.count - 1)] {
+        case .checkout(let branch): branch.worktreePath != nil ? "打开" : "检出"
+        default: "创建"
+        }
+    }
+
+    private func apply(_ options: [Option]) {
+        guard !options.isEmpty else { return }
+        let target: WorktreeService.Target
+        switch options[min(selection, options.count - 1)] {
+        case .create(let name): target = .newBranch(name)
+        case .checkout(let branch):
+            // 已被检出的分支不能再 add,直接分屏进它已有的 worktree
+            if let path = branch.worktreePath {
+                target = .openWorktree(path: path, branch: branch.name)
+            } else {
+                target = .existing(branch.name)
+            }
+        }
+        session.worktreePromptPresented = false
+        // 巡航模式强制横向:队列里向右追加为新一页
+        let effectiveAxis = sessionManager.selectedTab?.isCarousel == true ? .horizontal : axis
+        sessionManager.splitIntoWorktree(target, axis: effectiveAxis)
+    }
+
+    private func dismiss() {
+        session.worktreePromptPresented = false
+        session.focusTerminal()
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 

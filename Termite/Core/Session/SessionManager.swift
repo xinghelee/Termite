@@ -248,6 +248,64 @@ final class SessionManager {
         persistOpenTabs()
     }
 
+    /// 右键「在新 Worktree 中分屏」:新建分支或检出已有分支,分屏进入,分屏名=分支名。
+    /// 并行 agent 各占一个工作树,diff 不再互相污染
+    func splitIntoWorktree(_ target: WorktreeService.Target, axis: SplitAxis) {
+        guard let current = selected, let cwd = current.workingDirectory else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let path = try await WorktreeService.add(near: cwd, target: target)
+                guard let tab = self.selectedTab, self.session(current.id) != nil else { return }
+                tab.maximizedID = nil
+                let secondary = self.makeSession(directory: path)
+                secondary.customName = target.branchName
+                self.sessions.append(secondary)
+                tab.root = tab.root.splitting(leaf: current.id, into: secondary.id,
+                                              axis: axis, branchID: UUID())
+                tab.focusedID = secondary.id
+                self.persistOpenTabs()
+            } catch {
+                Self.presentWorktreeFailure(String(localized: "Worktree 创建失败"), error)
+            }
+        }
+    }
+
+    /// 「清理此 Worktree」:git worktree remove 后关闭该分屏;
+    /// 未提交改动会先失败,给「强制删除」的二次机会。分支保留供合并
+    func removeWorktreeAndClose(_ session: TerminalSession) {
+        guard let cwd = session.workingDirectory,
+              let root = WorktreeService.linkedWorktreeRoot(of: cwd) else { return }
+        Task { [weak self] in
+            do {
+                try await WorktreeService.remove(worktreePath: root, force: false)
+                self?.closePane(session)
+            } catch {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = String(localized: "Worktree 清理失败")
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: String(localized: "强制删除(丢弃未提交改动)"))
+                alert.addButton(withTitle: String(localized: "取消"))
+                guard alert.runModal() == .alertFirstButtonReturn else { return }
+                do {
+                    try await WorktreeService.remove(worktreePath: root, force: true)
+                    self?.closePane(session)
+                } catch {
+                    Self.presentWorktreeFailure(String(localized: "Worktree 清理失败"), error)
+                }
+            }
+        }
+    }
+
+    private static func presentWorktreeFailure(_ title: String, _ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
+    }
+
     /// 拖拽分隔条 / 切焦点等高频变化:合并持久化
     func layoutChangedSoon() {
         SessionManagerRegistry.shared.persistAllOpenTabsSoon()

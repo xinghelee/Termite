@@ -376,6 +376,8 @@ final class TerminalSession: Identifiable {
 
     /// 浮层编辑器内容(非 nil = 呈现浮层);OSC 133 B 记录的命令起点用于捕获已键入文本
     var composerDraft: String?
+    /// 「在新 Worktree 中分屏」浮层(右键菜单触发,pane 内呈现,不持久化)
+    var worktreePromptPresented = false
     @ObservationIgnored private var commandOrigin: (row: Int, col: Int)?
 
     /// 命令起点追踪:shell 集成只发 A/C/D 不发 B,拿不到「提示符结束」标记。

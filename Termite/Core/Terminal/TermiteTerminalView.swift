@@ -372,6 +372,19 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         vItem.image = NSImage(systemSymbolName: "rectangle.split.1x2", accessibilityDescription: nil)
         menu.addItem(vItem)
 
+        let worktreeItem = NSMenuItem(title: String(localized: "在新 Worktree 中分屏…"), action: #selector(termiteSplitWorktree), keyEquivalent: "")
+        worktreeItem.target = self
+        worktreeItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
+        menu.addItem(worktreeItem)
+
+        // cwd 在链接 worktree 里才出现清理项
+        if let cwd = session?.workingDirectory, WorktreeService.linkedWorktreeRoot(of: cwd) != nil {
+            let cleanupItem = NSMenuItem(title: String(localized: "清理此 Worktree(移除并关闭)…"), action: #selector(termiteCleanupWorktree), keyEquivalent: "")
+            cleanupItem.target = self
+            cleanupItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
+            menu.addItem(cleanupItem)
+        }
+
         let renameItem = NSMenuItem(title: String(localized: "重命名分屏…"), action: #selector(termiteRenamePane), keyEquivalent: "")
         renameItem.target = self
         renameItem.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
@@ -402,6 +415,8 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // 无可复制输出时禁用该项
         MainActor.assumeIsolated {
             copyOutputItem.isEnabled = SessionManager.shared.selected?.hasCommandOutput ?? false
+            // 不在 git 仓库里没有 worktree 可分
+            worktreeItem.isEnabled = session?.gitBranch != nil
         }
         return menu
     }
@@ -427,6 +442,31 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     @objc private func termiteClosePane() {
         MainActor.assumeIsolated { SessionManager.shared.requestCloseCurrent() }
+    }
+
+    /// 在新 worktree 中分屏:呼出 pane 内浮层(输入分支名 + 方向,回车即建)
+    @objc private func termiteSplitWorktree() {
+        MainActor.assumeIsolated {
+            guard let session, session.gitBranch != nil else { return }
+            session.worktreePromptPresented = true
+        }
+    }
+
+    /// 清理当前 worktree:确认后 git worktree remove + 关闭分屏(分支保留)
+    @objc private func termiteCleanupWorktree() {
+        MainActor.assumeIsolated {
+            guard let session else { return }
+            let alert = NSAlert()
+            alert.messageText = String(localized: "移除此 Worktree?")
+            alert.informativeText = String(localized: "将运行 git worktree remove 并关闭该分屏;分支保留,合并后可自行删除。有未提交改动时会先失败。")
+            alert.addButton(withTitle: String(localized: "移除并关闭"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            guard alert.runModal() == .alertFirstButtonReturn else {
+                window?.makeFirstResponder(self)
+                return
+            }
+            SessionManager.shared.removeWorktreeAndClose(session)
+        }
     }
 
     /// 重命名分屏(reddit 用户建议):同目录多 agent 靠名字区分,
