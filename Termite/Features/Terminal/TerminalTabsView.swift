@@ -866,27 +866,32 @@ private struct WorktreePromptView: View {
         case checkout(WorktreeService.Branch)
     }
 
+    /// 结果列表:显式状态,由输入/分支加载事件驱动重算(计算属性曾与输入脱节)
+    @State private var results: [Option] = []
+
     /// 首行「新建」(有输入时) + 模糊匹配的已有分支(最多 50 条,分数降序)
-    private var options: [Option] {
+    private func refreshResults() {
         let query = name.trimmingCharacters(in: .whitespaces)
         var list: [Option] = query.isEmpty ? [] : [.create(query)]
-        guard let branches else { return list }
-        let matches: [WorktreeService.Branch]
-        if query.isEmpty {
-            matches = Array(branches.prefix(50))
-        } else {
-            matches = branches
-                .compactMap { b in FuzzyMatcher.score(query: query, candidate: b.name).map { (b, $0) } }
-                .sorted { $0.1 > $1.1 }
-                .prefix(50)
-                .map(\.0)
+        if let branches {
+            let matches: [WorktreeService.Branch]
+            if query.isEmpty {
+                matches = Array(branches.prefix(50))
+            } else {
+                matches = branches
+                    .compactMap { b in FuzzyMatcher.score(query: query, candidate: b.name).map { (b, $0) } }
+                    .sorted { $0.1 > $1.1 }
+                    .prefix(50)
+                    .map(\.0)
+            }
+            list += matches.map { .checkout($0) }
         }
-        list += matches.map { .checkout($0) }
-        return list
+        results = list
+        selection = 0
     }
 
     var body: some View {
-        let options = self.options
+        let options = results
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.triangle.branch")
@@ -911,7 +916,7 @@ private struct WorktreePromptView: View {
                 .onKeyPress(.downArrow) {
                     selection = min(max(0, options.count - 1), selection + 1); return .handled
                 }
-                .onChange(of: name) { _, _ in selection = 0 }
+                .onChange(of: name) { _, _ in refreshResults() }
             optionList(options)
             HStack(spacing: 10) {
                 // 巡航模式是横排队列,新 pane 只能向右追加,方向没得选
@@ -946,9 +951,11 @@ private struct WorktreePromptView: View {
         .shadow(color: .black.opacity(0.35), radius: 28, y: 12)
         .onAppear {
             focused = true
+            refreshResults()
             let cwd = session.workingDirectory
             Task {
                 branches = (try? await WorktreeService.branches(near: cwd ?? ".")) ?? []
+                refreshResults()
             }
         }
         .onExitCommand { dismiss() }
@@ -969,7 +976,7 @@ private struct WorktreePromptView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 1) {
-                        ForEach(Array(options.enumerated()), id: \.element) { index, option in
+                        ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                             optionRow(option, selected: index == min(selection, options.count - 1))
                                 .id(index)
                                 .onTapGesture {
