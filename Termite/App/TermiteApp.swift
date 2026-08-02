@@ -249,6 +249,11 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("\\", modifiers: [.command, .shift])
 
+            Button("编辑命令行(浮层)…") {
+                SessionManager.shared.selected?.beginComposeCommand()
+            }
+            .keyboardShortcut("e", modifiers: .command)
+
             Button("巡视:上一屏") {
                 SessionManager.shared.carouselPage(.left)
             }

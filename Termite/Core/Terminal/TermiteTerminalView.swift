@@ -124,6 +124,41 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         windowKeyObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
+    // MARK: - ⌥点击定位光标(iTerm 惯例;issue #3 的 80/20 之一)
+
+    /// 提示符下 ⌥点击把 zle 光标移到点击处:按与当前光标的格距发送 ←/→。
+    /// 仅普通缓冲区且无鼠标上报时生效(vim/TUI 不受影响);折行命令按列数折算,
+    /// 点过命令边界的多余方向键由 zle 自行截停
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.option), event.clickCount == 1,
+           inputEnabled, session != nil, moveCursorToClick(event) {
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    private func moveCursorToClick(_ event: NSEvent) -> Bool {
+        let terminal = getTerminal()
+        guard !terminal.isCurrentBufferAlternate, terminal.mouseMode == .off,
+              terminal.cols > 0, terminal.rows > 0 else { return false }
+        let optimal = getOptimalFrameSize()
+        let cellWidth = optimal.width / CGFloat(terminal.cols)
+        let cellHeight = optimal.height / CGFloat(terminal.rows)
+        guard cellWidth > 0, cellHeight > 0 else { return false }
+        let point = convert(event.locationInWindow, from: nil)
+        let col = max(0, min(terminal.cols - 1, Int(point.x / cellWidth)))
+        let row = max(0, min(terminal.rows - 1, Int((bounds.height - point.y) / cellHeight)))
+        // buffer.y 是光标在活动屏内的行号;回滚浏览历史时不换算、不动手
+        let buffer = terminal.buffer
+        let delta = (row - buffer.y) * terminal.cols + (col - buffer.x)
+        guard delta != 0 else { return true }
+        let arrow = delta > 0
+            ? (terminal.applicationCursor ? "\u{1b}OC" : "\u{1b}[C")
+            : (terminal.applicationCursor ? "\u{1b}OD" : "\u{1b}[D")
+        session?.sendRawInput(Array(String(repeating: arrow, count: min(abs(delta), 500)).utf8))
+        return true
+    }
+
     // MARK: - 拖文件进终端:插入 shell 转义后的路径
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
