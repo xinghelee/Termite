@@ -32,17 +32,12 @@ struct MainWindowView: View {
         let effectiveTheme = theme.current.withAccent(projectAccent)
         return ZStack {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
+                // 用系统原生侧边栏切换按钮(与 Berth 一致):系统自动放在侧边栏列
+                // 顶部右端,收起后留在标题栏最左,位置永远属于侧边栏
                 SidebarView()
                     .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
-                    // 系统自带的侧边栏切换按钮是大号玻璃样式,和标题栏其余小圆钮不搭;
-                    // 移除后由 TerminalTabsView 用统一样式的 PanelIconButton 替代
-                    .toolbar(removing: .sidebarToggle)
             } detail: {
-                TerminalTabsView(toggleSidebar: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
-                    }
-                })
+                TerminalTabsView()
             }
 
             if manager.palette.isPresented {

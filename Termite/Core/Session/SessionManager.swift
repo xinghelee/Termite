@@ -82,6 +82,12 @@ final class SessionManager {
         selectedTabID = nil
     }
 
+    /// Dock 重开窗口:同 key 拿回的是退役 manager,复活它(issue #4 一/二——
+    /// 退役守卫跳过建标签成死窗口,且未注册使 ⌘T 误开新窗)
+    func revive() {
+        isRetired = false
+    }
+
     // MARK: - 后台活动提示
 
     /// 该会话当前是否「可见」:App 前台 + 本窗口是 key 窗口 + 在选中标签里(可见输出不算未读活动)

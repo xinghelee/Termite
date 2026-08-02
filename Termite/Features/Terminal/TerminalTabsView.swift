@@ -9,6 +9,8 @@ struct TerminalTabsView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var chipsContentWidth: CGFloat = 0
     @State private var chipsContainerWidth: CGFloat = 0
+    /// 终端区宽度:窄窗口时标题胶囊让位给标签条(标签优先,issue #4 反馈)
+    @State private var contentWidth: CGFloat = 0
 
     var body: some View {
         @Bindable var manager = sessionManager
@@ -91,6 +93,7 @@ struct TerminalTabsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ThemeStore.shared.current.chromeBackground)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
         // 「在新 Worktree 中分屏」居中模态(遮罩点击即取消)
         .overlay {
             if let prompting = sessionManager.sessions.first(where: { $0.worktreePromptPresented }) {
@@ -118,14 +121,16 @@ struct TerminalTabsView: View {
             }
             if #available(macOS 26.0, *) {
                 ToolbarItem(placement: .principal) {
-                    if let session = sessionManager.selected {
+                    // 窄窗口时标题胶囊让位:标签条优先(消失的应该是它,不是标签)
+                    if contentWidth >= 660, let session = sessionManager.selected {
                         SessionTitleCapsule(session: session)
                     }
                 }
                 .sharedBackgroundVisibility(.hidden)
             } else {
                 ToolbarItem(placement: .principal) {
-                    if let session = sessionManager.selected {
+                    // 窄窗口时标题胶囊让位:标签条优先(消失的应该是它,不是标签)
+                    if contentWidth >= 660, let session = sessionManager.selected {
                         SessionTitleCapsule(session: session)
                     }
                 }
@@ -248,6 +253,8 @@ struct TerminalTabsView: View {
                                 sessionManager.requestCloseTab(tab)
                             }
                         }
+                        // 关闭缩小淡出 / 新建对称弹入(定位滚动保持瞬时,不与此动画打架)
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
                         // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
                         .draggable(tab.id.uuidString)
                         .dropDestination(for: String.self) { items, _ in
@@ -260,9 +267,12 @@ struct TerminalTabsView: View {
                     }
                 }
                 .padding(.horizontal, 4)
+                .animation(.spring(response: 0.25, dampingFraction: 0.9),
+                           value: sessionManager.visibleTabs.map(\.id))
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContentWidth = $0 }
             }
-            .frame(maxWidth: 560, alignment: .leading)
+            // minWidth 让窄窗口时工具栏压缩标签条(可滚动)而不是整个丢弃(issue #4 三)
+            .frame(minWidth: 96, maxWidth: 560, alignment: .leading)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContainerWidth = $0 }
             .mask(
                 HStack(spacing: 0) {
@@ -286,7 +296,8 @@ struct TerminalTabsView: View {
             )
             .onChange(of: sessionManager.selectedTabID) { _, selected in
                 guard let selected else { return }
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(selected, anchor: .center) }
+                // 瞬时定位:新建标签时 chip 插入与滚动两个动画打架会抖(issue #4 四)
+                proxy.scrollTo(selected, anchor: .center)
             }
         }
     }

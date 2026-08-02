@@ -108,6 +108,16 @@ final class SessionManagerRegistry {
 
     /// 窗口出现后由 MainWindowView 绑定(WindowConfigurator 拿到 NSWindow 时)
     func bind(_ manager: SessionManager, to window: NSWindow) {
+        // Dock 重开:视图层按同 key 拿回退役 manager(防关窗后的幽灵求值),
+        // 真窗口出现意味着它要复活——重新注册 + 补建标签(空存档给默认标签)
+        if manager.isRetired {
+            manager.revive()
+            if !managers.contains(where: { $0 === manager }) {
+                managers.append(manager)
+                windowGeneration += 1
+            }
+            manager.restoreOrCreateInitialTabs()
+        }
         // 窗口恢复完全由会话恢复负责:关掉 AppKit 的场景恢复,
         // 否则强退后系统按旧场景多开窗口,和自己的多窗口恢复叠加出重复窗口
         window.isRestorable = false
