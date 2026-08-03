@@ -1,125 +1,38 @@
+import AppKit
 import SwiftUI
 
-/// 终端区底部状态栏:shell + 工作目录 + git 分支 + 上条命令退出码/耗时 | 时钟 + 行列数。
-/// 跟随当前选中会话,时钟每秒刷新。
+/// 终端区底部状态栏,三段式:左=shell/工作目录/命令状态,中=git 分支+提交身份(几何居中),
+/// 右=时钟+行列数。跟随当前选中会话,时钟每秒刷新。
 struct StatusBarView: View {
     let session: TerminalSession
     @Environment(SessionManager.self) private var sessionManager
 
     /// 结构化输出查看器弹层
     @State private var structuredTarget: CommandRecord?
+    @State private var dirHovering = false
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
+            // 两侧各占一半弹性宽度,中段自然落在条的正中,不再挤在左串尾巴上
             HStack(spacing: 8) {
-                Circle()
-                    .fill(session.state == .running ? Color.green : Color.red)
-                    .frame(width: 6, height: 6)
-                Text(session.shellName)
-                    .foregroundStyle(.secondary)
-                if let dir = session.workingDirectory {
-                    separatorDot
-                    Text((dir as NSString).abbreviatingWithTildeInPath)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: 320, alignment: .leading)
+                HStack(spacing: 8) {
+                    sessionItems(now: context.date)
+                    Spacer(minLength: 8)
                 }
-                if let branch = session.gitBranch {
+                .frame(maxWidth: .infinity)
+                gitItems
+                HStack(spacing: 8) {
+                    Spacer(minLength: 8)
+                    Text(context.date.formatted(date: .omitted, time: .standard))
+                        .foregroundStyle(.tertiary)
                     separatorDot
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                            sessionManager.toggleGitPanel()
-                        }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "arrow.trianglehead.branch")
-                                .font(.system(size: 9))
-                            Text(branch)
-                            if let dirty = session.gitDirtyCount, dirty > 0 {
-                                Text("●\(dirty)")
-                                    .foregroundStyle(.yellow)
-                            }
-                        }
-                        .foregroundStyle(theme.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Git 面板(⌘G)· \(session.gitDirtyCount ?? 0) 个未提交文件")
+                    Text("\(session.terminalView.getTerminal().cols)×\(session.terminalView.getTerminal().rows)")
+                        .foregroundStyle(.tertiary)
+                        .help("终端列数 × 行数")
                 }
-                if session.gitBranch != nil, let dir = session.workingDirectory {
-                    separatorDot
-                    GitEmailStatusItem(workingDirectory: dir)
-                }
-                if session.runningCommand {
-                    separatorDot
-                    HStack(spacing: 4) {
-                        ProgressView().controlSize(.mini)
-                        Text(runningText(now: context.date))
-                    }
-                    .foregroundStyle(.secondary)
-                } else if let code = session.lastExitCode {
-                    separatorDot
-                    HStack(spacing: 3) {
-                        Image(systemName: code == 0 ? "checkmark" : "xmark")
-                        if code != 0 { Text("\(code)") }
-                        if let duration = durationText(session.lastCommandDuration) {
-                            Text(duration)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .foregroundStyle(code == 0 ? Color.green : Color.red)
-                    .help(code == 0 ? "上条命令成功" : "上条命令退出码 \(code)")
-                }
-                if let url = session.detectedLocalURL {
-                    separatorDot
-                    Button {
-                        if let opened = URL(string: url) { NSWorkspace.shared.open(opened) }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "globe")
-                            Text(URL(string: url)?.port.map { ":\($0)" } ?? url)
-                        }
-                        .foregroundStyle(theme.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("在浏览器打开 \(url)")
-                }
-                if !session.runningCommand,
-                   let last = session.commandHistory.last,
-                   let format = last.structured, last.hasOutput {
-                    separatorDot
-                    Button {
-                        structuredTarget = last
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: format.symbol)
-                            Text(format.label)
-                        }
-                        .foregroundStyle(theme.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("上条命令输出像 \(format.label),点击结构化查看")
-                }
-                if session.isLogging || session.isCasting {
-                    separatorDot
-                    HStack(spacing: 3) {
-                        Image(systemName: "record.circle")
-                        Text(session.isCasting ? "REC" : "录制中")
-                    }
-                    .foregroundStyle(.red)
-                    .help((session.castURL ?? session.logURL)?.path ?? "")
-                }
-
-                Spacer()
-
-                Text(context.date.formatted(date: .omitted, time: .standard))
-                    .foregroundStyle(.tertiary)
-                separatorDot
-                Text("\(session.terminalView.getTerminal().cols)×\(session.terminalView.getTerminal().rows)")
-                    .foregroundStyle(.tertiary)
-                    .help("终端列数 × 行数")
+                .frame(maxWidth: .infinity)
             }
             .font(.system(size: 11, design: .monospaced))
             .lineLimit(1)
@@ -137,6 +50,127 @@ struct StatusBarView: View {
         .sheet(item: $structuredTarget) { record in
             StructuredOutputView(session: session, record: record) {
                 structuredTarget = nil
+            }
+        }
+    }
+
+    /// 左段:shell + 工作目录 + 命令状态 + 本地 URL + 结构化输出 + 录制
+    @ViewBuilder private func sessionItems(now: Date) -> some View {
+        Circle()
+            .fill(session.state == .running ? Color.green : Color.red)
+            .frame(width: 6, height: 6)
+        Text(session.shellName)
+            .foregroundStyle(.secondary)
+        if let dir = session.workingDirectory {
+            separatorDot
+            // 顶部标题胶囊已移除(与此处重复),点按打开 Finder 的入口挪到这里
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: dir)])
+            } label: {
+                Text((dir as NSString).abbreviatingWithTildeInPath)
+                    .foregroundStyle(dirHovering ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 320, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .animation(.easeOut(duration: 0.12), value: dirHovering)
+            .onHover { dirHovering = $0 }
+            .help("在 Finder 中打开 \((dir as NSString).abbreviatingWithTildeInPath)")
+        }
+        if session.runningCommand {
+            separatorDot
+            HStack(spacing: 4) {
+                ProgressView().controlSize(.mini)
+                Text(runningText(now: now))
+            }
+            .foregroundStyle(.secondary)
+        } else if let code = session.lastExitCode {
+            separatorDot
+            HStack(spacing: 3) {
+                Image(systemName: code == 0 ? "checkmark" : "xmark")
+                if code != 0 { Text("\(code)") }
+                if let duration = durationText(session.lastCommandDuration) {
+                    Text(duration)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .foregroundStyle(code == 0 ? Color.green : Color.red)
+            .help(code == 0 ? "上条命令成功" : "上条命令退出码 \(code)")
+        }
+        if let url = session.detectedLocalURL {
+            separatorDot
+            Button {
+                if let opened = URL(string: url) { NSWorkspace.shared.open(opened) }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "globe")
+                    Text(URL(string: url)?.port.map { ":\($0)" } ?? url)
+                }
+                .foregroundStyle(theme.accentColor)
+            }
+            .buttonStyle(.plain)
+            .help("在浏览器打开 \(url)")
+        }
+        if !session.runningCommand,
+           let last = session.commandHistory.last,
+           let format = last.structured, last.hasOutput {
+            separatorDot
+            Button {
+                structuredTarget = last
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: format.symbol)
+                    Text(format.label)
+                }
+                .foregroundStyle(theme.accentColor)
+            }
+            .buttonStyle(.plain)
+            .help("上条命令输出像 \(format.label),点击结构化查看")
+        }
+        if session.isLogging || session.isCasting {
+            separatorDot
+            HStack(spacing: 3) {
+                Image(systemName: "record.circle")
+                Text(session.isCasting ? "REC" : "录制中")
+            }
+            .foregroundStyle(.red)
+            .help((session.castURL ?? session.logURL)?.path ?? "")
+        }
+    }
+
+    /// 中段:git 分支(+脏计数)与提交身份;间距放宽,不与两侧共挤一串
+    @ViewBuilder private var gitItems: some View {
+        HStack(spacing: 10) {
+            if let branch = session.gitBranch {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        sessionManager.toggleGitPanel()
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.trianglehead.branch")
+                            .font(.system(size: 9))
+                        Text(branch)
+                        if let dirty = session.gitDirtyCount, dirty > 0 {
+                            // 圆点用几何形状而非字符 ●:字符跟字体基线走,竖直中心是歪的
+                            HStack(spacing: 2.5) {
+                                Circle()
+                                    .fill(Color.yellow)
+                                    .frame(width: 6, height: 6)
+                                Text("\(dirty)")
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
+                    }
+                    .foregroundStyle(theme.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help("Git 面板(⌘G)· \(session.gitDirtyCount ?? 0) 个未提交文件")
+            }
+            if session.gitBranch != nil, let dir = session.workingDirectory {
+                separatorDot
+                GitEmailStatusItem(workingDirectory: dir)
             }
         }
     }

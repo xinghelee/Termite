@@ -54,6 +54,8 @@ final class TerminalSession: Identifiable {
     private(set) var attentionSince: Date?
     /// 失焦 pane 命令刚结束的一次性边框闪烁信号(叶子视图消费)
     private(set) var finishFlash: FinishFlash?
+    /// 选中即复制成功的一次性 toast 信号(pane 视图消费;每次复制换新时间戳触发 onChange)
+    private(set) var copyToast: Date?
     @ObservationIgnored private var silenceHeuristic = SilenceHeuristic()
     @ObservationIgnored private var silenceWatch: Task<Void, Never>?
     @ObservationIgnored private var lastAttentionNotice = Date.distantPast
@@ -639,6 +641,11 @@ final class TerminalSession: Identifiable {
         guard attention.isActive else { return }
         attention = .none
         attentionSince = nil
+    }
+
+    /// 选中即复制写入剪贴板后调用:隐式操作没有系统反馈,pane 弹一枚小 toast 兜底
+    func flashCopyToast() {
+        copyToast = Date()
     }
 
     /// pane 可见(同标签失焦)时呼吸边框已足够;完全不可见或 app 在后台才弹系统通知

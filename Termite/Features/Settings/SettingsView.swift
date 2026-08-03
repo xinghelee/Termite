@@ -151,7 +151,7 @@ private struct ShellSettingsTab: View {
 }
 
 private struct BehaviorSettingsTab: View {
-    @AppStorage(SettingsKeys.copyOnSelect) private var copyOnSelect = false
+    @AppStorage(SettingsKeys.copyOnSelect) private var copyOnSelect = true
     @AppStorage(SettingsKeys.middleClickPaste) private var middleClickPaste = false
     @AppStorage(SettingsKeys.pasteProtection) private var pasteProtection = true
     @AppStorage(SettingsKeys.confirmBeforeClosingTab) private var confirmBeforeClosingTab = true

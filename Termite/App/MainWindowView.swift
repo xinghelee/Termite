@@ -32,12 +32,18 @@ struct MainWindowView: View {
         let effectiveTheme = theme.current.withAccent(projectAccent)
         return ZStack {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
-                // 用系统原生侧边栏切换按钮(与 Berth 一致):系统自动放在侧边栏列
-                // 顶部右端,收起后留在标题栏最左,位置永远属于侧边栏
+                // 系统原生切换按钮在 macOS 26 是尺寸不可调的玻璃大圆,与标题栏
+                // 其他 24pt 图标不成比例;移除后交给 TerminalTabsView 用同规格
+                // 小按钮渲染(位于标题栏最左,收起后位置不变)
                 SidebarView()
                     .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                    .toolbar(removing: .sidebarToggle)
             } detail: {
-                TerminalTabsView()
+                TerminalTabsView(toggleSidebar: {
+                    withAnimation {
+                        sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
+                    }
+                })
             }
 
             if manager.palette.isPresented {

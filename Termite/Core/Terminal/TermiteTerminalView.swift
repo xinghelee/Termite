@@ -5,7 +5,7 @@ import SwiftUI
 /// 终端视图子类(内嵌本地 PTY):
 /// - 粘贴保护:多行或含危险命令(sudo/rm -rf/dd/mkfs 等)先弹预览确认,设置可关
 /// - 右键菜单(复制/粘贴/分屏/查找/复制上条输出)
-/// - 选中即复制 / 中键粘贴(Unix 习惯,默认关)
+/// - 选中即复制(默认开)/ 中键粘贴(默认关)
 /// - 拦截 PTY 输出交给会话做 OSC 133 命令跟踪与录制
 final class TermiteTerminalView: LocalProcessTerminalView {
     /// 所属会话(命令跟踪/广播回调);由 TerminalSession 创建时注入
@@ -617,12 +617,13 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // ⌘点击输出里的 file:line(如 src/main.swift:42、traceback)→ 编辑器打开;
         // 放在 super 之后:URL 链接点击已被 SwiftTerm 消费,这里只处理它不认识的文件引用
         if event.modifierFlags.contains(.command), handleFileLinkClick(event) { return }
-        // 选中即复制(Unix 习惯,默认关):拖选结束后有选区就写入剪贴板
-        let enabled = UserDefaults.standard.bool(forKey: SettingsKeys.copyOnSelect)
+        // 选中即复制(Unix 习惯,默认开):拖选结束后有选区就写入剪贴板
+        let enabled = UserDefaults.standard.object(forKey: SettingsKeys.copyOnSelect) as? Bool ?? true
         guard enabled, let text = getSelection(), !text.isEmpty else { return }
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
+        session?.flashCopyToast()
     }
 
     override func otherMouseUp(with event: NSEvent) {

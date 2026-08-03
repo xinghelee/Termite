@@ -9,8 +9,10 @@ struct TerminalTabsView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var chipsContentWidth: CGFloat = 0
     @State private var chipsContainerWidth: CGFloat = 0
-    /// 终端区宽度:窄窗口时标题胶囊让位给标签条(标签优先,issue #4 反馈)
+    /// 终端区宽度:标签轨道的动态上限基准(超宽会让 NSToolbar 整体收进 » 溢出菜单)
     @State private var contentWidth: CGFloat = 0
+    /// 右侧按钮岛实测宽(升级/巡视按钮会动态出现,写死会算漏导致 » 折叠)
+    @State private var panelWidth: CGFloat = 150
 
     var body: some View {
         @Bindable var manager = sessionManager
@@ -109,38 +111,25 @@ struct TerminalTabsView: View {
         }
         // chips/胶囊/按钮组自带胶囊样式,macOS 26 需隐藏系统工具栏 item 的玻璃底,避免双层背景
         .toolbar {
+            // 中间必须有弹性空间:没有它(原标题胶囊撤走后)右侧按钮组会塌到标签旁边;
+            // 弹开的中间区域归标签轨道用(轨道上限已放开)
             if #available(macOS 26.0, *) {
                 ToolbarItem(placement: .navigation) {
                     leadingControls
                 }
                 .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem(placement: .navigation) {
-                    leadingControls
-                }
-            }
-            if #available(macOS 26.0, *) {
-                ToolbarItem(placement: .principal) {
-                    // 窄窗口时标题胶囊让位:标签条优先(消失的应该是它,不是标签)
-                    if contentWidth >= 660, let session = sessionManager.selected {
-                        SessionTitleCapsule(session: session)
-                    }
-                }
-                .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem(placement: .principal) {
-                    // 窄窗口时标题胶囊让位:标签条优先(消失的应该是它,不是标签)
-                    if contentWidth >= 660, let session = sessionManager.selected {
-                        SessionTitleCapsule(session: session)
-                    }
-                }
-            }
-            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.flexible)
                 ToolbarItem(placement: .primaryAction) {
                     panelButtons
                 }
                 .sharedBackgroundVisibility(.hidden)
             } else {
+                ToolbarItem(placement: .navigation) {
+                    leadingControls
+                }
+                ToolbarItem {
+                    Spacer()
+                }
                 ToolbarItem(placement: .primaryAction) {
                     panelButtons
                 }
@@ -190,22 +179,16 @@ struct TerminalTabsView: View {
         tab.root.leafIDs().contains { sessionManager.session($0)?.attention.needsInput == true }
     }
 
-    /// 标题栏左侧:侧边栏切换 + 标签 chips + 新建标签(「+」贴着标签条,符合浏览器习惯)
+    /// 标题栏左侧:侧边栏切换(裸图标,原生惯例;单独装胶囊会成为整排最亮的孤岛)+ 标签轨道
     private var leadingControls: some View {
         HStack(spacing: 6) {
             if let toggleSidebar {
                 PanelIconButton(symbol: "sidebar.leading", help: String(localized: "显示 / 隐藏侧边栏")) {
                     toggleSidebar()
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(RaisedCapsule())
             }
             if !sessionManager.tabs.isEmpty {
                 tabChips
-                PanelIconButton(symbol: "plus", help: String(localized: "新建标签页(⌘T)")) {
-                    sessionManager.newTab()
-                }
             }
         }
     }
@@ -218,74 +201,84 @@ struct TerminalTabsView: View {
     /// 标签条轨道:比标题栏底色再暗一档,内凹感,把所有 chips 收进同一个容器
     private var chipTrackColor: Color {
         let theme = ThemeStore.shared.current
-        return Color(nsColor: theme.backgroundNSColor.mixed(with: .black, ratio: theme.isDark ? 0.22 : 0.05))
+        return Color(nsColor: theme.backgroundNSColor.mixed(with: .black, ratio: theme.isDark ? 0.3 : 0.05))
     }
 
-    /// 标签 chips(标题栏左侧):深色轨道内选中浮起,溢出时两端渐隐,选中自动滚入
+    /// 标签 chips(标题栏左侧):深色轨道内选中浮起,溢出时两端渐隐,选中自动滚入;
+    /// 「+」收进轨道尾端与 chips 同一容器(浏览器习惯),不再裸悬在轨道外
     private var tabChips: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
-                    // 只展示当前项目的标签(+ 无归属的散标签);切项目走侧边栏
-                    ForEach(sessionManager.visibleTabs) { tab in
-                        TerminalTabChip(
-                            tab: tab,
-                            focusedSession: sessionManager.session(tab.focusedID),
-                            paneCount: tab.root.leafIDs().count,
-                            isSelected: tab.id == sessionManager.selectedTabID,
-                            hasActivity: hasActivity(tab),
-                            hasAttention: hasAttention(tab),
-                            select: { sessionManager.selectTab(tab.id) },
-                            close: { sessionManager.requestCloseTab(tab) }
-                        )
-                        .id(tab.id)
-                        .contextMenu {
-                            Button("重命名") {
-                                sessionManager.selectTab(tab.id)
-                                tab.isRenaming = true
+            HStack(spacing: 2) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 2) {
+                        // 只展示当前项目的标签(+ 无归属的散标签);切项目走侧边栏
+                        ForEach(sessionManager.visibleTabs) { tab in
+                            TerminalTabChip(
+                                tab: tab,
+                                focusedSession: sessionManager.session(tab.focusedID),
+                                paneCount: tab.root.leafIDs().count,
+                                isSelected: tab.id == sessionManager.selectedTabID,
+                                hasActivity: hasActivity(tab),
+                                hasAttention: hasAttention(tab),
+                                select: { sessionManager.selectTab(tab.id) },
+                                close: { sessionManager.requestCloseTab(tab) }
+                            )
+                            .id(tab.id)
+                            .contextMenu {
+                                Button("重命名") {
+                                    sessionManager.selectTab(tab.id)
+                                    tab.isRenaming = true
+                                }
+                                Button("移到新窗口") {
+                                    sessionManager.detachTabToNewWindow(tab)
+                                    openWindow(id: "main", value: UUID())
+                                }
+                                .disabled(sessionManager.tabs.count < 2)
+                                Button("关闭标签页", role: .destructive) {
+                                    sessionManager.requestCloseTab(tab)
+                                }
                             }
-                            Button("移到新窗口") {
-                                sessionManager.detachTabToNewWindow(tab)
-                                openWindow(id: "main", value: UUID())
+                            // 关闭缩小淡出 / 新建对称弹入(定位滚动保持瞬时,不与此动画打架)
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                            // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
+                            .draggable(tab.id.uuidString)
+                            .dropDestination(for: String.self) { items, _ in
+                                guard let raw = items.first, let dragged = UUID(uuidString: raw) else { return false }
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                    sessionManager.moveTab(dragged, before: tab.id)
+                                }
+                                return true
                             }
-                            .disabled(sessionManager.tabs.count < 2)
-                            Button("关闭标签页", role: .destructive) {
-                                sessionManager.requestCloseTab(tab)
-                            }
-                        }
-                        // 关闭缩小淡出 / 新建对称弹入(定位滚动保持瞬时,不与此动画打架)
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
-                        // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
-                        .draggable(tab.id.uuidString)
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let dragged = UUID(uuidString: raw) else { return false }
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                sessionManager.moveTab(dragged, before: tab.id)
-                            }
-                            return true
                         }
                     }
+                    .padding(.horizontal, 4)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.9),
+                               value: sessionManager.visibleTabs.map(\.id))
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContentWidth = $0 }
                 }
-                .padding(.horizontal, 4)
-                .animation(.spring(response: 0.25, dampingFraction: 0.9),
-                           value: sessionManager.visibleTabs.map(\.id))
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContentWidth = $0 }
+                // minWidth 让窄窗口时工具栏压缩标签条(可滚动)而不是整个丢弃(issue #4 三)。
+                // 上限动态跟随终端区宽度,预留 = 按钮岛实宽 + 红绿灯/侧边栏钮/边距(200):
+                // 标题栏中段全归标签,超出就轨道内滚动;算漏预留会让 NSToolbar 收进 » 菜单
+                .frame(minWidth: 96, maxWidth: max(96, contentWidth - panelWidth - 200), alignment: .leading)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContainerWidth = $0 }
+                .mask(
+                    HStack(spacing: 0) {
+                        LinearGradient(colors: [chipsOverflow ? .clear : .black, .black], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 12)
+                        Color.black
+                        LinearGradient(colors: [.black, chipsOverflow ? .clear : .black], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 12)
+                    }
+                )
+                PanelIconButton(symbol: "plus", help: String(localized: "新建标签页(⌘T)")) {
+                    sessionManager.newTab()
+                }
             }
-            // minWidth 让窄窗口时工具栏压缩标签条(可滚动)而不是整个丢弃(issue #4 三)
-            .frame(minWidth: 96, maxWidth: 560, alignment: .leading)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContainerWidth = $0 }
-            .mask(
-                HStack(spacing: 0) {
-                    LinearGradient(colors: [chipsOverflow ? .clear : .black, .black], startPoint: .leading, endPoint: .trailing)
-                        .frame(width: 12)
-                    Color.black
-                    LinearGradient(colors: [.black, chipsOverflow ? .clear : .black], startPoint: .leading, endPoint: .trailing)
-                        .frame(width: 12)
-                }
-            )
             // 背景加在 mask 之后:轨道本身不参与两端渐隐。
-            // 内阴影让轨道真正"凹进去",避免纯平色块的廉价感
-            .padding(3)
+            // 内阴影让轨道真正"凹进去",避免纯平色块的廉价感;
+            // 垂直 padding 2 让轨道与右侧按钮岛同高(28pt)
+            .padding(.horizontal, 3)
+            .padding(.vertical, 2)
             .background(
                 Capsule().fill(
                     chipTrackColor.shadow(.inner(
@@ -293,6 +286,10 @@ struct TerminalTabsView: View {
                         radius: 1.5, y: 1
                     ))
                 )
+            )
+            // 近黑主题下「比背景再暗一档」压不出对比,发丝描边兜底勾出轨道轮廓
+            .overlay(
+                Capsule().strokeBorder(ThemeStore.shared.current.borderColor, lineWidth: 1)
             )
             .onChange(of: sessionManager.selectedTabID) { _, selected in
                 guard let selected else { return }
@@ -357,6 +354,7 @@ struct TerminalTabsView: View {
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
         .background(RaisedCapsule())
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { panelWidth = $0 }
     }
 
     /// 广播模式横幅:提示所有分屏同步接收键入
@@ -455,58 +453,6 @@ private struct ThemePanelButton: View {
         .popover(isPresented: $showing, arrowEdge: .bottom) {
             ThemePanelView()
         }
-    }
-}
-
-/// 标题栏中央的会话信息胶囊:shell 名 + 工作目录,点按在 Finder 中打开
-private struct SessionTitleCapsule: View {
-    let session: TerminalSession
-
-    @State private var hovering = false
-
-    private var theme: TerminalTheme { ThemeStore.shared.current }
-
-    private var directoryText: String {
-        guard let dir = session.workingDirectory else { return "" }
-        return (dir as NSString).abbreviatingWithTildeInPath
-    }
-
-    var body: some View {
-        Button {
-            if let dir = session.workingDirectory {
-                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: dir)])
-            }
-        } label: {
-            HStack(spacing: 7) {
-                // 运行中是常态不提示,仅退出时红点示警(与标签 chips 的规则一致)
-                if session.state != .running {
-                    Circle()
-                        .fill(Color.red.opacity(0.8))
-                        .frame(width: 6, height: 6)
-                }
-                Text(session.shellName)
-                    .font(.system(size: 12, weight: .medium))
-                if !directoryText.isEmpty {
-                    Text(directoryText)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .frame(maxWidth: 380)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            // 纯信息展示不需要一直"装在盒子里",悬停时才显形提示可点
-            .background(
-                Capsule().fill(hovering ? Color.primary.opacity(0.06) : .clear)
-            )
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.12), value: hovering)
-        .onHover { hovering = $0 }
-        .help("在 Finder 中打开 \(directoryText)")
     }
 }
 
@@ -1299,12 +1245,17 @@ private struct TerminalTabChip: View {
                     .background(Capsule().fill(Color.primary.opacity(0.1)))
                     .help("\(paneCount) 个分屏")
             }
-            Button(action: close) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
+            // 只在选中/悬停时占位:隐形关闭钮(opacity 0)会撑宽未选中 chip,
+            // 字面间距被拉到 chip 内部间距的 6 倍,整条看着疏密失衡
+            if isHovering || isSelected {
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .opacity(0.7)
+                .transition(.opacity)
             }
-            .buttonStyle(.plain)
-            .opacity(isHovering || isSelected ? 0.7 : 0)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
@@ -1336,6 +1287,9 @@ struct TerminalPaneView: View {
 
     @State private var searchModel = TerminalSearchModel()
     @State private var isSearchActive = false
+    /// 选中即复制的 toast 显隐(自动隐藏任务可被下一次复制续期)
+    @State private var copyToastVisible = false
+    @State private var copyToastHide: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1355,6 +1309,28 @@ struct TerminalPaneView: View {
                     }
                     .padding(.trailing, 12)
                 }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if copyToastVisible {
+                Label("已复制", systemImage: "doc.on.doc")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.regularMaterial))
+                    .padding(.bottom, 10)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .allowsHitTesting(false)
+            }
+        }
+        .onChange(of: session.copyToast) { _, stamp in
+            guard stamp != nil else { return }
+            withAnimation(.easeOut(duration: 0.15)) { copyToastVisible = true }
+            copyToastHide?.cancel()
+            copyToastHide = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.3)) { copyToastVisible = false }
             }
         }
         .onChange(of: sessionManager.searchRequestToken) { _, _ in
