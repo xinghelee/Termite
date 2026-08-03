@@ -689,7 +689,7 @@ private struct PaneLeafView: View {
             }
             .overlay(
                 Rectangle()
-                    .stroke(flashFailed ? Color.red : Color.green, lineWidth: 2)
+                    .strokeBorder(flashFailed ? Color.red : Color.green, lineWidth: 2)
                     .opacity(flashOpacity)
                     .allowsHitTesting(false)
             )
@@ -738,22 +738,24 @@ private struct PaneLeafView: View {
     }
 
     @ViewBuilder private var borderOverlay: some View {
+        // strokeBorder 而非 stroke:stroke 的线骑在边界上,半条在视图外,
+        // pane 贴窗口边时右/底缘会被裁没
         if broadcasting {
             // 广播时所有 pane 橙色边框
             Rectangle()
-                .stroke(Color.orange.opacity(0.7), lineWidth: 1.5)
+                .strokeBorder(Color.orange.opacity(0.7), lineWidth: 1.5)
                 .allowsHitTesting(false)
         } else if session.attention.needsInput {
             // 等待输入:橙色呼吸边框,把视线引过去
             Rectangle()
-                .stroke(Color.orange, lineWidth: 2)
+                .strokeBorder(Color.orange, lineWidth: 2)
                 .phaseAnimator([0.85, 0.3]) { border, phase in
                     border.opacity(phase)
                 } animation: { _ in .easeInOut(duration: 0.8) }
                 .allowsHitTesting(false)
         } else if showsFocus, isFocused {
             Rectangle()
-                .stroke(ThemeStore.shared.current.accentColor.opacity(0.55), lineWidth: 1.5)
+                .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.55), lineWidth: 1.5)
                 .allowsHitTesting(false)
         }
     }

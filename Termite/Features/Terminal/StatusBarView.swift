@@ -46,6 +46,7 @@ struct StatusBarView: View {
             )
         }
         .padding(.horizontal, 10)
+        .padding(.top, 10)
         .padding(.bottom, 10)
         .sheet(item: $structuredTarget) { record in
             StructuredOutputView(session: session, record: record) {
