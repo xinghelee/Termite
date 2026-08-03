@@ -132,6 +132,31 @@ final class SessionManager {
         return session
     }
 
+    /// 串口标签(v1,issue #6):无保活,不进会话快照;断开保留画面,由用户关闭
+    func newSerialTab(device: String, baud: Int, localEcho: Bool = false) {
+        guard let session = TerminalSession(serialDevice: device, baud: baud, localEcho: localEcho, manager: self) else {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "无法打开串口设备")
+            alert.informativeText = String(localized: "\(device) 可能被其他程序占用,或没有访问权限。")
+            alert.addButton(withTitle: String(localized: "好"))
+            alert.runModal()
+            return
+        }
+        sessions.append(session)
+        let tab = PaneTab(sessionID: session.id)
+        tabs.append(tab)
+        selectedTabID = tab.id
+        persistOpenTabs()
+    }
+
+    /// 进会话快照的标签:纯串口标签跳过(无 shell 可恢复;
+    /// 混合分屏里的串口叶子会退化成家目录 shell,可接受)
+    var snapshotTabs: [PaneTab] {
+        tabs.filter { tab in
+            !tab.root.leafIDs().allSatisfy { session($0)?.isSerial == true }
+        }
+    }
+
     /// 侧边栏/命令面板打开项目:标签一旦绑定项目就一直复用它(即使中途 cd 走),
     /// 否则认领一个正处于该目录的旧标签,再否则在该目录开新标签。
     /// 绑定让「点一下切过去」始终成立,不会每点一次多开一个标签。

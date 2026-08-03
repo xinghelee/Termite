@@ -350,11 +350,13 @@ final class SessionManagerRegistry {
         for manager in managers where !manager.tabs.isEmpty {
             if manager === activeManager { activeWindowIndex = windows.count }
             let frame = window(of: manager).map { NSStringFromRect($0.frame) }
+            // 纯串口标签不进快照(无 shell 可恢复),选中序号也按过滤后的列表算
+            let snapshotTabs = manager.snapshotTabs
             windows.append(SavedWindowState(
-                tabs: manager.tabs.map {
+                tabs: snapshotTabs.map {
                     manager.encodeTabState($0, scrollbackDirectory: includeScrollback ? dir : nil)
                 },
-                selectedIndex: manager.tabs.firstIndex { $0.id == manager.selectedTabID },
+                selectedIndex: snapshotTabs.firstIndex { $0.id == manager.selectedTabID },
                 frame: frame
             ))
         }

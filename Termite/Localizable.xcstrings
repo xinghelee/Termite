@@ -3,6 +3,16 @@
   "strings": {
     "": {},
     " ": {},
+    "%@ 可能被其他程序占用,或没有访问权限。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ may be in use by another app, or you may not have permission to access it."
+          }
+        }
+      }
+    },
     "%lld": {},
     "%lld pt": {},
     "%lld 个分屏": {
@@ -689,6 +699,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Middle-click paste"
+          }
+        }
+      }
+    },
+    "串口已连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serial connected:"
+          }
+        }
+      }
+    },
+    "串口连接已断开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serial connection lost"
           }
         }
       }
@@ -1771,6 +1801,16 @@
         }
       }
     },
+    "好": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "字体": {
       "localizations": {
         "en": {
@@ -2464,6 +2504,26 @@
         }
       }
     },
+    "新建串口会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Serial Session"
+          }
+        }
+      }
+    },
+    "新建串口会话…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Serial Session…"
+          }
+        }
+      }
+    },
     "新建分支": {
       "localizations": {
         "en": {
@@ -2590,6 +2650,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn’t create folder"
+          }
+        }
+      }
+    },
+    "无法打开串口设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could Not Open Serial Device"
           }
         }
       }
@@ -2744,6 +2814,16 @@
         }
       }
     },
+    "本地回显(设备不回显键入时勾选)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local echo (check if the device does not echo input)"
+          }
+        }
+      }
+    },
     "松烟墨 Sumi PRO": {
       "localizations": {
         "en": {
@@ -2860,6 +2940,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No blame data (file never committed?)"
+          }
+        }
+      }
+    },
+    "没有找到串口设备(/dev/cu.*)。插上 USB 转串口线后再试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No serial devices found (/dev/cu.*). Plug in a USB-to-serial adapter and try again."
           }
         }
       }
@@ -3860,6 +3950,16 @@
         }
       }
     },
+    "连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
+          }
+        }
+      }
+    },
     "退出": {
       "localizations": {
         "en": {
@@ -3986,6 +4086,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick a project folder to pin to the sidebar (New Folder in the corner)"
+          }
+        }
+      }
+    },
+    "选择设备与波特率(8N1)。串口会话不参与保活与恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a device and baud rate (8N1). Serial sessions are not kept alive or restored."
           }
         }
       }

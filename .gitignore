@@ -6,3 +6,6 @@
 /dist
 xcuserdata/
 *.xcresult
+
+# DeepSeek TUI 等外部工具的自动生成物
+.deepseek/

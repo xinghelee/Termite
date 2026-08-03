@@ -141,6 +141,19 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("t", modifiers: .command)
 
+            Button("新建串口会话…") {
+                // 没有窗口时 SessionManager.shared 是临时 manager,标签会建进幽灵窗口:
+                // 先开窗,下一拍再弹选择框
+                if SessionManagerRegistry.shared.managers.isEmpty {
+                    openWindow(id: "main", value: UUID())
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        SerialPrompt.present()
+                    }
+                } else {
+                    SerialPrompt.present()
+                }
+            }
+
             Button("命令面板…") {
                 SessionManager.shared.palette.toggle()
             }

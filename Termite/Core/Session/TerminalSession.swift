@@ -154,21 +154,13 @@ final class TerminalSession: Identifiable {
     init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil,
          reattach: PtyReattach? = nil, spawnDelay: TimeInterval = 0, manager: SessionManager? = nil) {
         shellPath = ShellResolver.loginShell()
+        isSerial = false
         self.spawnDelay = spawnDelay
         pendingReattach = reattach
         self.manager = manager
-        let view = TermiteTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        let view = Self.makeConfiguredView()
         terminalView = view
         view.session = self
-        view.font = FontPrefs.font()
-        view.optionAsMetaKey = UserDefaults.standard.object(forKey: SettingsKeys.optionAsMeta) as? Bool ?? true
-        view.allowMouseReporting = UserDefaults.standard.object(forKey: SettingsKeys.mouseReporting) as? Bool ?? true
-        let scrollback = UserDefaults.standard.object(forKey: SettingsKeys.scrollbackLines) as? Int ?? 10_000
-        view.getTerminal().changeScrollback(scrollback)
-        ThemeStore.shared.apply(to: view)
-        CursorPrefs.apply(to: view)
-        // Metal 由 TermiteTerminalView 在挂进窗口后启用:
-        // 离窗初始化 Metal 会导致恢复的会话渲染不刷新/光标异常
         view.processDelegate = self
         // 上次会话的屏幕内容:起 shell 之前灰字回灌,像 iTerm2 一样"从上次的位置继续"
         if let restoreScrollback, !restoreScrollback.isEmpty {
@@ -180,6 +172,80 @@ final class TerminalSession: Identifiable {
             snapshotFloor = siUpper
         }
         start(in: directory)
+    }
+
+    /// 串口会话(issue #6):打开 /dev/cu.* 设备直连终端视图(8N1)。
+    /// 无 shell、无保活、不进会话快照;断开保留画面示错,由用户 ⌘W 关闭
+    init?(serialDevice: String, baud: Int, localEcho: Bool = false, manager: SessionManager?) {
+        guard let fd = SerialPort.open(path: serialDevice, baud: baud) else { return nil }
+        shellPath = serialDevice // shellName / 标签标题借此显示设备名
+        isSerial = true
+        serialLocalEcho = localEcho
+        spawnDelay = 0
+        pendingReattach = nil
+        self.manager = manager
+        let view = Self.makeConfiguredView()
+        terminalView = view
+        view.session = self
+        view.processDelegate = self
+        serialFD = fd
+        markTransportReady()
+        startSerialReader(fd: fd)
+        view.feed(text: "\u{1b}[2m─── \(String(localized: "串口已连接")) \(serialDevice) @ \(baud) ───\u{1b}[0m\r\n")
+    }
+
+    /// 两种会话共用的视图装配(字体/主题/滚回/光标偏好)。
+    /// Metal 由 TermiteTerminalView 在挂进窗口后启用:离窗初始化会渲染不刷新/光标异常
+    private static func makeConfiguredView() -> TermiteTerminalView {
+        let view = TermiteTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        view.font = FontPrefs.font()
+        view.optionAsMetaKey = UserDefaults.standard.object(forKey: SettingsKeys.optionAsMeta) as? Bool ?? true
+        view.allowMouseReporting = UserDefaults.standard.object(forKey: SettingsKeys.mouseReporting) as? Bool ?? true
+        let scrollback = UserDefaults.standard.object(forKey: SettingsKeys.scrollbackLines) as? Int ?? 10_000
+        view.getTerminal().changeScrollback(scrollback)
+        ThemeStore.shared.apply(to: view)
+        CursorPrefs.apply(to: view)
+        return view
+    }
+
+    // MARK: - 串口传输(v1:本地直连,无保活)
+
+    /// 串口标记(会话快照/保活/项目归属全部跳过)
+    let isSerial: Bool
+    /// 本地回显:哑设备(不回显键入)场景在本端直接显示键入内容
+    @ObservationIgnored private var serialLocalEcho = false
+    @ObservationIgnored private var serialFD: Int32?
+    @ObservationIgnored private var serialSource: DispatchSourceRead?
+    /// 串口写队列:fd 是 O_NONBLOCK 的,低波特率大粘贴会 EAGAIN,
+    /// 在后台队列按背压重试写完,不丢字节也不卡主线程
+    @ObservationIgnored private let serialWriteQueue = DispatchQueue(label: "termite.serial.write", qos: .userInitiated)
+
+    private func startSerialReader(fd: Int32) {
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global(qos: .userInteractive))
+        source.setEventHandler { [weak self] in
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            let count = read(fd, &buffer, buffer.count)
+            if count > 0 {
+                let bytes = Array(buffer[0..<count])
+                DispatchQueue.main.async { self?.processOutput(ArraySlice(bytes)) }
+            } else if count == 0 || errno != EAGAIN {
+                // EOF / 设备拔出:读源先停,主线程标记断开
+                DispatchQueue.main.async { self?.serialDisconnected() }
+            }
+        }
+        source.setCancelHandler { close(fd) }
+        serialSource = source
+        source.resume()
+    }
+
+    private func serialDisconnected() {
+        guard serialFD != nil else { return }
+        serialFD = nil
+        let source = serialSource
+        serialSource = nil
+        serialWriteQueue.async { source?.cancel() }
+        state = .exited(nil)
+        terminalView.feed(text: "\r\n\u{1b}[31m─── \(String(localized: "串口连接已断开")) ───\u{1b}[0m\r\n")
     }
 
     private func start(in directory: String?) {
@@ -328,6 +394,15 @@ final class TerminalSession: Identifiable {
         gitProbeTask?.cancel()
         silenceWatch?.cancel()
         silenceWatch = nil
+        if isSerial {
+            // 先摘 fd(新写入不再入队),已入队的写在队列里冲完后再 cancel
+            //(cancel handler 里 close fd),避免写到已关闭/被复用的 fd
+            serialFD = nil
+            let source = serialSource
+            serialSource = nil
+            serialWriteQueue.async { source?.cancel() }
+            return
+        }
         if let hostPtyID {
             // 保活会话:⌘W/关窗是明确的「关闭」,连守护进程里的 shell 一起挂断。
             // app 退出(⌘Q)不走这里——socket 断开即自动 detach,shell 继续活着
@@ -365,7 +440,27 @@ final class TerminalSession: Identifiable {
             pendingInput += bytes
             return
         }
-        if let hostPtyID {
+        if let serialFD {
+            let fd = serialFD
+            serialWriteQueue.async {
+                var remaining = ArraySlice(bytes)
+                while !remaining.isEmpty {
+                    let written = remaining.withUnsafeBufferPointer { Darwin.write(fd, $0.baseAddress, $0.count) }
+                    if written > 0 {
+                        remaining = remaining.dropFirst(written)
+                    } else if errno == EAGAIN {
+                        usleep(2000) // 输出缓冲满(低波特率),背压等一拍再写
+                    } else if errno != EINTR {
+                        break // 设备已断开/关闭,读路径负责标记状态
+                    }
+                }
+            }
+            if serialLocalEcho {
+                // 回车补 LF,否则光标只回行首不换行
+                let echoed = bytes.flatMap { $0 == 0x0D ? [0x0D, 0x0A] : [$0] }
+                terminalView.feed(byteArray: ArraySlice(echoed))
+            }
+        } else if let hostPtyID {
             PtyHostClient.shared.input(id: hostPtyID, bytes)
         } else {
             terminalView.process.send(data: bytes[...])
