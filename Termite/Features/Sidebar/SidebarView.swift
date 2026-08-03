@@ -15,15 +15,22 @@ struct SidebarView: View {
         store.projects.filter { spaceStore.isVisible($0) }
     }
 
+    /// 首帧渲染后才启用工作区推入转场:冷启动恢复期窗口隐身(alpha 0),
+    /// 初次插入若搭上动画事务,转场会冻在中间态——侧边栏半透明且点不中
+    @State private var pushTransitionArmed = false
+
     var body: some View {
         VStack(spacing: 0) {
             // 切工作区:整列按切换方向水平推入(ZStack 让新旧列表过渡期间同位重叠)
             ZStack {
                 projectList
                     .id(spaceStore.selected?.id)
-                    .transition(.push(from: spaceStore.slideEdge))
+                    .transition(pushTransitionArmed ? AnyTransition.push(from: spaceStore.slideEdge) : .identity)
             }
             .clipped()
+            .onAppear {
+                DispatchQueue.main.async { pushTransitionArmed = true }
+            }
             spaceSwitcher
         }
         .background(theme.current.sidebarBackground)

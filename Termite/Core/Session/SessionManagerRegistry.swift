@@ -136,10 +136,8 @@ final class SessionManagerRegistry {
             let frame = NSRectFromString(frameString)
             if !frame.isEmpty { window.setFrame(frame, display: true) }
         }
-        // 预放置时隐身的窗口:frame 已最终就位(上面 take 或恢复路径的 setPendingFrame),显形
-        if window.alphaValue == 0 {
-            window.alphaValue = 1
-        }
+        // 位置已最终落定,拆除显示前的 frame 守卫
+        removeRevealFrameGuard(for: window)
     }
 
     /// 挂载瞬间(首帧前、窗口未显示)预放置窗口:Dock 重开用关窗时记下的 frame,
@@ -160,10 +158,36 @@ final class SessionManagerRegistry {
         let frame = NSRectFromString(frameString)
         guard !frame.isEmpty else { return }
         window.setFrame(frame, display: false)
-        // SwiftUI 在挂载后、orderFront 前还会把 frame 盖回它记忆的旧值,
-        // 这里的预放置会被踩掉。先隐身:窗口带着旧位置显示也看不见,
-        // bind(async 一拍后)重新应用正确 frame 再显形,旧位置零帧曝光
-        window.alphaValue = 0
+        installRevealFrameGuard(window: window, target: frame)
+    }
+
+    /// 显示前的 frame 守卫:SwiftUI 在挂载后、orderFront 前会把 frame 盖回它
+    /// 记忆的旧值(预放置被踩掉,旧位置闪一帧)。窗口可见前谁改就纠正谁,
+    /// bind 时拆除。不能用 alpha 隐身兜底——不可见期间图层动画不推进,
+    /// 显形后侧边栏会冻成半透明快照(1.20 启动侧边栏点不动的根因)
+    @ObservationIgnored private var revealFrameGuards: [ObjectIdentifier: [NSObjectProtocol]] = [:]
+
+    private func installRevealFrameGuard(window: NSWindow, target: NSRect) {
+        removeRevealFrameGuard(for: window)
+        var tokens: [NSObjectProtocol] = []
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            tokens.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self, weak window] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let window else { return }
+                    if window.isVisible {
+                        self.removeRevealFrameGuard(for: window)
+                    } else if window.frame != target {
+                        window.setFrame(target, display: false)
+                    }
+                }
+            })
+        }
+        revealFrameGuards[ObjectIdentifier(window)] = tokens
+    }
+
+    private func removeRevealFrameGuard(for window: NSWindow) {
+        revealFrameGuards.removeValue(forKey: ObjectIdentifier(window))?
+            .forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     /// 用 delegate 代理拦 windowShouldClose(有命令在跑先确认);其余消息原样转发给 SwiftUI 的 delegate。
