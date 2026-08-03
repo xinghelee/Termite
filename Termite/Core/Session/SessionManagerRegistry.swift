@@ -45,6 +45,8 @@ final class SessionManagerRegistry {
                 let registry = SessionManagerRegistry.shared
                 guard let window = note.object as? NSWindow,
                       let manager = registry.windowMap.object(forKey: window) else { return }
+                // 记下关窗时的 frame:Dock 重开在首帧前预放置,不闪旧位置
+                registry.pendingFrames[ObjectIdentifier(manager)] = NSStringFromRect(window.frame)
                 // 关窗前把布局+屏幕内容落盘(含本窗口),然后终止其所有 shell
                 registry.persistAllOpenTabs(includeScrollback: true)
                 manager.shutdownAll()
@@ -108,8 +110,13 @@ final class SessionManagerRegistry {
 
     /// 窗口出现后由 MainWindowView 绑定(WindowConfigurator 拿到 NSWindow 时)
     func bind(_ manager: SessionManager, to window: NSWindow) {
+        // 窗口恢复完全由会话恢复负责:关掉 AppKit 的场景恢复,
+        // 否则强退后系统按旧场景多开窗口,和自己的多窗口恢复叠加出重复窗口
+        window.isRestorable = false
+        // 先入映射:复活读档时 setPendingFrame 能立即应用,不用等 bind 尾部
+        windowMap.setObject(manager, forKey: window)
         // Dock 重开:视图层按同 key 拿回退役 manager(防关窗后的幽灵求值),
-        // 真窗口出现意味着它要复活——重新注册 + 补建标签(空存档给默认标签)
+        // 真窗口出现意味着它要复活——重新注册 + 恢复标签(空存档停在欢迎页)
         if manager.isRetired {
             manager.revive()
             if !managers.contains(where: { $0 === manager }) {
@@ -118,10 +125,6 @@ final class SessionManagerRegistry {
             }
             manager.restoreOrCreateInitialTabs()
         }
-        // 窗口恢复完全由会话恢复负责:关掉 AppKit 的场景恢复,
-        // 否则强退后系统按旧场景多开窗口,和自己的多窗口恢复叠加出重复窗口
-        window.isRestorable = false
-        windowMap.setObject(manager, forKey: window)
         if window.isKeyWindow { activeManager = manager }
         installCloseInterceptor(manager: manager, window: window)
         // bind 会被反复调用,守卫每窗口只装一次
@@ -133,6 +136,34 @@ final class SessionManagerRegistry {
             let frame = NSRectFromString(frameString)
             if !frame.isEmpty { window.setFrame(frame, display: true) }
         }
+        // 预放置时隐身的窗口:frame 已最终就位(上面 take 或恢复路径的 setPendingFrame),显形
+        if window.alphaValue == 0 {
+            window.alphaValue = 1
+        }
+    }
+
+    /// 挂载瞬间(首帧前、窗口未显示)预放置窗口:Dock 重开用关窗时记下的 frame,
+    /// 冷启动首窗口用存档 frame。SwiftUI 随后按自己记忆的位置显示窗口的行为被抢先覆盖,
+    /// 旧位置一帧都不露(async 之后再 setFrame 就只能看着它闪)
+    func prepareForReveal(_ manager: SessionManager, window: NSWindow) {
+        guard !window.isVisible else { return }
+        var frameString = pendingFrames[ObjectIdentifier(manager)]
+        // 冷启动首窗口:关窗 stash 不存在,预读存档里首窗口的 frame
+        //(仅限将要走恢复路径的场景,⌘N 新窗保持系统默认摆放)
+        if frameString == nil,
+           manager.tabs.isEmpty, !manager.isRetired, isFirst(manager),
+           (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true),
+           ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            frameString = Self.loadSavedState()?.windows.first?.frame
+        }
+        guard let frameString else { return }
+        let frame = NSRectFromString(frameString)
+        guard !frame.isEmpty else { return }
+        window.setFrame(frame, display: false)
+        // SwiftUI 在挂载后、orderFront 前还会把 frame 盖回它记忆的旧值,
+        // 这里的预放置会被踩掉。先隐身:窗口带着旧位置显示也看不见,
+        // bind(async 一拍后)重新应用正确 frame 再显形,旧位置零帧曝光
+        window.alphaValue = 0
     }
 
     /// 用 delegate 代理拦 windowShouldClose(有命令在跑先确认);其余消息原样转发给 SwiftUI 的 delegate。

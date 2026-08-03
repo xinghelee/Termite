@@ -298,6 +298,26 @@ struct TerminalCommands: Commands {
 
             Divider()
 
+            Button("上一个工作区") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    SpaceStore.shared.selectAdjacent(-1)
+                }
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
+
+            Button("下一个工作区") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    SpaceStore.shared.selectAdjacent(1)
+                }
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
+
+            Button("新建工作区…") {
+                SpacePrompt.create()
+            }
+
+            Divider()
+
             Button("下拉终端") {
                 QuickTerminalController.shared.toggle()
             }

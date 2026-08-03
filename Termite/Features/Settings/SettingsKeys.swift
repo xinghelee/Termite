@@ -10,6 +10,8 @@ enum SettingsKeys {
     static let cursorBlink = "terminal.cursorBlink"
     static let copyOnSelect = "terminal.copyOnSelect"
     static let middleClickPaste = "terminal.middleClickPaste"
+    /// 窗口没有标签时自动新建终端(跳过「新建标签页」空白页);默认关,保留空白引导页
+    static let autoNewTabOnEmpty = "terminal.autoNewTabOnEmpty"
     static let pasteProtection = "terminal.pasteProtection"
     /// ⌥ 作为 Meta 键(发 ESC 前缀;关闭则输入特殊字符)
     static let optionAsMeta = "terminal.optionAsMeta"

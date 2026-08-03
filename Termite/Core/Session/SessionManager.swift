@@ -161,13 +161,32 @@ final class SessionManager {
         return ProjectStore.shared.projects.first { cwd == $0.path || cwd.hasPrefix($0.path + "/") }?.path
     }
 
-    /// 标签栏可见标签:当前项目的 + 不属于任何项目的散标签
-    /// (散标签没有侧边栏入口,藏起来就永远选不到了,只能始终可见)
+    /// 标签是否属于当前工作区:看归属项目的有效工作区;
+    /// 散标签(不属于任何项目)没有侧边栏入口,藏起来就永远选不到,全工作区可见
+    func tabInCurrentSpace(_ tab: PaneTab) -> Bool {
+        guard let group = projectGroup(of: tab),
+              let project = ProjectStore.shared.projects.first(where: { $0.path == group }) else { return true }
+        return SpaceStore.shared.isVisible(project)
+    }
+
+    /// 标签栏可见标签:当前工作区内、当前项目的 + 散标签
     var visibleTabs: [PaneTab] {
         let current = selectedTab.flatMap { projectGroup(of: $0) }
         return tabs.filter { tab in
+            guard tabInCurrentSpace(tab) else { return false }
             let group = projectGroup(of: tab)
             return group == current || group == nil
+        }
+    }
+
+    /// 切工作区后由 SpaceStore 通知:选中标签不在新工作区时切到该工作区
+    /// 最近的标签;一个都没有就清空选择,终端区回到欢迎面板(空工作区=白纸)
+    func workspaceDidChange() {
+        if let tab = selectedTab, tabInCurrentSpace(tab) { return }
+        if let candidate = tabs.last(where: { tabInCurrentSpace($0) }) {
+            selectTab(candidate.id)
+        } else {
+            selectedTabID = nil
         }
     }
 
@@ -189,12 +208,22 @@ final class SessionManager {
 
     private func inheritedDirectory() -> String? {
         let inherits = UserDefaults.standard.object(forKey: SettingsKeys.newTabInheritsCwd) as? Bool ?? true
-        return inherits ? selected?.workingDirectory : nil
+        if inherits, let cwd = selected?.workingDirectory { return cwd }
+        // 欢迎页(没有任何会话可继承)时:有项目就从当前工作区第一个项目的目录起,
+        // 而不是落到 ~——侧边栏摆着项目还开进家目录反直觉。
+        // 有会话但关了继承设置的场景不受影响,仍回家目录
+        guard selected == nil else { return nil }
+        return ProjectStore.shared.projects.first { SpaceStore.shared.isVisible($0) }?.path
     }
 
+    /// 恢复错峰基准:>0 时新会话冷启动排队(每建一个自增 0.15s),恢复完归零
+    @ObservationIgnored private var pendingSpawnDelay: TimeInterval = 0
+
     private func makeSession(directory: String?, scrollback: String? = nil, reattach: PtyReattach? = nil) -> TerminalSession {
+        let delay = pendingSpawnDelay
+        if delay > 0 { pendingSpawnDelay += 0.15 }
         let session = TerminalSession(workingDirectory: directory, restoreScrollback: scrollback,
-                                      reattach: reattach, manager: self)
+                                      reattach: reattach, spawnDelay: delay, manager: self)
         session.onProcessExit = { [weak self, weak session] in
             guard let self, let session else { return }
             self.closePane(session)
@@ -417,7 +446,6 @@ final class SessionManager {
             if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
         }
         persistOpenTabs()
-        closeWindowIfEmpty()
     }
 
     /// 整个标签关闭(标签 chip 的 ×):有命令在跑时确认后连同其所有 pane 一起关
@@ -439,18 +467,11 @@ final class SessionManager {
         tabs.removeAll { $0.id == tab.id }
         if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
         persistOpenTabs()
-        closeWindowIfEmpty()
     }
 
-    /// 最后一个标签关闭后直接关窗,不停留在欢迎页(终端惯例;issue #2)。
-    /// 延迟一拍:不在 SwiftUI 动作回调里同步拆窗口
-    private func closeWindowIfEmpty() {
-        guard tabs.isEmpty else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.tabs.isEmpty else { return }
-            SessionManagerRegistry.shared.window(of: self)?.performClose(nil)
-        }
-    }
+    // ⌘W 关到最后一个标签停在欢迎页,窗口与侧边栏保留(2026-08-03 改,
+    // 推翻 issue #2 的关窗惯例):⌘W 是杀会话的危险键,欢迎页是安全垫;
+    // 想跳过欢迎页的用户开「空窗口自动新建终端」设置
 
     // MARK: - 选择
 
@@ -668,10 +689,15 @@ final class SessionManager {
             return []
         }
         // 单测宿主不读用户存档:避免把真实会话在测试现场重建一遍(也不该收养孤儿)
+        let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         let enabled = (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
-            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+            && !isTesting
         guard enabled, registry.isFirst(self) else {
-            newTab()
+            // 没内容就停在欢迎页(「空窗口自动新建终端」设置开着时由欢迎页自动补);
+            // 单测宿主保留自动建标签的旧行为,用例假定初始有一个标签
+            if isTesting {
+                newTab()
+            }
             return []
         }
         var claimedPtyIDs: Set<UUID> = []
@@ -687,9 +713,8 @@ final class SessionManager {
             if let active = state.activeWindowIndex, active > 0 || !extraWindowKeys.isEmpty {
                 registry.scheduleActiveWindowFocus(managerIndex: active)
             }
-        } else {
-            newTab()
         }
+        // 存档为空不再兜底 newTab:冷启动什么都没有就是欢迎页
         // Dock 拖放 / CLI 冷启动送进来的目录,追加为新标签并选中
         for dir in SessionManagerRegistry.shared.takePendingOpenDirectories() {
             newTab(directory: validDirectory(dir))
@@ -702,9 +727,14 @@ final class SessionManager {
     /// 按单个窗口的存档重建:标签 + 选中标签 + 窗口 frame(frame 挂起到 bind 时应用)
     private func restoreWindow(from state: SavedWindowState) {
         SessionManagerRegistry.shared.setPendingFrame(state.frame, for: self)
-        for tabState in state.tabs {
+        let selectedIndex = state.selectedIndex ?? 0
+        for (index, tabState) in state.tabs.enumerated() {
+            // 冷启动错峰:选中标签(用户正盯着的)不延迟,其余从 0.3s 起排队
+            // ——批量恢复时十几个 zsh 同一秒并发冷启动,提示符要空等好几秒
+            pendingSpawnDelay = index == selectedIndex ? 0 : max(pendingSpawnDelay, 0.3)
             openTab(from: tabState)
         }
+        pendingSpawnDelay = 0
         if let index = state.selectedIndex, tabs.indices.contains(index) {
             selectedTabID = tabs[index].id
         } else {

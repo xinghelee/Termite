@@ -107,6 +107,10 @@ struct MainWindowView: View {
             backgroundColor: projectAccent.map {
                 theme.current.backgroundNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
             } ?? theme.current.backgroundNSColor,
+            onWindowEarly: { window in
+                // 首帧之前把窗口摆到上次的位置(Dock 重开/冷启动都不闪旧位置)
+                SessionManagerRegistry.shared.prepareForReveal(manager, window: window)
+            },
             onWindow: { window in
                 SessionManagerRegistry.shared.bind(manager, to: window)
             }

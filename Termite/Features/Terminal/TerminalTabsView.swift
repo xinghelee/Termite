@@ -21,7 +21,8 @@ struct TerminalTabsView: View {
             Rectangle()
                 .fill(ThemeStore.shared.current.borderColor)
                 .frame(height: 1)
-            if sessionManager.tabs.isEmpty {
+            if sessionManager.visibleTabs.isEmpty {
+                // 真空窗口或空工作区(白纸)都回欢迎面板
                 emptyState
             } else if let tab = sessionManager.selectedTab {
                 if tab.isBroadcasting {
@@ -187,7 +188,7 @@ struct TerminalTabsView: View {
                     toggleSidebar()
                 }
             }
-            if !sessionManager.tabs.isEmpty {
+            if !sessionManager.visibleTabs.isEmpty {
                 tabChips
             }
         }
@@ -394,6 +395,14 @@ struct TerminalTabsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 设置「空窗口自动新建终端」后跳过此空白页,窗口一出现就是可用的 shell;
+        // 只对真空窗口生效——空工作区的欢迎面板是有意的白纸,不自动开
+        .onAppear {
+            if UserDefaults.standard.bool(forKey: SettingsKeys.autoNewTabOnEmpty),
+               sessionManager.tabs.isEmpty {
+                sessionManager.newTab()
+            }
+        }
     }
 }
 
@@ -1251,6 +1260,9 @@ private struct TerminalTabChip: View {
                 Button(action: close) {
                     Image(systemName: "xmark")
                         .font(.system(size: 8, weight: .bold))
+                        // 命中区比 8pt 字形大一圈:点偏一点不该变成「选中标签」
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .opacity(0.7)

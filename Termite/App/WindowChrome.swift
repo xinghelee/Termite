@@ -9,25 +9,55 @@ struct WindowConfigurator: NSViewRepresentable {
     let backgroundColor: NSColor
     /// 独立小窗保留标题文字,主窗口隐藏
     var keepsTitle = false
-    /// 拿到 NSWindow 时回调(多窗口:把窗口绑定到它的 SessionManager)
+    /// 挂载瞬间(窗口尚未显示)的同步回调:预放置 frame 等必须赶在首帧前的事。
+    /// SwiftUI 会先按自己记忆的位置显示窗口,任何 async 后的 setFrame 都会闪现旧位置一帧
+    var onWindowEarly: ((NSWindow) -> Void)?
+    /// 拿到 NSWindow 时回调(多窗口:把窗口绑定到它的 SessionManager)。
+    /// 延后一拍:bind 会改 @Observable 状态与视图树,不能在视图更新事务里同步做
     var onWindow: ((NSWindow) -> Void)?
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async { configure(view.window) }
+    /// 视图挂进窗口的确切时机由 viewDidMoveToWindow 给出(此时窗口还未 orderFront);
+    /// 原先 makeNSView 里 DispatchQueue.main.async 等窗口,所有配置都落在首帧之后
+    final class AttachView: NSView {
+        var onAttach: ((NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { onAttach?(window) }
+        }
+    }
+
+    func makeNSView(context: Context) -> AttachView {
+        let view = AttachView()
+        view.onAttach = attachHandler
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async { configure(nsView.window) }
+    func updateNSView(_ nsView: AttachView, context: Context) {
+        nsView.onAttach = attachHandler
+        // 参数变化(主题切换)时窗口已在:即时重配外观,bind 仍延后一拍
+        guard let window = nsView.window else { return }
+        configureChrome(window)
+        DispatchQueue.main.async { onWindow?(window) }
     }
 
-    private func configure(_ window: NSWindow?) {
-        guard let window else { return }
+    private var attachHandler: (NSWindow) -> Void {
+        { window in
+            // 早配一次让首帧尽量正确;SwiftUI 的窗口初始化会在挂载后盖掉
+            // 外观设置(标题栏变回系统灰),async 一拍后必须再补一次
+            configureChrome(window)
+            onWindowEarly?(window)
+            DispatchQueue.main.async {
+                configureChrome(window)
+                onWindow?(window)
+            }
+        }
+    }
+
+    private func configureChrome(_ window: NSWindow) {
         window.appearance = NSAppearance(named: appearanceName)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = keepsTitle ? .visible : .hidden
         window.backgroundColor = backgroundColor
-        onWindow?(window)
     }
 }

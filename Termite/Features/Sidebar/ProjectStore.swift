@@ -10,6 +10,8 @@ struct Project: Identifiable, Codable, Equatable {
     var path: String
     /// 项目专属强调色(hex);nil = 跟随主题
     var accentHex: String?
+    /// 所属工作区(SidebarSpace.id);nil = 未分组,所有工作区可见
+    var spaceID: UUID?
 }
 
 /// 项目列表(侧边栏数据源):持久化在 UserDefaults(JSON)
@@ -29,7 +31,12 @@ final class ProjectStore {
     func add(path: String) {
         let standardized = (path as NSString).standardizingPath
         guard !projects.contains(where: { $0.path == standardized }) else { return }
-        projects.append(Project(name: (standardized as NSString).lastPathComponent, path: standardized))
+        // 新项目归入当前工作区(严格归属制,没有工作区时为 nil)
+        projects.append(Project(
+            name: (standardized as NSString).lastPathComponent,
+            path: standardized,
+            spaceID: SpaceStore.shared.selected?.id
+        ))
         save()
     }
 
@@ -38,8 +45,23 @@ final class ProjectStore {
         save()
     }
 
-    func move(fromOffsets: IndexSet, toOffset: Int) {
-        projects.move(fromOffsets: fromOffsets, toOffset: toOffset)
+    /// 过滤视图(工作区)下的拖拽重排:把可见子集的新顺序映射回全量列表,
+    /// 不可见项目的位置原地不动
+    func move(visibleIDs: [UUID], fromOffsets: IndexSet, toOffset: Int) {
+        var reordered = visibleIDs
+        reordered.move(fromOffsets: fromOffsets, toOffset: toOffset)
+        let visibleSet = Set(visibleIDs)
+        let byID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
+        var queue = reordered
+        projects = projects.map { project in
+            visibleSet.contains(project.id) ? byID[queue.removeFirst()]! : project
+        }
+        save()
+    }
+
+    func setSpace(_ spaceID: UUID?, for projectID: UUID) {
+        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
+        projects[index].spaceID = spaceID
         save()
     }
 

@@ -69,6 +69,18 @@ enum ShellIntegration {
 
     autoload -Uz add-zsh-hook
 
+    # 首个提示符抑制 zsh 的行尾标记(反白 %):shell 在视图完成布局前按默认宽度
+    # 启动,开屏即打的 EOL 标记会被随后的 resize 反流搁浅成一枚游离 %。
+    # 第二个提示符起恢复默认,不影响真实的「输出未换行」提示;
+    # 用户 rc 若自己设了 PROMPT_EOL_MARK 则尊重其设置不动
+    PROMPT_EOL_MARK=''
+    _termite_restore_eol() {
+      [[ -z "$PROMPT_EOL_MARK" ]] && unset PROMPT_EOL_MARK
+      add-zsh-hook -d precmd _termite_restore_eol
+      unfunction _termite_restore_eol
+    }
+    add-zsh-hook precmd _termite_restore_eol
+
     _termite_report_pwd() {
       local u="${PWD//\\%/%25}"
       u="${u// /%20}"

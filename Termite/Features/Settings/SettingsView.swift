@@ -158,6 +158,7 @@ private struct BehaviorSettingsTab: View {
     @AppStorage(SettingsKeys.notifyLongCommand) private var notifyLongCommand = true
     @AppStorage(SettingsKeys.attentionDetection) private var attentionDetection = true
     @AppStorage(SettingsKeys.notifyAttention) private var notifyAttention = true
+    @AppStorage(SettingsKeys.autoNewTabOnEmpty) private var autoNewTabOnEmpty = false
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.sessionPersistence) private var sessionPersistence = true
     @AppStorage(SettingsKeys.menuBarExtra) private var menuBarExtraEnabled = true
@@ -176,6 +177,7 @@ private struct BehaviorSettingsTab: View {
                 Toggle("粘贴保护:多行或危险命令先确认", isOn: $pasteProtection)
             }
             Section("会话") {
+                Toggle("空窗口自动新建终端(跳过「新建标签页」空白页)", isOn: $autoNewTabOnEmpty)
                 Toggle("关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)", isOn: $confirmBeforeClosingTab)
                 Toggle("后台长命令(≥10s)完成时系统通知", isOn: $notifyLongCommand)
                 Toggle("检测分屏等待输入(响铃 / 长输出后静默),点亮橙色提醒", isOn: $attentionDetection)

@@ -442,13 +442,22 @@
         }
       }
     },
-    "●%lld": {},
     "「%@」· 点击查看该提交对本文件的改动": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "“%@” · Click to see this commit’s changes to the file"
+          }
+        }
+      }
+    },
+    "上一个工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Workspace"
           }
         }
       }
@@ -530,6 +539,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Previous output was trimmed from scrollback; nothing to compare"
+          }
+        }
+      }
+    },
+    "下一个工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Workspace"
           }
         }
       }
@@ -1086,6 +1105,16 @@
         }
       }
     },
+    "分组项目只在所属工作区显示;新工作区从空白开始,现有项目归入第一个工作区。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grouped projects only appear in their workspace. A new workspace starts blank; existing projects belong to the first workspace."
+          }
+        }
+      }
+    },
     "切换到该项目": {
       "localizations": {
         "en": {
@@ -1112,6 +1141,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        }
+      }
+    },
+    "删除工作区(项目归入第一个工作区)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Workspace (Projects Move to First Workspace)"
+          }
+        }
+      }
+    },
+    "删除工作区「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Workspace “%@”"
           }
         }
       }
@@ -1892,6 +1941,16 @@
         }
       }
     },
+    "工作区名称,如:工作 / 个人": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace name, e.g. Work"
+          }
+        }
+      }
+    },
     "工作区改动会还原到 HEAD 版本,不可撤销。": {
       "localizations": {
         "en": {
@@ -2415,6 +2474,26 @@
         }
       }
     },
+    "新建工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Workspace"
+          }
+        }
+      }
+    },
+    "新建工作区…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Workspace…"
+          }
+        }
+      }
+    },
     "新建文件夹": {
       "localizations": {
         "en": {
@@ -2865,6 +2944,16 @@
         }
       }
     },
+    "点击 / 触控板横扫 / ⌃⌥←→ 切换工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click, swipe horizontally on the trackpad, or press ⌃⌥←→ to switch workspaces"
+          }
+        }
+      }
+    },
     "点击上方文件查看 diff": {
       "localizations": {
         "en": {
@@ -3065,6 +3154,16 @@
         }
       }
     },
+    "移动到工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Workspace"
+          }
+        }
+      }
+    },
     "移除(并关闭其标签)": {
       "localizations": {
         "en": {
@@ -3121,6 +3220,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empty folder"
+          }
+        }
+      }
+    },
+    "空窗口自动新建终端(跳过「新建标签页」空白页)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically open a terminal in empty windows (skip the \"New Tab\" placeholder)"
           }
         }
       }
@@ -3937,6 +4046,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename Pane…"
+          }
+        }
+      }
+    },
+    "重命名工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Workspace"
           }
         }
       }

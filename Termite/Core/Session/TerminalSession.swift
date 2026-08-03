@@ -152,8 +152,9 @@ final class TerminalSession: Identifiable {
     /// manager 必须在 init 传入(而非事后赋值):start() 里靠它区分
     /// 普通会话(可保活)与下拉终端(始终本地直连)
     init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil,
-         reattach: PtyReattach? = nil, manager: SessionManager? = nil) {
+         reattach: PtyReattach? = nil, spawnDelay: TimeInterval = 0, manager: SessionManager? = nil) {
         shellPath = ShellResolver.loginShell()
+        self.spawnDelay = spawnDelay
         pendingReattach = reattach
         self.manager = manager
         let view = TermiteTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -199,10 +200,22 @@ final class TerminalSession: Identifiable {
             let reattach = pendingReattach
             pendingReattach = nil
             Task { await startViaHost(env: env, cwd: cwd, reattach: reattach) }
+        } else if spawnDelay > 0 {
+            // 恢复错峰(本地直连路径):批量冷启动排队,削掉并发尖峰
+            Task {
+                try? await Task.sleep(for: .seconds(spawnDelay))
+                guard !didShutdown else { return }
+                launchLocal(env: env, cwd: cwd)
+            }
         } else {
             launchLocal(env: env, cwd: cwd)
         }
     }
+
+    /// 恢复错峰:>0 时冷启动 spawn 推迟这么久再发(接回活会话的 attach 不延迟)
+    private let spawnDelay: TimeInterval
+    /// 已关闭标记:错峰等待期间 pane 被关掉的话,别再把 shell 拉起来留孤儿
+    private var didShutdown = false
 
     /// 本地直连(保活关闭或守护进程不可用时的回落路径)
     private func launchLocal(env: [String: String], cwd: String) {
@@ -225,6 +238,12 @@ final class TerminalSession: Identifiable {
         }
         if let reattach, await tryReattach(reattach, client: client) {
             return
+        }
+        // 恢复错峰:接不回才需要冷启动 spawn,批量恢复时排队发出,
+        // 别十几个 zsh 同一秒挤爆 CPU(空屏干等提示符的元凶);选中标签延迟为 0
+        if spawnDelay > 0 {
+            try? await Task.sleep(for: .seconds(spawnDelay))
+            guard !didShutdown else { return }
         }
         let terminal = terminalView.getTerminal()
         let request = PtyCreateRequest(
@@ -303,6 +322,7 @@ final class TerminalSession: Identifiable {
     /// 交互式 zsh 默认忽略 SIGTERM(SwiftTerm terminate 只发 SIGTERM),
     /// 这里像 Terminal.app 一样先对整个进程组发 SIGHUP,连同前台命令一起挂断。
     func shutdown() {
+        didShutdown = true
         stopLogging()
         stopCasting()
         gitProbeTask?.cancel()
