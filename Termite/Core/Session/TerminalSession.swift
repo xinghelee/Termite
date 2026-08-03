@@ -642,9 +642,14 @@ final class TerminalSession: Identifiable {
             attentionAfterCommandEnd(code: code, duration: duration)
             notifyIfLongCommand(code: code, duration: duration)
             SessionManagerRegistry.shared.updateDockBadge()
-            // 命令可能改了仓库状态(git/编辑器/构建都会),节流刷新脏计数
-            if gitBranch != nil, let dir = workingDirectory {
-                probeGitDirty(dir)
+            // 命令可能改了仓库状态(git/编辑器/构建都会):
+            // 分支直读 .git/HEAD 零子进程,每条命令后都刷(修 checkout 后状态栏不更新);
+            // 脏计数是子进程,保持节流(分支变化时 probeGitBranch 内部会强刷)
+            if let dir = workingDirectory {
+                probeGitBranch(dir)
+                if gitBranch != nil {
+                    probeGitDirty(dir)
+                }
             }
         }
     }
@@ -1052,12 +1057,14 @@ final class TerminalSession: Identifiable {
         gitProbeTask?.cancel()
         gitProbeTask = Task { [weak self] in
             let branch = await Task.detached { GitProbe.branch(at: path) }.value
-            guard !Task.isCancelled else { return }
-            self?.gitBranch = branch
-            if branch != nil {
-                self?.probeGitDirty(path, force: true)
-            } else {
-                self?.gitDirtyCount = nil
+            guard !Task.isCancelled, let self else { return }
+            let changed = branch != self.gitBranch
+            self.gitBranch = branch
+            if branch == nil {
+                self.gitDirtyCount = nil
+            } else if changed {
+                // 分支变了(checkout/switch)脏计数必过期,绕过节流强刷
+                self.probeGitDirty(path, force: true)
             }
         }
     }
@@ -1107,6 +1114,8 @@ extension TerminalSession: LocalProcessTerminalViewDelegate {
         guard path != workingDirectory else { return }
         workingDirectory = path
         probeGitBranch(path)
+        // 换目录必强刷脏计数:跨仓库切换分支名可能相同,branch 判等测不出变化
+        probeGitDirty(path, force: true)
         DirectoryHistory.shared.record(path: path)
         manager?.workingDirectoryChanged()
     }
