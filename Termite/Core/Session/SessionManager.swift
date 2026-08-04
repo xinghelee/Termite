@@ -483,9 +483,12 @@ final class SessionManager {
 
     /// 关闭单个 pane:从其所在标签的树里移除并塌缩;标签空了则整标签移除
     func closePane(_ session: TerminalSession) {
+        // 归属组要赶在 shutdown 之前取:projectGroup 靠会话 cwd 兜底,会话移除就取不到了
+        let owner = tabs.first { $0.root.leafIDs().contains(session.id) }
+        let closedGroup = owner.flatMap { projectGroup(of: $0) }
         session.shutdown()
         sessions.removeAll { $0.id == session.id }
-        guard let tab = tabs.first(where: { $0.root.leafIDs().contains(session.id) }) else {
+        guard let tab = owner else {
             persistOpenTabs(); return
         }
         if tab.maximizedID == session.id { tab.maximizedID = nil }
@@ -495,9 +498,22 @@ final class SessionManager {
             if tab.focusedID == session.id { tab.focusedID = neighbor ?? newRoot.firstLeaf }
         } else {
             tabs.removeAll { $0.id == tab.id }
-            if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
+            if selectedTabID == tab.id { selectSuccessor(closedGroup: closedGroup) }
         }
         persistOpenTabs()
+    }
+
+    /// 关闭选中标签后的后继:**同项目组优先**——标签条不换组,连按 ⌘W 就是
+    /// 「一个一个关」;组里没有了才落到当前工作区最近的标签(换组);
+    /// 工作区也空了就置空,终端区回欢迎页。⌘W(closePane)与标签 ×(closeTab)
+    /// 两条关闭路径共用,谁也不许再拿 tabs.last 兜底——那会悄悄选中别的
+    /// 工作区的隐形标签,标签条整组消失,像一次关掉了一串
+    private func selectSuccessor(closedGroup: String?) {
+        if let same = tabs.last(where: { tabInCurrentSpace($0) && projectGroup(of: $0) == closedGroup }) {
+            selectedTabID = same.id
+        } else {
+            selectedTabID = tabs.last { tabInCurrentSpace($0) }?.id
+        }
     }
 
     /// 整个标签关闭(标签 chip 的 ×):有命令在跑时确认后连同其所有 pane 一起关
@@ -512,18 +528,13 @@ final class SessionManager {
     }
 
     func closeTab(_ tab: PaneTab) {
+        let closedGroup = projectGroup(of: tab)
         for id in tab.root.leafIDs() {
             if let s = session(id) { s.shutdown() }
             sessions.removeAll { $0.id == id }
         }
         tabs.removeAll { $0.id == tab.id }
-        if selectedTabID == tab.id {
-            // 后继必须仍在当前工作区。原先取 tabs.last,关掉本工作区最后一个标签时
-            // 选中会悄悄跳到别的工作区的标签:侧边栏还停在原地、终端区显示欢迎页,
-            // 而「新建标签页」会从那个隐形标签继承目录,新标签落进别的工作区照样不可见
-            // ——表现为按钮怎么点都没反应
-            selectedTabID = tabs.last { tabInCurrentSpace($0) }?.id
-        }
+        if selectedTabID == tab.id { selectSuccessor(closedGroup: closedGroup) }
         persistOpenTabs()
     }
 
