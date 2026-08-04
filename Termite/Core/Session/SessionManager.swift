@@ -174,6 +174,8 @@ final class SessionManager {
         }
         newTab(directory: path)
         tabs.last?.projectPath = path
+        // 绑定落定后才记得住归属(newTab 里 projectPath 还是空的)
+        rememberSpaceTab()
         selected?.focusTerminal()
         persistOpenTabs()
     }
@@ -186,12 +188,29 @@ final class SessionManager {
         return ProjectStore.shared.projects.first { cwd == $0.path || cwd.hasPrefix($0.path + "/") }?.path
     }
 
+    /// 标签归属的工作区(标签→项目→工作区链条);散标签为 nil
+    func spaceID(of tab: PaneTab) -> UUID? {
+        guard let group = projectGroup(of: tab),
+              let project = ProjectStore.shared.projects.first(where: { $0.path == group }) else { return nil }
+        return SpaceStore.shared.effectiveSpaceID(of: project)
+    }
+
     /// 标签是否属于当前工作区:看归属项目的有效工作区;
     /// 散标签(不属于任何项目)没有侧边栏入口,藏起来就永远选不到,全工作区可见
     func tabInCurrentSpace(_ tab: PaneTab) -> Bool {
         guard let group = projectGroup(of: tab),
               let project = ProjectStore.shared.projects.first(where: { $0.path == group }) else { return true }
         return SpaceStore.shared.isVisible(project)
+    }
+
+    /// 每个工作区上次停留的标签(本窗口内):切回来时回到当时的项目,
+    /// 而不是列表里最后一个匹配的标签。标签是窗口私有的,所以这份记忆也按窗口存
+    @ObservationIgnored private var lastTabPerSpace: [UUID: PaneTab.ID] = [:]
+
+    /// 记下「当前工作区停在哪个标签」;选标签、开项目后调用
+    func rememberSpaceTab() {
+        guard let tab = selectedTab, let space = spaceID(of: tab) else { return }
+        lastTabPerSpace[space] = tab.id
     }
 
     /// 标签栏可见标签:当前工作区内、当前项目的 + 散标签
@@ -204,11 +223,16 @@ final class SessionManager {
         }
     }
 
-    /// 切工作区后由 SpaceStore 通知:选中标签不在新工作区时切到该工作区
-    /// 最近的标签;一个都没有就清空选择,终端区回到欢迎面板(空工作区=白纸)
+    /// 切工作区后由 SpaceStore 通知:选中标签不在新工作区时,优先回到上次在这个
+    /// 工作区停留的标签(每个工作区记住自己的项目),它没了才退回该工作区最近的标签;
+    /// 一个都没有就清空选择,终端区回到欢迎面板(空工作区=白纸)
     func workspaceDidChange() {
         if let tab = selectedTab, tabInCurrentSpace(tab) { return }
-        if let candidate = tabs.last(where: { tabInCurrentSpace($0) }) {
+        if let space = SpaceStore.shared.selected?.id,
+           let remembered = lastTabPerSpace[space],
+           let tab = tabs.first(where: { $0.id == remembered }), tabInCurrentSpace(tab) {
+            selectTab(tab.id)
+        } else if let candidate = tabs.last(where: { tabInCurrentSpace($0) }) {
             selectTab(candidate.id)
         } else {
             selectedTabID = nil
@@ -503,6 +527,7 @@ final class SessionManager {
     func selectTab(_ id: PaneTab.ID) {
         guard tabs.contains(where: { $0.id == id }) else { return }
         selectedTabID = id
+        rememberSpaceTab()
         selected?.focusTerminal()
         clearActivityForSelectedTab()
         layoutChangedSoon()

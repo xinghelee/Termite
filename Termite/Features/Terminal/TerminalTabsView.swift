@@ -199,10 +199,9 @@ struct TerminalTabsView: View {
         chipsContentWidth > chipsContainerWidth + 1
     }
 
-    /// 标签条轨道:比标题栏底色再暗一档,内凹感,把所有 chips 收进同一个容器
+    /// 标签条轨道:比 chrome 带(标题栏底色)再暗一档,内凹感,把所有 chips 收进同一个容器
     private var chipTrackColor: Color {
-        let theme = ThemeStore.shared.current
-        return Color(nsColor: theme.backgroundNSColor.mixed(with: .black, ratio: theme.isDark ? 0.3 : 0.05))
+        ThemeStore.shared.current.trackBackground
     }
 
     /// 标签 chips(标题栏左侧):深色轨道内选中浮起,溢出时两端渐隐,选中自动滚入;
@@ -277,9 +276,9 @@ struct TerminalTabsView: View {
             }
             // 背景加在 mask 之后:轨道本身不参与两端渐隐。
             // 内阴影让轨道真正"凹进去",避免纯平色块的廉价感;
-            // 垂直 padding 2 让轨道与右侧按钮岛同高(28pt)
+            // 垂直 padding 4:chip 上下各留一道可见的沟,不贴着轨道边缘
             .padding(.horizontal, 3)
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
             .background(
                 Capsule().fill(
                     chipTrackColor.shadow(.inner(
@@ -688,7 +687,7 @@ private struct PaneLeafView: View {
                 }
             }
             .overlay(
-                Rectangle()
+                Self.borderShape
                     .strokeBorder(flashFailed ? Color.red : Color.green, lineWidth: 2)
                     .opacity(flashOpacity)
                     .allowsHitTesting(false)
@@ -737,24 +736,27 @@ private struct PaneLeafView: View {
         .help(String(localized: "双击重命名"))
     }
 
+    /// pane 状态边框的形状:圆角跟窗口/卡片一个语言,方角在深色主题里太硬。
+    /// strokeBorder 而非 stroke:stroke 的线骑在边界上,半条在视图外,
+    /// pane 贴窗口边时右/底缘会被裁没
+    private static let borderShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+
     @ViewBuilder private var borderOverlay: some View {
-        // strokeBorder 而非 stroke:stroke 的线骑在边界上,半条在视图外,
-        // pane 贴窗口边时右/底缘会被裁没
         if broadcasting {
             // 广播时所有 pane 橙色边框
-            Rectangle()
+            Self.borderShape
                 .strokeBorder(Color.orange.opacity(0.7), lineWidth: 1.5)
                 .allowsHitTesting(false)
         } else if session.attention.needsInput {
             // 等待输入:橙色呼吸边框,把视线引过去
-            Rectangle()
+            Self.borderShape
                 .strokeBorder(Color.orange, lineWidth: 2)
                 .phaseAnimator([0.85, 0.3]) { border, phase in
                     border.opacity(phase)
                 } animation: { _ in .easeInOut(duration: 0.8) }
                 .allowsHitTesting(false)
         } else if showsFocus, isFocused {
-            Rectangle()
+            Self.borderShape
                 .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.55), lineWidth: 1.5)
                 .allowsHitTesting(false)
         }
@@ -1272,7 +1274,8 @@ private struct TerminalTabChip: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        // 3 而不是 4:轨道那边多留了 2pt 的沟,chip 自己收一点,整条不至于变高
+        .padding(.vertical, 3)
         .background {
             // 深色轨道内:选中 chip 用浮起材质,未选中保持透明、悬停微亮
             if isSelected {

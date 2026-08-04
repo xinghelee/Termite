@@ -14,7 +14,6 @@
       }
     },
     "%lld": {},
-    "%lld pt": {},
     "%lld 个分屏": {
       "localizations": {
         "en": {
@@ -125,13 +124,9 @@
     "+%lld": {},
     ".*": {},
     "0.5×": {},
-    "1 000": {},
-    "10 000": {},
-    "100 000": {},
     "1×": {},
     "2×": {},
     "4×": {},
-    "50 000": {},
     "8×": {},
     ":%@": {},
     ">_": {},
@@ -218,6 +213,16 @@
         }
       }
     },
+    "GitHub Release,每日至多一次": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases, at most once a day"
+          }
+        }
+      }
+    },
     "Metal GPU 渲染": {
       "localizations": {
         "en": {
@@ -229,11 +234,22 @@
       }
     },
     "Metal 渲染默认开启,遇到显示异常可在此关闭,切换即时生效。回滚行数对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Metal rendering is on by default; turn it off here if you see glitches — takes effect immediately. Scrollback lines apply to new tabs. ⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
+          }
+        }
+      }
+    },
+    "OSC 133 命令标记 + OSC 7 目录上报,无需手动改配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OSC 133 command marks + OSC 7 directory reporting, no manual setup"
           }
         }
       }
@@ -320,6 +336,16 @@
         }
       }
     },
+    "VS Code / Cursor / Zed / Xcode 可直达行号": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VS Code / Cursor / Zed / Xcode jump straight to the line"
+          }
+        }
+      }
+    },
     "Worktree 创建失败": {
       "localizations": {
         "en": {
@@ -380,7 +406,38 @@
         }
       }
     },
+    "termite [目录] 在 Termite 开新标签;也可以把文件夹拖到 Dock 图标上": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "termite [dir] opens a new tab in Termite; you can also drop a folder on the Dock icon"
+          }
+        }
+      }
+    },
+    "termite 命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "termite command"
+          }
+        }
+      }
+    },
+    "zsh 里已内置 termite 函数(shell 集成),此安装供 bash / fish / 脚本使用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zsh already ships a termite function (shell integration); this install is for bash, fish and scripts."
+          }
+        }
+      }
+    },
     "zsh 里已内置 termite 函数(shell 集成);此安装供 bash/fish/脚本使用。termite [目录] 在 Termite 开新标签,也可以直接把文件夹拖到 Dock 图标上。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -422,7 +479,18 @@
         }
       }
     },
+    "⌘点击可打开终端里的链接;双击选词、三击选行。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
+          }
+        }
+      }
+    },
     "⌘点击终端输出里的 路径:行号(如 src/main.swift:42)在编辑器中打开;VS Code / Cursor / Zed / Xcode 可直达行号。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -432,7 +500,18 @@
         }
       }
     },
+    "⌥ 作为 Meta 键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option as Meta"
+          }
+        }
+      }
+    },
     "⌥ 作为 Meta 键(发 ESC 前缀)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -442,7 +521,18 @@
         }
       }
     },
+    "⌥Space 易与 Raycast / 输入法切换冲突,默认使用 ⌃⌥⌘Space。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌥Space often clashes with Raycast or input-source switching, so ⌃⌥⌘Space is the default."
+          }
+        }
+      }
+    },
     "⌥Space 易与 Raycast / 输入法切换等冲突,默认使用 ⌃⌥⌘Space。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -614,6 +704,7 @@
       }
     },
     "下拉终端(全局热键)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -624,6 +715,7 @@
       }
     },
     "下拉终端热键": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -724,6 +816,7 @@
       }
     },
     "主题": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -780,6 +873,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Creates a new branch with this name; the worktree directory lives next to the repo (repo-name). The new pane opens inside it, named after the branch."
+          }
+        }
+      }
+    },
+    "以登录 shell 方式启动(argv[0] 带 -),读取你原本的配置文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Started as a login shell (argv[0] prefixed with -), so your usual config files load."
           }
         }
       }
@@ -915,6 +1018,7 @@
       }
     },
     "光标样式": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -925,6 +1029,7 @@
       }
     },
     "光标闪烁": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -940,6 +1045,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Global"
+          }
+        }
+      }
+    },
+    "全局热键唤出下拉终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global hotkey for the drop-down terminal"
           }
         }
       }
@@ -1004,7 +1119,18 @@
         }
       }
     },
+    "关闭前确认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm before closing"
+          }
+        }
+      }
+    },
     "关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1045,6 +1171,7 @@
       }
     },
     "关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1115,6 +1242,7 @@
       }
     },
     "分屏等待输入时系统通知": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1276,6 +1404,7 @@
       }
     },
     "双击文件或右键「打开」时使用;留空跟随 macOS 的默认程序关联。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1295,12 +1424,33 @@
         }
       }
     },
+    "双击重命名 · 拖动调整顺序": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-click to rename · drag to reorder"
+          }
+        }
+      }
+    },
     "发送": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Send"
+          }
+        }
+      }
+    },
+    "发送 ESC 前缀;关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sends an ESC prefix; when off, ⌥ combos type special characters (⌥3 → #)"
           }
         }
       }
@@ -1345,7 +1495,18 @@
         }
       }
     },
+    "变更对新开的标签页生效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes apply to newly opened tabs"
+          }
+        }
+      }
+    },
     "变更对新开的标签页生效。以登录 shell 方式启动(argv[0] 带 -)。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1365,7 +1526,18 @@
         }
       }
     },
+    "后台运行 ≥10s 的命令结束时发系统通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System notification when a background command running ≥10s ends"
+          }
+        }
+      }
+    },
     "后台长命令(≥10s)完成时系统通知": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1375,7 +1547,28 @@
         }
       }
     },
+    "启动 Shell": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startup shell"
+          }
+        }
+      }
+    },
+    "启动时恢复上次的标签页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore last session's tabs on launch"
+          }
+        }
+      }
+    },
     "启动时恢复上次的标签页(工作目录)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1457,6 +1650,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Command Palette…"
+          }
+        }
+      }
+    },
+    "响铃 / 长输出后静默即视为等待输入,点亮橙色提醒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A bell, or silence after long output, counts as waiting — lights up an amber hint"
           }
         }
       }
@@ -1791,6 +1994,26 @@
         }
       }
     },
+    "外观": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        }
+      }
+    },
+    "多行或危险命令(rm -rf、sudo 等)先确认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm multi-line or risky commands (rm -rf, sudo …) first"
+          }
+        }
+      }
+    },
     "夜泊琥珀 Amber Mooring": {
       "localizations": {
         "en": {
@@ -1842,11 +2065,22 @@
       }
     },
     "安装 termite 命令到 /usr/local/bin": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Install the termite command into /usr/local/bin"
+          }
+        }
+      }
+    },
+    "安装到 /usr/local/bin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install to /usr/local/bin"
           }
         }
       }
@@ -1887,6 +2121,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Applies immediately to all open terminals"
+          }
+        }
+      }
+    },
+    "对新开的标签页生效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to newly opened tabs"
           }
         }
       }
@@ -2122,6 +2366,16 @@
         }
       }
     },
+    "应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application"
+          }
+        }
+      }
+    },
     "强制删除(丢弃未提交改动)": {
       "localizations": {
         "en": {
@@ -2212,7 +2466,18 @@
         }
       }
     },
+    "恢复": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
     "恢复系统默认": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2278,6 +2543,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open File Browser"
+          }
+        }
+      }
+    },
+    "打开方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open With"
           }
         }
       }
@@ -2448,6 +2723,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "File Browser (⇧⌘E)"
+          }
+        }
+      }
+    },
+    "文件浏览器双击或右键「打开」;留空跟随 macOS 默认关联": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used by double-click and “Open” in the file browser; empty follows the macOS default"
           }
         }
       }
@@ -2684,6 +2969,16 @@
         }
       }
     },
+    "显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        }
+      }
+    },
     "显示 / 隐藏侧边栏": {
       "localizations": {
         "en": {
@@ -2760,6 +3055,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "A pane is awaiting input"
+          }
+        }
+      }
+    },
+    "有命令在跑的分屏 / 窗口(含退出 App)关闭前先问一句": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asks first when a pane or window with a running command closes (quitting included)"
           }
         }
       }
@@ -2864,12 +3169,32 @@
         }
       }
     },
+    "标签与窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tabs & Windows"
+          }
+        }
+      }
+    },
     "标签页 %lld": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Tab %lld"
+          }
+        }
+      }
+    },
+    "样式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Style"
           }
         }
       }
@@ -2904,7 +3229,18 @@
         }
       }
     },
+    "检测分屏等待输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detect panes waiting for input"
+          }
+        }
+      }
+    },
     "检测分屏等待输入(响铃 / 长输出后静默),点亮橙色提醒": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3070,6 +3406,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Click to focus this pane"
+          }
+        }
+      }
+    },
+    "热键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hotkey"
           }
         }
       }
@@ -3314,7 +3660,18 @@
         }
       }
     },
+    "空窗口自动新建终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-open a terminal in empty windows"
+          }
+        }
+      }
+    },
     "空窗口自动新建终端(跳过「新建标签页」空白页)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3400,6 +3757,16 @@
         }
       }
     },
+    "等待输入时系统通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System notification when waiting for input"
+          }
+        }
+      }
+    },
     "粉": {
       "localizations": {
         "en": {
@@ -3420,7 +3787,18 @@
         }
       }
     },
+    "粘贴保护": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste protection"
+          }
+        }
+      }
+    },
     "粘贴保护:多行或危险命令先确认": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3551,6 +3929,7 @@
       }
     },
     "编辑器": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3630,7 +4009,18 @@
         }
       }
     },
+    "自动检查更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for updates automatically"
+          }
+        }
+      }
+    },
     "自动检查更新(GitHub Release,每日至多一次)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3650,7 +4040,18 @@
         }
       }
     },
+    "自动注入命令标记": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inject command markers"
+          }
+        }
+      }
+    },
     "自动注入命令标记(OSC 133)与目录上报(OSC 7)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3690,12 +4091,32 @@
         }
       }
     },
+    "让 vim、htop 等程序接收鼠标;按住 ⌥ 可临时用本地选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lets vim, htop and friends receive the mouse; hold ⌥ for local selection"
+          }
+        }
+      }
+    },
     "记录会话到文件…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Log Session to File…"
+          }
+        }
+      }
+    },
+    "设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
           }
         }
       }
@@ -3806,6 +4227,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jump There"
+          }
+        }
+      }
+    },
+    "跳过「新建标签页」空白引导页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skips the blank “New Tab” page"
+          }
+        }
+      }
+    },
+    "输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input"
           }
         }
       }
@@ -3990,7 +4431,18 @@
         }
       }
     },
+    "退出后保留会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep sessions alive after quitting"
+          }
+        }
+      }
+    },
     "退出后保留会话(重启无缝接回,命令继续跑)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4000,7 +4452,18 @@
         }
       }
     },
+    "选中即复制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy on select"
+          }
+        }
+      }
+    },
     "选中即复制到剪贴板": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4110,6 +4573,16 @@
         }
       }
     },
+    "通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications"
+          }
+        }
+      }
+    },
     "邮箱": {
       "localizations": {
         "en": {
@@ -4126,6 +4599,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Email not set"
+          }
+        }
+      }
+    },
+    "配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colors apply immediately to every open terminal, window chrome included."
+          }
+        }
+      }
+    },
+    "重启无缝接回,命令继续跑;需要开启启动恢复": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reattaches seamlessly on restart and commands keep running; requires restore on launch"
           }
         }
       }
@@ -4176,6 +4669,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gold"
+          }
+        }
+      }
+    },
+    "长命令完成时通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notify when a long command finishes"
+          }
+        }
+      }
+    },
+    "闪烁": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blink"
+          }
+        }
+      }
+    },
+    "集成驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码与耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integration powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code and duration in the status bar, and directory inheritance. Full support on zsh; bash is degraded (no timing); fish 3.6+ works natively."
           }
         }
       }
@@ -4231,6 +4754,7 @@
       }
     },
     "驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码/耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4240,7 +4764,38 @@
         }
       }
     },
+    "默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        }
+      }
+    },
+    "默认开启,遇到显示异常可关闭,切换即时生效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default; turn it off if rendering looks wrong — takes effect immediately"
+          }
+        }
+      }
+    },
+    "鼠标事件上报": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report mouse events"
+          }
+        }
+      }
+    },
     "鼠标事件上报给终端程序(vim/htop 等)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

@@ -10,30 +10,13 @@ struct SidebarView: View {
     @State private var spaceStore = SpaceStore.shared
     @State private var theme = ThemeStore.shared
 
-    /// 当前工作区可见的项目:分组项目只在所属工作区,未分组全局可见
-    private var visibleProjects: [Project] {
-        store.projects.filter { spaceStore.isVisible($0) }
-    }
-
-    /// 首帧渲染后才启用工作区推入转场:冷启动恢复期窗口隐身(alpha 0),
-    /// 初次插入若搭上动画事务,转场会冻在中间态——侧边栏半透明且点不中
-    @State private var pushTransitionArmed = false
-
     var body: some View {
         VStack(spacing: 0) {
-            // 切工作区:整列按切换方向水平推入(ZStack 让新旧列表过渡期间同位重叠)
-            ZStack {
-                projectList
-                    .id(spaceStore.selected?.id)
-                    .transition(pushTransitionArmed ? AnyTransition.push(from: spaceStore.slideEdge) : .identity)
-            }
-            .clipped()
-            .onAppear {
-                DispatchQueue.main.async { pushTransitionArmed = true }
-            }
+            spacePager
             spaceSwitcher
         }
-        .background(theme.current.sidebarBackground)
+        // chrome 带:与标题栏同色,并越过安全区一路铺到窗口顶,左上角不留色阶断层
+        .background(theme.current.sidebarBackground.ignoresSafeArea())
         // 触控板在侧边栏上横扫切换工作区(Arc 手势)
         .background(SpaceSwipeCatcher())
         // 右缘发丝线:与标题栏下方的结构线呼应,划清侧边栏与终端区
@@ -63,62 +46,47 @@ struct SidebarView: View {
                     paths.append(url.path)
                 }
             }
-            addAndOpen(paths)
+            SidebarActions.addAndOpen(paths, in: sessionManager)
             return !paths.isEmpty
         }
     }
 
-    private var projectList: some View {
-        List {
-            Section {
-                ForEach(visibleProjects) { project in
-                    ProjectRow(
-                        project: project,
-                        isActive: isActive(project),
-                        attention: SessionManagerRegistry.shared.attention(inProject: project.path),
-                        open: { open(project) },
-                        remove: { remove(project) }
-                    )
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                }
-                .onMove { from, to in
-                    store.move(visibleIDs: visibleProjects.map(\.id), fromOffsets: from, toOffset: to)
-                }
-            } header: {
-                HStack {
-                    Text("项目")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(theme.current.secondaryText)
-                    Spacer()
-                    HeaderIconButton(symbol: "plus", help: String(localized: "添加项目文件夹")) {
-                        pickFolder()
+    /// 工作区切换的 shared-axis 转场:当前页与相邻页同位叠放,一起做
+    /// 「小位移 + 交叉淡入」——内容只走 36pt,交接靠透明度完成。
+    /// 相邻页常驻(透明度 0),手势途中不构建任何新页面,所以没有中途卡顿
+    @ViewBuilder private var spacePager: some View {
+        if spaceStore.spaces.count > 1 {
+            GeometryReader { geo in
+                let progress = spaceStore.dragProgress
+                let index = spaceStore.selectedIndex
+                ZStack {
+                    if index > 0 {
+                        page(at: index - 1).modifier(SharedAxisSlide(progress: progress - 1))
                     }
-                    .padding(.trailing, 4)
+                    if index < spaceStore.spaces.count - 1 {
+                        page(at: index + 1).modifier(SharedAxisSlide(progress: progress + 1))
+                    }
+                    page(at: index).modifier(SharedAxisSlide(progress: progress))
                 }
             }
-
-            if store.projects.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("还没有项目")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                    Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .padding(.top, 2)
-            }
-            // 新工作区没有内容时保持空白(Arc 惯例):不塞引导文案
-
-            if WorkspaceStore.isEnabled {
-                workspaceSection
-            }
+            .clipped()
+        } else {
+            page(at: 0)
         }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
+    }
+
+    private func page(at index: Int) -> some View {
+        let space = spaceStore.spaces.indices.contains(index) ? spaceStore.spaces[index] : nil
+        return ProjectListPage(
+            projects: projects(in: space),
+            showsGuide: store.projects.isEmpty
+        )
+    }
+
+    /// 指定工作区里的项目;没有工作区时是全量扁平列表
+    private func projects(in space: SidebarSpace?) -> [Project] {
+        guard let space else { return store.projects }
+        return store.projects.filter { spaceStore.effectiveSpaceID(of: $0) == space.id }
     }
 
     /// Arc 式工作区切换器:底部一排小圆点(选中=专属色实心并放大),
@@ -126,7 +94,8 @@ struct SidebarView: View {
     @ViewBuilder private var spaceSwitcher: some View {
         if !spaceStore.spaces.isEmpty {
             VStack(spacing: 4) {
-                // 当前工作区名:小点上方居中,随切换同方向推入;双击改名
+                // 当前工作区名:小点上方居中,随切换同方向推入;双击改名。
+                // 跟手拖拽时同步淡出并轻微跟随,松手落定后新名字推入
                 if let space = spaceStore.selected {
                     ZStack {
                         Text(space.name)
@@ -136,6 +105,8 @@ struct SidebarView: View {
                             .id(space.id)
                             .transition(.push(from: spaceStore.slideEdge))
                     }
+                    .opacity(1 - nameFade * 0.8)
+                    .offset(x: spaceStore.dragProgress * 10)
                     .clipped()
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) { SpacePrompt.rename(space) }
@@ -169,6 +140,11 @@ struct SidebarView: View {
             .contentShape(Rectangle())
             .help(String(localized: "点击 / 触控板横扫 / ⌃⌥←→ 切换工作区"))
         }
+    }
+
+    /// 工作区名淡出的驱动量:0…1
+    private var nameFade: CGFloat {
+        min(1, abs(spaceStore.dragProgress))
     }
 
     /// 工作区聚合注意力:组内任一项目有分屏等待输入,小点转橙色
@@ -205,52 +181,13 @@ struct SidebarView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.current.secondaryText)
                 Spacer()
-                HeaderIconButton(symbol: "plus.square.on.square", help: String(localized: "保存当前布局为工作区模板")) {
+                PanelIconButton(symbol: "plus.square.on.square", help: String(localized: "保存当前布局为工作区模板")) {
                     saveCurrentLayout()
                 }
                 .disabled(sessionManager.tabs.isEmpty)
-                .padding(.trailing, 4)
+                .padding(.trailing, 2)
             }
         }
-    }
-
-    /// 当前标签绑定了项目就认绑定(cd 走了也照样点亮);没绑定则看聚焦会话的 cwd 是否落在项目里
-    private func isActive(_ project: Project) -> Bool {
-        if let bound = sessionManager.selectedTab?.projectPath {
-            return bound == project.path
-        }
-        guard let cwd = sessionManager.selected?.workingDirectory else { return false }
-        return cwd == project.path || cwd.hasPrefix(project.path + "/")
-    }
-
-    private func open(_ project: Project) {
-        sessionManager.openProject(path: project.path)
-    }
-
-    /// 添加项目(+ 或拖入)后立即切到它的工作目录:最后一个成为当前标签
-    private func addAndOpen(_ paths: [String]) {
-        for path in paths {
-            store.add(path: path)
-        }
-        if let last = paths.last {
-            sessionManager.openProject(path: (last as NSString).standardizingPath)
-        }
-    }
-
-    /// 从侧边栏移除项目:绑定它的标签(所有窗口)一起关掉,标签栏不留孤儿
-    private func remove(_ project: Project) {
-        let running = SessionManagerRegistry.shared.runningCommandCount(inProject: project.path)
-        let needsConfirm = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
-        if running > 0, needsConfirm {
-            let alert = NSAlert()
-            alert.messageText = String(localized: "移除「\(project.name)」并关闭它的标签?")
-            alert.informativeText = String(localized: "该项目的标签里还有 \(running) 个命令在运行,关闭会终止它们。")
-            alert.addButton(withTitle: String(localized: "移除并关闭"))
-            alert.addButton(withTitle: String(localized: "取消"))
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-        }
-        SessionManagerRegistry.shared.closeProjectTabs(path: project.path)
-        store.remove(project)
     }
 
     /// 保存当前布局:弹一个带输入框的确认框取名
@@ -273,6 +210,95 @@ struct SidebarView: View {
         )
     }
 
+}
+
+/// shared-axis 转场的单页姿态。progress 0 = 正位且不透明;±1 = 让到一侧并完全透明。
+/// 位移只有 36pt——「轻盈」来自小位移 + 透明度交接,不是来自把整个列表推过整屏
+private struct SharedAxisSlide: ViewModifier {
+    let progress: CGFloat
+
+    private var clamped: CGFloat { max(-1, min(1, progress)) }
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: clamped * 36)
+            .opacity(Double(1 - abs(clamped)))
+            // 让出去的一页同时收一点,避免纯平移的呆板
+            .scaleEffect(1 - abs(clamped) * 0.02, anchor: .center)
+            // 透明的页不该还能点
+            .allowsHitTesting(abs(clamped) < 0.5)
+    }
+}
+
+/// 单个工作区的项目列表。**刻意不用 `List`**:侧边栏把 List 的分隔线、行背景、
+/// 滚动背景全关了,自己画胶囊,等于付了 NSTableView 的代价却一样没用上;
+/// 而转场里每帧重算一个 NSTableView 正是卡顿的来源。ScrollView + LazyVStack
+/// 又轻又完全可控。入参是 Equatable 的,手势途中 SwiftUI 会整页跳过重算
+private struct ProjectListPage: View {
+    let projects: [Project]
+    let showsGuide: Bool
+
+    @Environment(SessionManager.self) private var sessionManager
+    @State private var theme = ThemeStore.shared
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 2) {
+                header
+                ForEach(projects) { project in
+                    ProjectRow(
+                        project: project,
+                        isActive: isActive(project),
+                        attention: SessionManagerRegistry.shared.attention(inProject: project.path),
+                        open: { sessionManager.openProject(path: project.path) },
+                        remove: { remove(project) }
+                    )
+                }
+                if showsGuide { guide }
+                // 新工作区没有内容时保持空白(Arc 惯例):不塞引导文案
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+        }
+        .scrollContentBackground(.hidden)
+    }
+
+    private var header: some View {
+        HStack(spacing: 0) {
+            Text("项目")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.current.secondaryText)
+            Spacer(minLength: 0)
+            PanelIconButton(symbol: "plus", help: String(localized: "添加项目文件夹")) {
+                pickFolder()
+            }
+        }
+        .padding(.leading, 8)
+        .padding(.bottom, 2)
+    }
+
+    private var guide: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("还没有项目")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 2)
+    }
+
+    /// 当前标签绑定了项目就认绑定(cd 走了也照样点亮);没绑定则看聚焦会话的 cwd 是否落在项目里
+    private func isActive(_ project: Project) -> Bool {
+        if let bound = sessionManager.selectedTab?.projectPath {
+            return bound == project.path
+        }
+        guard let cwd = sessionManager.selected?.workingDirectory else { return false }
+        return cwd == project.path || cwd.hasPrefix(project.path + "/")
+    }
+
     private func pickFolder() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -281,44 +307,95 @@ struct SidebarView: View {
         panel.canCreateDirectories = true
         panel.message = String(localized: "选择要固定到侧边栏的项目文件夹(左下角可新建)")
         if panel.runModal() == .OK {
-            addAndOpen(panel.urls.map(\.path))
+            SidebarActions.addAndOpen(panel.urls.map(\.path), in: sessionManager)
+        }
+    }
+
+    /// 从侧边栏移除项目:绑定它的标签(所有窗口)一起关掉,标签栏不留孤儿
+    private func remove(_ project: Project) {
+        let running = SessionManagerRegistry.shared.runningCommandCount(inProject: project.path)
+        let needsConfirm = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
+        if running > 0, needsConfirm {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "移除「\(project.name)」并关闭它的标签?")
+            alert.informativeText = String(localized: "该项目的标签里还有 \(running) 个命令在运行,关闭会终止它们。")
+            alert.addButton(withTitle: String(localized: "移除并关闭"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        SessionManagerRegistry.shared.closeProjectTabs(path: project.path)
+        ProjectStore.shared.remove(project)
+    }
+}
+
+/// 侧边栏的公共动作(+ 按钮与拖入文件夹共用)
+@MainActor
+enum SidebarActions {
+    /// 添加项目后立即切到它的工作目录:最后一个成为当前标签
+    static func addAndOpen(_ paths: [String], in manager: SessionManager) {
+        for path in paths {
+            ProjectStore.shared.add(path: path)
+        }
+        if let last = paths.last {
+            manager.openProject(path: (last as NSString).standardizingPath)
         }
     }
 }
 
-/// 侧边栏区块标题右侧的图标按钮。iOS 导航栏加号的质感:强调色描线、
-/// 24pt 圆形触控区、悬停浮出一层同色淡底、按下回弹一下。
-private struct HeaderIconButton: View {
-    let symbol: String
-    let help: String
-    let action: () -> Void
+/// 项目行拖拽重排的载荷:走私有 JSON 类型,与 Finder 文件拖拽的公共类型互不相认
+struct ProjectDragPayload: Codable, Transferable {
+    let id: UUID
 
-    @State private var hovering = false
-    @State private var theme = ThemeStore.shared
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+    }
+}
+
+/// 项目行的集合。单独抽出来是为了跟手横扫:拖拽期间 dragOffset 每帧变,
+/// SidebarView 的 body 跟着重算;这一层的入参(项目数组)没变时 SwiftUI
+/// 会跳过它的 body,列表不会每帧重建
+private struct ProjectRows: View {
+    let projects: [Project]
+
+    @Environment(SessionManager.self) private var sessionManager
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13.5, weight: .semibold))
-                .foregroundStyle(theme.current.accentColor.opacity(hovering ? 1 : 0.85))
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(theme.current.accentColor.opacity(hovering ? 0.16 : 0)))
-                .contentShape(Circle())
+        ForEach(projects) { project in
+            ProjectRow(
+                project: project,
+                isActive: isActive(project),
+                attention: SessionManagerRegistry.shared.attention(inProject: project.path),
+                open: { sessionManager.openProject(path: project.path) },
+                remove: { remove(project) }
+            )
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
-        .buttonStyle(SpringyIconButtonStyle())
-        .animation(.easeOut(duration: 0.14), value: hovering)
-        .onHover { hovering = $0 }
-        .help(help)
     }
-}
 
-/// 按下缩一下再弹回来:iOS 控件的手感,弹簧参数取「快而不飘」
-private struct SpringyIconButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.88 : 1)
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.55), value: configuration.isPressed)
+    /// 当前标签绑定了项目就认绑定(cd 走了也照样点亮);没绑定则看聚焦会话的 cwd 是否落在项目里
+    private func isActive(_ project: Project) -> Bool {
+        if let bound = sessionManager.selectedTab?.projectPath {
+            return bound == project.path
+        }
+        guard let cwd = sessionManager.selected?.workingDirectory else { return false }
+        return cwd == project.path || cwd.hasPrefix(project.path + "/")
+    }
+
+    /// 从侧边栏移除项目:绑定它的标签(所有窗口)一起关掉,标签栏不留孤儿
+    private func remove(_ project: Project) {
+        let running = SessionManagerRegistry.shared.runningCommandCount(inProject: project.path)
+        let needsConfirm = UserDefaults.standard.object(forKey: SettingsKeys.confirmBeforeClosingTab) as? Bool ?? true
+        if running > 0, needsConfirm {
+            let alert = NSAlert()
+            alert.messageText = String(localized: "移除「\(project.name)」并关闭它的标签?")
+            alert.informativeText = String(localized: "该项目的标签里还有 \(running) 个命令在运行,关闭会终止它们。")
+            alert.addButton(withTitle: String(localized: "移除并关闭"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        SessionManagerRegistry.shared.closeProjectTabs(path: project.path)
+        ProjectStore.shared.remove(project)
     }
 }
 
@@ -457,17 +534,35 @@ enum SpacePrompt {
 }
 
 /// 触控板横扫切换工作区(Arc 手势):本地监视器捕获落在侧边栏上的横向滚动,
-/// 按手势主导轴判定、一次手势只切一档;纵向滚动(项目列表)不受影响
+/// 把累计位移实时喂给 SpaceStore —— 画面严格跟着手指走,松手才判定换档还是弹回。
+/// 轴锁定在手势开头一次性判定并锁死整段,纵向滚动(项目列表)不受影响
 private struct SpaceSwipeCatcher: NSViewRepresentable {
     final class CatcherView: NSView {
         private var monitor: Any?
-        private var accum: CGFloat = 0
-        private var fired = false
+        /// 本次手势的横向累计位移与纵向累计位移(纵向只用于轴判定)
+        private var accumX: CGFloat = 0
+        private var accumY: CGFloat = 0
+        /// 已锁定为横扫:锁定后整段手势都归工作区切换,不再改判
+        private var tracking = false
+        /// 已接管过本次手势:随后的惯性事件一并吞掉,免得漏进列表里滚一下
+        private var swallowsMomentum = false
+        /// 平滑后的横向速度,单位 pt/s(松手时喂给弹簧当初速度,惯性感来自它)
+        private var velocityX: CGFloat = 0
+        /// 上一记事件的时间戳:速度要按真实间隔算,不能假设 60Hz
+        private var lastTimestamp: TimeInterval = 0
+        /// 收尾看门狗:纯兜底,见 scheduleSettle
+        private var settleTimer: Timer?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if window == nil {
                 removeMonitor()
+                settleTimer?.invalidate()
+                settleTimer = nil
+                if tracking {
+                    tracking = false
+                    SpaceStore.shared.dragCancelled()
+                }
             } else if monitor == nil {
                 monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                     MainActor.assumeIsolated { self?.route(event) ?? event }
@@ -481,30 +576,105 @@ private struct SpaceSwipeCatcher: NSViewRepresentable {
         }
 
         private func route(_ event: NSEvent) -> NSEvent? {
-            guard event.window === window else { return event }
-            let point = convert(event.locationInWindow, from: nil)
-            guard bounds.contains(point) else { return event }
-            if event.phase == .began {
-                accum = 0
-                fired = false
+            // 收尾事件抢在窗口归属校验之前处理:抬手那一记 ended 未必带着我们这个
+            // 窗口(指针飘出窗口、事件被合成时都可能为空),一旦被 window 校验挡掉,
+            // 手势就永远收不了尾,strip 卡死在两个工作区之间。只要正在跟手,
+            // 任何来源的 ended/cancelled 都算松手
+            if tracking, event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                finishGesture()
+                return nil
             }
-            // 惯性阶段不计入,避免一次横扫连跳多档
-            guard event.momentumPhase == [], abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) else {
+            guard event.window === window else { return event }
+
+            if event.momentumPhase != [] {
+                // 手指已离开,换档与否在松手那一刻就定了;惯性不再推进位移
+                return swallowsMomentum ? nil : event
+            }
+            if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
+                // 上一次手势要是没收尾(收尾事件丢了),在这里补一记,绝不带着残留进度开新手势
+                finishGesture()
+                accumX = 0
+                accumY = 0
+                velocityX = 0
+                lastTimestamp = event.timestamp
+                swallowsMomentum = false
                 return event
             }
-            accum += event.scrollingDeltaX
-            if !fired, abs(accum) > 50 {
-                fired = true
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    // 自然滚动:指尖右扫(deltaX 正)= 上一个,左扫 = 下一个
-                    SpaceStore.shared.selectAdjacent(accum > 0 ? -1 : 1)
+            // 手指按在触控板上不动时系统会发 stationary:这不是松手,
+            // 只是把看门狗的计时推后,免得停顿被误判成松手(那就是「停顿卡一下」)
+            if event.phase.contains(.stationary) {
+                if tracking {
+                    velocityX = 0
+                    lastTimestamp = event.timestamp
+                    scheduleSettle()
+                    return nil
                 }
+                return event
             }
-            return nil
+            if event.phase.contains(.changed) {
+                accumX += event.scrollingDeltaX
+                accumY += event.scrollingDeltaY
+                if !tracking {
+                    guard shouldLockHorizontal(event) else { return event }
+                    swallowsMomentum = true
+                    tracking = true
+                }
+                updateVelocity(event)
+                // 自然滚动:指尖右扫(deltaX 正)= 内容右移,上一个工作区从左侧进
+                SpaceStore.shared.dragChanged(accumX, width: bounds.width)
+                scheduleSettle()
+                return nil
+            }
+            return event
+        }
+
+        /// 速度按真实事件间隔算成 pt/s 再平滑。只累加每帧 delta 得到的是
+        /// 「每帧位移」,和刷新率绑死,喂给弹簧当初速度会离谱
+        private func updateVelocity(_ event: NSEvent) {
+            let dt = event.timestamp - lastTimestamp
+            lastTimestamp = event.timestamp
+            guard dt > 0.0001, dt < 0.1 else { return }
+            let instant = event.scrollingDeltaX / CGFloat(dt)
+            velocityX = velocityX * 0.5 + instant * 0.5
+        }
+
+        /// 手势收尾的唯一出口:结束事件与看门狗都走这里,保证只吸附一次
+        private func finishGesture() {
+            settleTimer?.invalidate()
+            settleTimer = nil
+            guard tracking else { return }
+            tracking = false
+            SpaceStore.shared.dragEnded(velocity: velocityX, width: bounds.width)
+        }
+
+        /// 收尾看门狗:纯兜底。正常松手由 ended 立刻收尾,停顿有 stationary 续命,
+        /// 轮不到它;留着只是因为「停在两个工作区中间」是死也不能出现的状态,
+        /// 而结束事件的 phase 语义并非所有输入设备都一致。
+        /// 常规 run loop 模式下拖拽/菜单会挂起定时器,必须用 .common
+        private func scheduleSettle() {
+            settleTimer?.invalidate()
+            let timer = Timer(timeInterval: 1.0, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated { self?.finishGesture() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            settleTimer = timer
+        }
+
+        /// 轴锁定:指针在侧边栏内、有多个工作区、且手势起步阶段横向明显压过纵向。
+        /// 只在纵向还没走远时判定——列表滚到一半的横向抖动不该被当成切换
+        private func shouldLockHorizontal(_ event: NSEvent) -> Bool {
+            let point = convert(event.locationInWindow, from: nil)
+            guard bounds.contains(point),
+                  SpaceStore.shared.spaces.count > 1,
+                  abs(accumY) < 12,
+                  abs(event.scrollingDeltaX) > 0.5,
+                  abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) * 1.5 else { return false }
+            return true
         }
 
         deinit {
             if let monitor { NSEvent.removeMonitor(monitor) }
+            settleTimer?.invalidate()
         }
     }
 
@@ -519,7 +689,11 @@ private struct ProjectRow: View {
     let open: () -> Void
     let remove: () -> Void
 
+    @Environment(SessionManager.self) private var sessionManager
     @State private var hovering = false
+    @State private var isRenaming = false
+    @State private var editText = ""
+    @FocusState private var renameFocused: Bool
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
@@ -530,6 +704,16 @@ private struct ProjectRow: View {
 
     private var rowAccent: Color { projectColor ?? theme.accentColor }
 
+    private func commitRename() {
+        guard isRenaming else { return }
+        ProjectStore.shared.rename(project.id, to: editText)
+        isRenaming = false
+        // 输入框收起后把键盘交还终端:推迟一拍,否则 AppKit 会在它移出视图树时
+        // 再分配一次 first responder,把这次抢回来(与标签改名同一处理)
+        let manager = sessionManager
+        DispatchQueue.main.async { manager.selected?.focusTerminal() }
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             // Finder 式裸图标:固定宽度对齐成列,活动态用强调色
@@ -538,9 +722,31 @@ private struct ProjectRow: View {
                 .foregroundStyle(projectColor?.opacity(isActive ? 1 : 0.8) ?? (isActive ? theme.accentColor : Color.secondary))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 1.5) {
-                Text(project.name)
-                    .font(.system(size: 13, weight: isActive ? .semibold : .medium))
-                    .lineLimit(1)
+                if isRenaming {
+                    TextField("", text: $editText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .focused($renameFocused)
+                        .onSubmit { commitRename() }
+                        .onExitCommand {
+                            // Esc 放弃修改
+                            isRenaming = false
+                            let manager = sessionManager
+                            DispatchQueue.main.async { manager.selected?.focusTerminal() }
+                        }
+                        .onAppear {
+                            editText = project.name
+                            renameFocused = true
+                        }
+                        .onChange(of: renameFocused) { _, focused in
+                            if !focused { commitRename() } // 点别处失焦即提交
+                        }
+                } else {
+                    Text(project.name)
+                        .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                        .lineLimit(1)
+                }
                 Text((project.path as NSString).abbreviatingWithTildeInPath)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.tertiary)
@@ -567,16 +773,42 @@ private struct ProjectRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(
-            Capsule()
-                .fill(isActive ? rowAccent.opacity(0.16) : (hovering ? Color.primary.opacity(0.06) : .clear))
-        )
+        // 选中态与标题栏的选中标签同一块材质(浮起 + 顶部高光),
+        // 强调色只留在文件夹图标与状态点上——全窗「选中 = 浮起」是一条规则
+        .background {
+            if isActive {
+                RaisedCapsule()
+            } else if hovering {
+                Capsule().fill(Color.primary.opacity(0.06))
+            }
+        }
+        .foregroundStyle(isActive ? .primary : .secondary)
         .contentShape(Capsule())
         .animation(.easeOut(duration: 0.12), value: hovering)
         .onHover { hovering = $0 }
-        .onTapGesture(perform: open)
+        // 双击改名(先注册,优先于单击打开;首击仍会切过去,正好选中被改名的项目)
+        .onTapGesture(count: 2) {
+            guard !isRenaming else { return }
+            isRenaming = true
+        }
+        .onTapGesture {
+            guard !isRenaming else { return }
+            open()
+        }
+        // 拖拽重排:拖起一行丢到另一行上,占据其位置(与标签 chip 同一手感)。
+        // 载荷用私有 JSON 类型而不是字符串——Finder 拖文件夹时会一并提供纯文本,
+        // 行上若挂着字符串 drop 目标就会把「拖文件夹进侧边栏」半路截胡
+        .draggable(ProjectDragPayload(id: project.id))
+        .dropDestination(for: ProjectDragPayload.self) { items, _ in
+            guard let dragged = items.first?.id else { return false }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                ProjectStore.shared.move(dragged, before: project.id)
+            }
+            return true
+        }
         .contextMenu {
             Button("切换到该项目") { open() }
+            Button("重命名") { isRenaming = true }
             Button("在 Finder 中打开") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: project.path)])
             }
@@ -614,6 +846,7 @@ private struct ProjectRow: View {
             Divider()
             Button("移除(并关闭其标签)", role: .destructive, action: remove)
         }
-        .help(project.path)
+        // 路径下面挂一行手势提示:改名与排序都没有常驻按钮,靠 tooltip 让人知道有这回事
+        .help(project.path + "\n" + String(localized: "双击重命名 · 拖动调整顺序"))
     }
 }

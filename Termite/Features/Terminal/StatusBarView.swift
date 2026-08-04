@@ -171,7 +171,7 @@ struct StatusBarView: View {
             }
             if session.gitBranch != nil, let dir = session.workingDirectory {
                 separatorDot
-                GitEmailStatusItem(workingDirectory: dir)
+                GitEmailStatusItem(workingDirectory: dir, identityRevision: session.gitIdentityRevision)
             }
         }
     }
@@ -199,9 +199,11 @@ struct StatusBarView: View {
 }
 
 /// git user.email 展示项:双身份(工作/个人)场景一眼看清当前提交身份,点击弹出编辑。
-/// 目录切换时重查;编辑弹层关闭后重查,让改动立即反映到条上。
+/// 目录切换、终端里改过 git 配置(identityRevision)、编辑弹层关闭后都重查,
+/// 让 `git config user.email …` 这类改动立即反映到条上。
 private struct GitEmailStatusItem: View {
     let workingDirectory: String
+    let identityRevision: Int
 
     @State private var email = ""
     @State private var hasLocalOverride = false
@@ -226,7 +228,7 @@ private struct GitEmailStatusItem: View {
         .popover(isPresented: $editing, arrowEdge: .top) {
             GitIdentityView(repoRoot: workingDirectory)
         }
-        .task(id: workingDirectory) { await load() }
+        .task(id: "\(identityRevision)@\(workingDirectory)") { await load() }
         .onChange(of: editing) { _, showing in
             if !showing { Task { await load() } }
         }

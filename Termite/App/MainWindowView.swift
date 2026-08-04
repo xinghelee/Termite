@@ -104,9 +104,11 @@ struct MainWindowView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)
         .background(WindowConfigurator(
             appearanceName: theme.current.appearanceName,
+            // 窗口底色即透明标题栏透出的颜色:用 chrome 带色(= 侧边栏色),
+            // 顶栏与侧边栏连成一块暗底,终端区自己铺亮底
             backgroundColor: projectAccent.map {
-                theme.current.backgroundNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
-            } ?? theme.current.backgroundNSColor,
+                theme.current.sidebarNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
+            } ?? theme.current.sidebarNSColor,
             onWindowEarly: { window in
                 // 首帧之前把窗口摆到上次的位置(Dock 重开/冷启动都不闪旧位置)
                 SessionManagerRegistry.shared.prepareForReveal(manager, window: window)

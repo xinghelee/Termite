@@ -30,8 +30,14 @@ struct TerminalTheme: Identifiable, Equatable, Codable {
     var accentColor: SwiftUI.Color { Color(nsColor: NSColor(hex: accent)) }
     /// 窗口/终端区底色
     var chromeBackground: SwiftUI.Color { Color(nsColor: backgroundNSColor) }
-    /// 侧栏底色:深色比背景更深一档、浅色略压灰,拉开与终端区的层次
-    var sidebarBackground: SwiftUI.Color { Color(nsColor: backgroundNSColor.mixed(with: .black, ratio: isDark ? 0.35 : 0.05)) }
+    /// chrome 带底色(标题栏 + 侧边栏共用):深色比背景更深一档、浅色略压灰。
+    /// 「工具栏 + 侧边栏 = 一块暗底,终端 = 一块亮底」是全窗的层次基准,
+    /// 两处必须同色,否则左上角会出现一道色阶断层
+    var sidebarNSColor: NSColor { backgroundNSColor.mixed(with: .black, ratio: isDark ? 0.35 : 0.05) }
+    var sidebarBackground: SwiftUI.Color { Color(nsColor: sidebarNSColor) }
+    /// 内凹轨道底色(标签轨道等):比 chrome 带再暗一档,凹进去的读感
+    var trackNSColor: NSColor { backgroundNSColor.mixed(with: .black, ratio: isDark ? 0.52 : 0.11) }
+    var trackBackground: SwiftUI.Color { Color(nsColor: trackNSColor) }
     /// 主机列表/面板底色:比背景略亮
     var panelBackground: SwiftUI.Color { Color(nsColor: backgroundNSColor.mixed(with: isDark ? .white : .black, ratio: 0.03)) }
     /// 悬浮/标签条材质底色

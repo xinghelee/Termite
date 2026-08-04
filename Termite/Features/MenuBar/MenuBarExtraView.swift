@@ -64,8 +64,9 @@ struct MenuBarExtraView: View {
             QuickTerminalController.shared.toggle()
         }
         Divider()
-        SettingsLink {
-            Text("设置…")
+        Button("设置…") {
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: SettingsWindow.id)
         }
         Divider()
         Button("退出 Termite") {

@@ -24,12 +24,20 @@ struct ThemePanelView: View {
 
 /// 主题色卡网格(popover 与设置页共用)
 struct ThemePanelGrid: View {
+    /// 设置页宽度可拉伸,按卡片最小宽度自适应列数;popover 宽度固定,两列
+    var adaptiveMinimum: CGFloat?
+
     @State private var themeStore = ThemeStore.shared
 
-    private let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+    private var grid: [GridItem] {
+        guard let adaptiveMinimum else {
+            return [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+        }
+        return [GridItem(.adaptive(minimum: adaptiveMinimum), spacing: 8)]
+    }
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        LazyVGrid(columns: grid, spacing: 8) {
             ForEach(TerminalTheme.builtIn) { theme in
                 ThemeCard(theme: theme, isSelected: themeStore.current.id == theme.id)
                     .onTapGesture { themeStore.select(id: theme.id) }

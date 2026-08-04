@@ -9,6 +9,8 @@ struct WindowConfigurator: NSViewRepresentable {
     let backgroundColor: NSColor
     /// 独立小窗保留标题文字,主窗口隐藏
     var keepsTitle = false
+    /// 内容延伸到标题栏之下(设置窗口:左栏底色一路铺到窗口顶)
+    var fullSizeContent = false
     /// 挂载瞬间(窗口尚未显示)的同步回调:预放置 frame 等必须赶在首帧前的事。
     /// SwiftUI 会先按自己记忆的位置显示窗口,任何 async 后的 setFrame 都会闪现旧位置一帧
     var onWindowEarly: ((NSWindow) -> Void)?
@@ -57,6 +59,9 @@ struct WindowConfigurator: NSViewRepresentable {
     private func configureChrome(_ window: NSWindow) {
         window.appearance = NSAppearance(named: appearanceName)
         window.titlebarAppearsTransparent = true
+        if fullSizeContent {
+            window.styleMask.insert(.fullSizeContentView)
+        }
         window.titleVisibility = keepsTitle ? .visible : .hidden
         window.backgroundColor = backgroundColor
     }

@@ -90,9 +90,15 @@ struct TermiteApp: App {
         }
         .defaultSize(width: 1180, height: 780)
 
-        Settings {
+        // 设置用普通 Window 而不是 Settings 场景:Settings 场景在窗口显示时会
+        // 抹掉 .resizable(拉不动边角),⌘, 与菜单项改由 TerminalCommands 提供
+        Window("设置", id: SettingsWindow.id) {
             SettingsView()
         }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 820, height: 600)
+        // 退出时开着设置,下次启动不该自己弹出来
+        .restorationBehavior(.disabled)
 
         // 菜单栏常驻入口(设置里可关):有 pane 等待输入时图标带数字角标
         MenuBarExtra(
@@ -123,6 +129,14 @@ struct TerminalCommands: Commands {
                     UpdateChecker.shared.checkInteractively()
                 }
             }
+        }
+
+        // Settings 场景换成 Window 后,「设置…」与 ⌘, 由这里接上
+        CommandGroup(replacing: .appSettings) {
+            Button("设置…") {
+                openWindow(id: SettingsWindow.id)
+            }
+            .keyboardShortcut(",", modifiers: .command)
         }
 
         CommandGroup(replacing: .newItem) {

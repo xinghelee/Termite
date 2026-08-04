@@ -45,17 +45,24 @@ final class ProjectStore {
         save()
     }
 
-    /// 过滤视图(工作区)下的拖拽重排:把可见子集的新顺序映射回全量列表,
-    /// 不可见项目的位置原地不动
-    func move(visibleIDs: [UUID], fromOffsets: IndexSet, toOffset: Int) {
-        var reordered = visibleIDs
-        reordered.move(fromOffsets: fromOffsets, toOffset: toOffset)
-        let visibleSet = Set(visibleIDs)
-        let byID = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
-        var queue = reordered
-        projects = projects.map { project in
-            visibleSet.contains(project.id) ? byID[queue.removeFirst()]! : project
-        }
+    /// 项目行拖拽重排:把 dragged 移到 target 当前的位置(与标签 chip 同一套手感)。
+    /// 直接在全量列表上搬——拖拽两端必定同属一个工作区,不可见项目的相对位置不受影响
+    func move(_ dragged: UUID, before targetID: UUID) {
+        guard dragged != targetID,
+              let from = projects.firstIndex(where: { $0.id == dragged }) else { return }
+        let project = projects.remove(at: from)
+        let insertAt = projects.firstIndex { $0.id == targetID } ?? min(from, projects.count)
+        projects.insert(project, at: insertAt)
+        save()
+    }
+
+    /// 重命名:留空还原成目录名(改名只动显示名,路径与绑定不变)
+    func rename(_ projectID: UUID, to name: String) {
+        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        projects[index].name = trimmed.isEmpty
+            ? (projects[index].path as NSString).lastPathComponent
+            : trimmed
         save()
     }
 

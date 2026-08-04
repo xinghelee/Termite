@@ -47,8 +47,13 @@ final class SpaceStore {
         return effectiveSpaceID(of: project) == space.id
     }
 
-    /// 最近一次切换的进场方向(侧边栏水平推入动画):向后切=新内容从右侧推入
+    /// 最近一次切换的进场方向(工作区名的水平推入动画):向后切=新内容从右侧推入
     private(set) var slideEdge: Edge = .trailing
+
+    /// 当前工作区在列表中的位置(侧边栏分页 strip 的定位基准)
+    var selectedIndex: Int {
+        spaces.firstIndex { $0.id == selectedID } ?? 0
+    }
 
     func select(_ id: UUID) {
         if let from = spaces.firstIndex(where: { $0.id == selectedID }),
@@ -60,6 +65,74 @@ final class SpaceStore {
         notifyWorkspaceChange()
     }
 
+    // MARK: - 跟手横扫
+
+    /// 切换进度 −1…1(负=下一个工作区正在进场,正=上一个)。
+    /// 侧边栏据此做 shared-axis 转场:内容只平移几十点,靠透明度完成交接——
+    /// 全宽平移一整个列表既沉又要在动画中途构建新页面,那是卡顿的来源
+    private(set) var dragProgress: CGFloat = 0
+
+    /// 一次切换需要的手指行程:半个侧边栏宽,再给个下限免得窄侧边栏太灵敏
+    private func swipeSpan(width: CGFloat) -> CGFloat {
+        max(90, width * 0.5)
+    }
+
+    /// 手指移动:首尾之外的方向加阻尼(橡皮筋),让"到头了"有手感而不是硬停
+    func dragChanged(_ translation: CGFloat, width: CGFloat) {
+        guard spaces.count > 1 else { return }
+        let index = selectedIndex
+        var progress = translation / swipeSpan(width: width)
+        if (progress > 0 && index == 0) || (progress < 0 && index == spaces.count - 1) {
+            progress *= 0.25
+        }
+        dragProgress = max(-1, min(1, progress))
+    }
+
+    /// 松手:按手指速度把进度投影出去,过半就完成切换,否则退回。
+    /// 初速度喂给 interpolatingSpring —— iOS 那种"甩出去"的惯性来自这里,
+    /// 而不是来自更长的位移距离
+    func dragEnded(velocity: CGFloat, width: CGFloat) {
+        guard dragProgress != 0 else { return }
+        let span = swipeSpan(width: width)
+        // velocity 是 pt/s,换算成"进度/秒"才能和 dragProgress 同一量纲
+        let progressVelocity = velocity / span
+        let projected = dragProgress + progressVelocity * 0.13
+        let delta = dragProgress > 0 ? -1 : 1
+        let canMove = spaces.indices.contains(selectedIndex + delta)
+        let committed = abs(projected) > 0.5 && canMove
+
+        let target: CGFloat = committed ? (dragProgress > 0 ? 1 : -1) : 0
+        let distance = target - dragProgress
+        // 初速度按动画总行程归一化;行程趋零时归一化会炸,夹住
+        let initialVelocity = distance == 0 ? 0 : max(-24, min(24, progressVelocity / distance))
+        let animation = Animation.interpolatingSpring(duration: 0.32, bounce: 0.08,
+                                                      initialVelocity: initialVelocity)
+
+        guard committed else {
+            withAnimation(animation) { dragProgress = 0 }
+            return
+        }
+        // 进度推到 ±1 时,进场页已经严丝合缝落在 offset 0 / 不透明,
+        // 此刻换选中并把进度归零,画面前后完全一致,不闪
+        let target2 = spaces[selectedIndex + delta].id
+        withAnimation(animation, completionCriteria: .logicallyComplete) {
+            dragProgress = target
+        } completion: {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                self.select(target2)
+                self.dragProgress = 0
+            }
+        }
+    }
+
+    /// 手势被打断(切窗口等):无条件退回
+    func dragCancelled() {
+        guard dragProgress != 0 else { return }
+        withAnimation(.interpolatingSpring(duration: 0.28, bounce: 0.08)) { dragProgress = 0 }
+    }
+
     /// 工作区切换/删除后让各窗口重选标签(不在本工作区的标签藏起来,空工作区回欢迎面板)
     private func notifyWorkspaceChange() {
         for manager in SessionManagerRegistry.shared.managers {
@@ -67,11 +140,13 @@ final class SpaceStore {
         }
     }
 
-    /// 相邻切换(触控板横扫 / ⌃⌥←→):循环滚动
+    /// 相邻切换(触控板横扫 / ⌃⌥←→):到首尾即止,不循环——
+    /// 侧边栏已改成横向分页 strip,循环意味着一次切换整条横向飞过所有工作区
     func selectAdjacent(_ delta: Int) {
-        guard spaces.count > 1, let current = selected,
-              let index = spaces.firstIndex(of: current) else { return }
-        select(spaces[(index + delta + spaces.count) % spaces.count].id)
+        guard spaces.count > 1 else { return }
+        let target = selectedIndex + delta
+        guard spaces.indices.contains(target) else { return }
+        select(spaces[target].id)
     }
 
     @discardableResult

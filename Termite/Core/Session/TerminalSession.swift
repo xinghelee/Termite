@@ -34,6 +34,9 @@ final class TerminalSession: Identifiable {
     private(set) var gitBranch: String?
     /// 未提交文件数(状态栏 ●n;非仓库为 nil)
     private(set) var gitDirtyCount: Int?
+    /// git 提交身份的变更计数:配置文件(仓库 config / 全局 gitconfig)动过就 +1,
+    /// 状态栏据此重读身份 —— 终端里 git config user.email 改完立刻反映到条上
+    private(set) var gitIdentityRevision = 0
     /// 输出里检测到的最近一个本机服务 URL(dev server 场景,状态栏一键打开)
     private(set) var detectedLocalURL: String?
     /// 最近一条命令的退出码(需 OSC 133 shell 集成)
@@ -148,6 +151,8 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var gitProbeTask: Task<Void, Never>?
     @ObservationIgnored private var gitDirtyTask: Task<Void, Never>?
     @ObservationIgnored private var lastGitDirtyProbeAt = Date.distantPast
+    @ObservationIgnored private var gitIdentityTask: Task<Void, Never>?
+    @ObservationIgnored private var gitIdentityStamp: String?
 
     /// manager 必须在 init 传入(而非事后赋值):start() 里靠它区分
     /// 普通会话(可保活)与下拉终端(始终本地直连)
@@ -649,6 +654,7 @@ final class TerminalSession: Identifiable {
                 probeGitBranch(dir)
                 if gitBranch != nil {
                     probeGitDirty(dir)
+                    probeGitIdentity(dir)
                 }
             }
         }
@@ -1074,6 +1080,21 @@ final class TerminalSession: Identifiable {
         guard let dir = workingDirectory else { return }
         probeGitBranch(dir)
         probeGitDirty(dir, force: true)
+        probeGitIdentity(dir)
+    }
+
+    /// 提交身份探测:先比对配置文件 mtime(纯 stat,零子进程),
+    /// 真变了才通知状态栏去跑 git config —— 每条命令后都能发现改动,又不多花子进程
+    private func probeGitIdentity(_ path: String) {
+        gitIdentityTask?.cancel()
+        gitIdentityTask = Task { [weak self] in
+            let stamp = await Task.detached { GitProbe.identityStamp(at: path) }.value
+            guard !Task.isCancelled, let self else { return }
+            defer { gitIdentityStamp = stamp }
+            // 首次(新会话 / 刚换目录)只记基线:视图本来就会按目录重读
+            guard let previous = gitIdentityStamp, previous != stamp else { return }
+            gitIdentityRevision += 1
+        }
     }
 
     /// 未提交文件数探测(节流;命令结束/目录变化时刷)
@@ -1116,6 +1137,9 @@ extension TerminalSession: LocalProcessTerminalViewDelegate {
         probeGitBranch(path)
         // 换目录必强刷脏计数:跨仓库切换分支名可能相同,branch 判等测不出变化
         probeGitDirty(path, force: true)
+        // 身份指纹跟着目录走:换仓库后旧基线无意义,清掉重记
+        gitIdentityStamp = nil
+        probeGitIdentity(path)
         DirectoryHistory.shared.record(path: path)
         manager?.workingDirectoryChanged()
     }
@@ -1218,10 +1242,48 @@ enum StructuredOutputFormat: String {
 /// 向上不越过家目录,减少对受 TCC 保护目录(文稿/桌面等)的主动触碰。
 enum GitProbe {
     static func branch(at path: String) -> String? {
+        guard let gitDir = gitDirectory(at: path),
+              let head = try? String(contentsOf: gitDir.appendingPathComponent("HEAD"), encoding: .utf8)
+                  .trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        if head.hasPrefix("ref: refs/heads/") {
+            return String(head.dropFirst("ref: refs/heads/".count))
+        }
+        return String(head.prefix(8)) // detached HEAD:短 hash
+    }
+
+    /// 提交身份相关配置文件的 mtime 指纹(仓库级 + 全局):纯 stat,零子进程。
+    /// 状态栏拿它判断「要不要再花几个 git config 子进程读身份」
+    static func identityStamp(at path: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        var files = [
+            home.appendingPathComponent(".gitconfig"),
+            home.appendingPathComponent(".config/git/config"),
+        ]
+        if let gitDir = gitDirectory(at: path) {
+            files.append(gitDir.appendingPathComponent("config"))
+            // 链接 worktree 的 .git 指向 <main>/.git/worktrees/<name>,
+            // user.* 落在主仓库的 config 上,顺着 commondir 一并盯住
+            if let common = try? String(contentsOf: gitDir.appendingPathComponent("commondir"), encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines), !common.isEmpty {
+                let resolved = common.hasPrefix("/")
+                    ? URL(fileURLWithPath: common)
+                    : gitDir.appendingPathComponent(common).standardizedFileURL
+                files.append(resolved.appendingPathComponent("config"))
+            }
+        }
+        return files.map { file in
+            let attributes = try? FileManager.default.attributesOfItem(atPath: file.path)
+            let modified = attributes?[.modificationDate] as? Date
+            return "\(file.path):\(modified?.timeIntervalSince1970 ?? 0)"
+        }.joined(separator: "|")
+    }
+
+    /// 向上找到 cwd 所属仓库的 .git 目录(worktree/submodule 的 gitdir 指针也解析)
+    private static func gitDirectory(at path: String) -> URL? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var dir = URL(fileURLWithPath: path)
         for _ in 0..<24 {
-            if let branch = probeRepo(at: dir) { return branch }
+            if let gitDir = resolveGitDir(at: dir) { return gitDir }
             // 家目录和根目录是遍历上界(家目录本身极少是仓库,其下受保护目录不再触碰)
             if dir.path == home || dir.path == "/" { return nil }
             let parent = dir.deletingLastPathComponent()
@@ -1231,28 +1293,17 @@ enum GitProbe {
         return nil
     }
 
-    private static func probeRepo(at dir: URL) -> String? {
+    private static func resolveGitDir(at dir: URL) -> URL? {
         let gitPath = dir.appendingPathComponent(".git")
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: gitPath.path, isDirectory: &isDirectory) else { return nil }
-        let headURL: URL
-        if isDirectory.boolValue {
-            headURL = gitPath.appendingPathComponent("HEAD")
-        } else {
-            // worktree/submodule:.git 是一个 "gitdir: <path>" 文件
-            guard let content = try? String(contentsOf: gitPath, encoding: .utf8),
-                  let gitdir = content.split(separator: ":").dropFirst().first?
-                      .trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
-            let resolved = gitdir.hasPrefix("/")
-                ? URL(fileURLWithPath: gitdir)
-                : dir.appendingPathComponent(gitdir)
-            headURL = resolved.appendingPathComponent("HEAD")
-        }
-        guard let head = try? String(contentsOf: headURL, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
-        if head.hasPrefix("ref: refs/heads/") {
-            return String(head.dropFirst("ref: refs/heads/".count))
-        }
-        return String(head.prefix(8)) // detached HEAD:短 hash
+        guard !isDirectory.boolValue else { return gitPath }
+        // worktree/submodule:.git 是一个 "gitdir: <path>" 文件
+        guard let content = try? String(contentsOf: gitPath, encoding: .utf8),
+              let gitdir = content.split(separator: ":").dropFirst().first?
+                  .trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        return gitdir.hasPrefix("/")
+            ? URL(fileURLWithPath: gitdir)
+            : dir.appendingPathComponent(gitdir).standardizedFileURL
     }
 }

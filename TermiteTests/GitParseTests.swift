@@ -47,6 +47,27 @@ final class GitParseTests: XCTestCase {
         XCTAssertEqual(entries[1].code, "R")
         XCTAssertEqual(entries[1].path, "new.swift")
     }
+
+    /// 终端里 `git config user.email …` 改完,状态栏得能发现:
+    /// 指纹只看配置文件 mtime(零子进程),配置动过就必须变
+    func testIdentityStampChangesWhenConfigChanges() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("termite-git-\(UUID().uuidString)")
+        let gitDir = root.appendingPathComponent(".git")
+        try FileManager.default.createDirectory(at: gitDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let config = gitDir.appendingPathComponent("config")
+        try "ref: refs/heads/feature/x\n".write(to: gitDir.appendingPathComponent("HEAD"), atomically: true, encoding: .utf8)
+        try "[user]\n\temail = a@example.com\n".write(to: config, atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(GitProbe.branch(at: root.path), "feature/x")
+        let before = GitProbe.identityStamp(at: root.path)
+        XCTAssertEqual(GitProbe.identityStamp(at: root.path), before, "配置没动,指纹不该抖")
+
+        Thread.sleep(forTimeInterval: 0.02) // 拉开 mtime
+        try "[user]\n\temail = b@example.com\n".write(to: config, atomically: true, encoding: .utf8)
+        XCTAssertNotEqual(GitProbe.identityStamp(at: root.path), before)
+    }
 }
 
 final class UnifiedDiffTests: XCTestCase {
