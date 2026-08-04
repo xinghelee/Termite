@@ -315,6 +315,24 @@ extension TerminalTheme {
 
     // MARK: 精选系(设计代理出品,全套过 WCAG 对比度实算:fg/bg ≥7、彩色 ≥3、色相间隔 ≥25°)
 
+    /// 纯黑:#000000 真全黑底(OLED/高对比人群点名要的),chrome 带与轨道随派生
+    /// 全部落在黑上,整窗一体;文字留一点灰避免刺眼,ANSI 用系统色系的亮档
+    /// (真黑底上暗色会糊);强调色取中性亮灰,不给全黑画面添彩色杂音
+    static let pureBlack = TerminalTheme(
+        id: "pure-black",
+        name: String(localized: "纯黑 Pure Black"),
+        isDark: true,
+        background: "#000000",
+        foreground: "#E6E6E6",
+        cursor: "#FFFFFF",
+        selection: "#333333",
+        accent: "#E5E5E5",
+        ansi: [
+            "#1A1A1A", "#FF5F57", "#32D74B", "#FFD60A", "#0A84FF", "#BF5AF2", "#5AC8FA", "#D6D6D6",
+            "#4D4D4D", "#FF6E67", "#5DE372", "#FFE454", "#409CFF", "#D28CF7", "#70D7FF", "#FFFFFF",
+        ]
+    )
+
     /// 松烟墨:暖炭墨底 + 矿物颜料六色(朱砂/藤黄/竹绿/花青/胭脂/石绿),朱砂钤印作唯一高光。
     /// 与「玉版宣」共用色相体系,组成明暗成对的「墨与纸」双联。
     static let sumi = TerminalTheme(
@@ -382,7 +400,7 @@ extension TerminalTheme {
     )
 
     static let builtIn: [TerminalTheme] = [
-        .midnight, .termiteDark, .sumi, .amberMooring, .emeraldSanctum,
+        .midnight, .termiteDark, .pureBlack, .sumi, .amberMooring, .emeraldSanctum,
         .tokyoNight, .catppuccinMacchiato, .dracula, .nord, .gruvboxDark,
         .solarizedDark, .snazzy, .catppuccinMocha, .synthwave,
         .xuan, .oneLight, .githubLight, .catppuccinLatte, .rosePineDawn, .ayuLight,
