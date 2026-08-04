@@ -163,7 +163,10 @@ struct MarkdownBlocksView: View {
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        // Lazy 是硬要求:1500 行文档能解析出六七百个块,普通 VStack 会把它们
+        // 全量同步实例化在主线程(每块 Text + 选择容器几毫秒),整面板卡住 10s 级
+        // (社区反馈实测);解析本身只要几十 ms,不是瓶颈。Lazy 后只实例化可见块
+        LazyVStack(alignment: .leading, spacing: 9) {
             ForEach(blocks) { block in
                 blockView(block.kind)
             }
