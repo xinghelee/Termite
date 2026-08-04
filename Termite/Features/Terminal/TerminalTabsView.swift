@@ -394,14 +394,9 @@ struct TerminalTabsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // 设置「空窗口自动新建终端」后跳过此空白页,窗口一出现就是可用的 shell;
-        // 只对真空窗口生效——空工作区的欢迎面板是有意的白纸,不自动开
-        .onAppear {
-            if UserDefaults.standard.bool(forKey: SettingsKeys.autoNewTabOnEmpty),
-               sessionManager.tabs.isEmpty {
-                sessionManager.newTab()
-            }
-        }
+        // 「空窗口自动新建终端」的自动补标签**不能**挂在这里:欢迎页每次出现都会触发,
+        // 关掉最后一个标签就会被立刻补一个,标签看着永远关不掉(issue #7)。
+        // 改由 SessionManager 在窗口打开那一刻补一次
     }
 }
 

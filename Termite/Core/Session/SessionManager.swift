@@ -721,6 +721,10 @@ final class SessionManager {
     @discardableResult
     func restoreOrCreateInitialTabs(windowKey: UUID? = nil) -> [UUID] {
         guard !isRetired, tabs.isEmpty else { return [] }
+        // 「空窗口自动新建终端」只在窗口打开这一刻补一次。以前挂在欢迎页的
+        // onAppear 上,于是关掉最后一个标签→窗口变空→欢迎页出现→立刻又补一个,
+        // 标签看起来永远关不掉(issue #7)。走完下面所有分支后统一补
+        defer { autoCreateTabIfNeeded() }
         let registry = SessionManagerRegistry.shared
         // 「移到新窗口」的标签优先领养
         if let adoption = registry.takePendingAdoptTab() {
@@ -743,7 +747,7 @@ final class SessionManager {
         let enabled = (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
             && !isTesting
         guard enabled, registry.isFirst(self) else {
-            // 没内容就停在欢迎页(「空窗口自动新建终端」设置开着时由欢迎页自动补);
+            // 没内容就停在欢迎页(开了「空窗口自动新建终端」的由上面的 defer 补);
             // 单测宿主保留自动建标签的旧行为,用例假定初始有一个标签
             if isTesting {
                 newTab()
@@ -772,6 +776,14 @@ final class SessionManager {
         // 守护进程里 app 状态没记到的活会话(崩溃丢状态等):收养成新标签,不留隐形僵尸
         Task { await adoptOrphanHostSessions(claimed: claimedPtyIDs) }
         return extraWindowKeys
+    }
+
+    /// 开了「空窗口自动新建终端」且这个窗口开出来确实一个标签都没有时,补一个 shell。
+    /// 只在窗口打开时调用——⌘W 关到最后一个标签必须能停在欢迎页(issue #7)
+    private func autoCreateTabIfNeeded() {
+        guard tabs.isEmpty,
+              UserDefaults.standard.bool(forKey: SettingsKeys.autoNewTabOnEmpty) else { return }
+        newTab()
     }
 
     /// 按单个窗口的存档重建:标签 + 选中标签 + 窗口 frame(frame 挂起到 bind 时应用)
