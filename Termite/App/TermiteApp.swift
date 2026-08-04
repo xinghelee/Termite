@@ -3,6 +3,14 @@ import UniformTypeIdentifiers
 
 /// 退出确认:有命令在跑时 ⌘Q 先弹确认(设置里的「关闭确认」总开关控制)
 final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
+    /// 菜单栏图标在这里接管:NSStatusItem 必须等 app 启动完成后创建。
+    /// 在 App.init(NSApplicationMain 之前)创建有间歇性启动卡死的风险
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            MenuBarItemController.shared.start()
+        }
+    }
+
     /// Dock 拖文件夹 / `open -a Termite <dir>`(termite CLI):在该目录开新标签
     func application(_ application: NSApplication, open urls: [URL]) {
         MainActor.assumeIsolated {
@@ -100,17 +108,9 @@ struct TermiteApp: App {
         // 退出时开着设置,下次启动不该自己弹出来
         .restorationBehavior(.disabled)
 
-        // 菜单栏常驻入口(设置里可关):有 pane 等待输入时图标带数字角标
-        MenuBarExtra(
-            isInserted: .init(
-                get: { UserDefaults.standard.object(forKey: SettingsKeys.menuBarExtra) as? Bool ?? true },
-                set: { UserDefaults.standard.set($0, forKey: SettingsKeys.menuBarExtra) }
-            )
-        ) {
-            MenuBarExtraView()
-        } label: {
-            MenuBarAttentionLabel()
-        }
+        // 菜单栏图标不在这里:它是 AppKit 的 NSStatusItem,由 MenuBarItemController
+        // 在启动时接管(理由见该文件顶部注释——MenuBarExtra 的 isInserted 这条路
+        // 要么关不掉,要么启动死循环)
     }
 }
 
