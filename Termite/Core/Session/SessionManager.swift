@@ -257,11 +257,14 @@ final class SessionManager {
 
     private func inheritedDirectory() -> String? {
         let inherits = UserDefaults.standard.object(forKey: SettingsKeys.newTabInheritsCwd) as? Bool ?? true
-        if inherits, let cwd = selected?.workingDirectory { return cwd }
-        // 欢迎页(没有任何会话可继承)时:有项目就从当前工作区第一个项目的目录起,
+        // 只认「当前工作区里看得见的」聚焦会话:选中标签有可能是别的工作区的隐形标签,
+        // 从它继承目录,新标签就跟着落进别的工作区,建了也看不见
+        let inheritable = selectedTab.map(tabInCurrentSpace) == true ? selected : nil
+        if inherits, let cwd = inheritable?.workingDirectory { return cwd }
+        // 欢迎页(没有可继承的会话)时:有项目就从当前工作区第一个项目的目录起,
         // 而不是落到 ~——侧边栏摆着项目还开进家目录反直觉。
         // 有会话但关了继承设置的场景不受影响,仍回家目录
-        guard selected == nil else { return nil }
+        guard inheritable == nil else { return nil }
         return ProjectStore.shared.projects.first { SpaceStore.shared.isVisible($0) }?.path
     }
 
@@ -514,7 +517,13 @@ final class SessionManager {
             sessions.removeAll { $0.id == id }
         }
         tabs.removeAll { $0.id == tab.id }
-        if selectedTabID == tab.id { selectedTabID = tabs.last?.id }
+        if selectedTabID == tab.id {
+            // 后继必须仍在当前工作区。原先取 tabs.last,关掉本工作区最后一个标签时
+            // 选中会悄悄跳到别的工作区的标签:侧边栏还停在原地、终端区显示欢迎页,
+            // 而「新建标签页」会从那个隐形标签继承目录,新标签落进别的工作区照样不可见
+            // ——表现为按钮怎么点都没反应
+            selectedTabID = tabs.last { tabInCurrentSpace($0) }?.id
+        }
         persistOpenTabs()
     }
 
