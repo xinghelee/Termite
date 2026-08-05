@@ -1,4820 +1,4870 @@
 {
-  "sourceLanguage": "zh-Hans",
-  "strings": {
-    "": {},
-    " ": {},
-    "%@ 可能被其他程序占用,或没有访问权限。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ may be in use by another app, or you may not have permission to access it."
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "" : {
+
+    },
+    " " : {
+
+    },
+    ":%@" : {
+
+    },
+    ".*" : {
+
+    },
+    "·" : {
+
+    },
+    "(无法读取文件)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(cannot read file)"
           }
         }
       }
     },
-    "%lld": {},
-    "%lld 个分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld panes"
+    "(自动检测)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(auto-detect)"
           }
         }
       }
     },
-    "%lld 个提交 · 全部分支": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld commits · all branches"
+    "「%@」· 点击查看该提交对本文件的改动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” · Click to see this commit’s changes to the file"
           }
         }
       }
     },
-    "%lld 个监听端口": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld listening ports"
+    "%@ 可能被其他程序占用,或没有访问权限。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ may be in use by another app, or you may not have permission to access it."
           }
         }
       }
     },
-    "%lld 标签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld tabs"
+    "%lld" : {
+
+    },
+    "%lld 个分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld panes"
           }
         }
       }
     },
-    "%lld 标签 · %lld pane": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld tabs · %2$lld panes"
+    "%lld 个提交 · 全部分支" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld commits · all branches"
+          }
+        }
+      }
+    },
+    "%lld 个监听端口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld listening ports"
+          }
+        }
+      }
+    },
+    "%lld 标签" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld tabs"
+          }
+        }
+      }
+    },
+    "%lld 标签 · %lld pane" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld tabs · %2$lld panes"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld 标签 · %2$lld pane"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld 标签 · %2$lld pane"
           }
         }
       }
     },
-    "%lld 次提交": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld commits"
+    "%lld 次提交" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld commits"
           }
         }
       }
     },
-    "%lld/%lld": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld/%2$lld"
+    "%lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
           }
         }
       }
     },
-    "%lld×": {},
-    "%lld×%lld": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld×%2$lld"
-          }
-        }
-      }
+    "%lld×" : {
+
     },
-    "(无法读取文件)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "(cannot read file)"
+    "%lld×%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld×%2$lld"
           }
         }
       }
     },
-    "(自动检测)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "(auto-detect)"
-          }
-        }
-      }
+    "+%lld" : {
+
     },
-    "+%lld": {},
-    ".*": {},
-    "0.5×": {},
-    "1×": {},
-    "2×": {},
-    "4×": {},
-    "8×": {},
-    ":%@": {},
-    ">_": {},
-    "Aa": {},
-    "Ayu 清晨(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ayu Morning (Light)"
+    ">_" : {
+
+    },
+    "−%lld" : {
+
+    },
+    "⌘↩ 回填并执行 · Esc 取消" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘↩ insert & run · Esc cancel"
           }
         }
       }
     },
-    "Blame": {},
-    "Blame(逐行溯源)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blame (line by line)"
+    "⌘T 新建 · ⌘D 分屏 · ⌘P 命令面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘T new tab · ⌘D split · ⌘P command palette"
           }
         }
       }
     },
-    "Catppuccin Latte(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Catppuccin Latte (Light)"
+    "⌘点击 file:line 打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘-click file:line to open"
           }
         }
       }
     },
-    "Cherry-pick 到当前分支…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cherry-pick onto Current Branch…"
+    "⌘点击可打开终端里的链接;双击选词、三击选行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
           }
         }
       }
     },
-    "Git": {},
-    "Git 面板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Git Panel"
+    "⌘点击终端输出里的 路径:行号(如 src/main.swift:42)在编辑器中打开;VS Code / Cursor / Zed / Xcode 可直达行号。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘-click a path:line in terminal output (e.g. src/main.swift:42) to open it in your editor; VS Code / Cursor / Zed / Xcode jump straight to the line."
           }
         }
       }
     },
-    "Git 面板(⌘G)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Git Panel (⌘G)"
+    "⌥ 作为 Meta 键" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Option as Meta"
           }
         }
       }
     },
-    "Git 面板(⌘G)· %lld 个未提交文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Git Panel (⌘G) · %lld uncommitted files"
+    "⌥ 作为 Meta 键(发 ESC 前缀)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Option as Meta key (sends ESC prefix)"
           }
         }
       }
     },
-    "GitHub Light(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub Light"
+    "⌥Space 易与 Raycast / 输入法切换冲突,默认使用 ⌃⌥⌘Space。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌥Space often clashes with Raycast or input-source switching, so ⌃⌥⌘Space is the default."
           }
         }
       }
     },
-    "GitHub Release,每日至多一次": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub Releases, at most once a day"
+    "⌥Space 易与 Raycast / 输入法切换等冲突,默认使用 ⌃⌥⌘Space。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌥Space often conflicts with Raycast or input-source switching; the default is ⌃⌥⌘Space."
           }
         }
       }
+    },
+    "0.5×" : {
+
     },
-    "Metal GPU 渲染": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Metal GPU rendering"
+    "1×" : {
+
+    },
+    "2×" : {
+
+    },
+    "4×" : {
+
+    },
+    "8×" : {
+
+    },
+    "Aa" : {
+
+    },
+    "Ayu 清晨(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayu Morning (Light)"
           }
         }
       }
+    },
+    "Blame" : {
+
     },
-    "Metal 渲染默认开启,遇到显示异常可在此关闭,切换即时生效。回滚行数对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Metal rendering is on by default; turn it off here if you see glitches — takes effect immediately. Scrollback lines apply to new tabs. ⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
+    "Blame(逐行溯源)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blame (line by line)"
           }
         }
       }
     },
-    "OSC 133 命令标记 + OSC 7 目录上报,无需手动改配置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OSC 133 command marks + OSC 7 directory reporting, no manual setup"
+    "Catppuccin Latte(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catppuccin Latte (Light)"
           }
         }
       }
     },
-    "One Light(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One Light"
+    "Cherry-pick 到当前分支…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cherry-pick onto Current Branch…"
           }
         }
       }
     },
-    "REC": {},
-    "Revert 此提交…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revert This Commit…"
+    "Git" : {
+
+    },
+    "git 提交邮箱(全局),点击编辑" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git commit email (global), click to edit"
           }
         }
       }
     },
-    "Shell": {},
-    "Shell 集成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shell Integration"
+    "git 提交邮箱(本仓库覆盖),点击编辑" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git commit email (repo override), click to edit"
           }
         }
       }
     },
-    "Snazzy 糖果": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Snazzy Candy"
+    "git 退出码 %d" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "git exited with %d"
           }
         }
       }
     },
-    "Termite %@ 即为最新发布版本。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Termite %@ is the latest release."
+    "Git 面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git Panel"
           }
         }
       }
     },
-    "Termite %@ 已发布": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Termite %@ is out"
+    "Git 面板(⌘G)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git Panel (⌘G)"
           }
         }
       }
     },
-    "Termite 午夜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Termite Midnight"
+    "Git 面板(⌘G)· %lld 个未提交文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git Panel (⌘G) · %lld uncommitted files"
           }
         }
       }
     },
-    "Termite 深色": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Termite Dark"
+    "GitHub Light(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub Light"
           }
         }
       }
     },
-    "VS Code / Cursor / Zed / Xcode 可直达行号": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VS Code / Cursor / Zed / Xcode jump straight to the line"
+    "GitHub Release,每日至多一次" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub Releases, at most once a day"
           }
         }
       }
     },
-    "Worktree 创建失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn't create worktree"
+    "Metal GPU 渲染" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metal GPU rendering"
           }
         }
       }
     },
-    "Worktree 清理失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn't remove worktree"
+    "Metal 渲染默认开启,遇到显示异常可在此关闭,切换即时生效。回滚行数对新开的标签页生效。⌘点击可打开终端里的链接;双击选词、三击选行。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metal rendering is on by default; turn it off here if you see glitches — takes effect immediately. Scrollback lines apply to new tabs. ⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
           }
         }
       }
     },
-    "git 提交邮箱(全局),点击编辑": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Git commit email (global), click to edit"
+    "One Light(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One Light"
           }
         }
       }
     },
-    "git 提交邮箱(本仓库覆盖),点击编辑": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Git commit email (repo override), click to edit"
+    "OSC 133 命令标记 + OSC 7 目录上报,无需手动改配置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OSC 133 command marks + OSC 7 directory reporting, no manual setup"
           }
         }
       }
     },
-    "git 退出码 %d": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "git exited with %d"
+    "pid %@ · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "pid %1$@ · %2$@"
           }
         }
       }
     },
-    "pid %@ · %@": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "pid %1$@ · %2$@"
+    "REC" : {
+
+    },
+    "Revert 此提交…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revert This Commit…"
           }
         }
       }
+    },
+    "Shell" : {
+
     },
-    "termite [目录] 在 Termite 开新标签;也可以把文件夹拖到 Dock 图标上": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "termite [dir] opens a new tab in Termite; you can also drop a folder on the Dock icon"
+    "Shell 集成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shell Integration"
           }
         }
       }
     },
-    "termite 命令": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "termite command"
+    "Snazzy 糖果" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snazzy Candy"
           }
         }
       }
     },
-    "zsh 里已内置 termite 函数(shell 集成),此安装供 bash / fish / 脚本使用。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "zsh already ships a termite function (shell integration); this install is for bash, fish and scripts."
+    "termite [目录] 在 Termite 开新标签;也可以把文件夹拖到 Dock 图标上" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "termite [dir] opens a new tab in Termite; you can also drop a folder on the Dock icon"
           }
         }
       }
     },
-    "zsh 里已内置 termite 函数(shell 集成);此安装供 bash/fish/脚本使用。termite [目录] 在 Termite 开新标签,也可以直接把文件夹拖到 Dock 图标上。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "zsh already gets a termite function via shell integration; this install is for bash/fish/scripts. `termite [dir]` opens a new tab in Termite — you can also drop a folder onto the Dock icon."
+    "Termite %@ 即为最新发布版本。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termite %@ is the latest release."
           }
         }
       }
     },
-    "·": {},
-    "−%lld": {},
-    "⌘T 新建 · ⌘D 分屏 · ⌘P 命令面板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌘T new tab · ⌘D split · ⌘P command palette"
+    "Termite %@ 已发布" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termite %@ is out"
           }
         }
       }
     },
-    "⌘↩ 回填并执行 · Esc 取消": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌘↩ insert & run · Esc cancel"
+    "Termite 午夜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termite Midnight"
           }
         }
       }
     },
-    "⌘点击 file:line 打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌘-click file:line to open"
+    "termite 命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "termite command"
           }
         }
       }
     },
-    "⌘点击可打开终端里的链接;双击选词、三击选行。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌘-click opens links in the terminal; double-click selects a word, triple-click a line."
+    "Termite 深色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termite Dark"
           }
         }
       }
     },
-    "⌘点击终端输出里的 路径:行号(如 src/main.swift:42)在编辑器中打开;VS Code / Cursor / Zed / Xcode 可直达行号。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌘-click a path:line in terminal output (e.g. src/main.swift:42) to open it in your editor; VS Code / Cursor / Zed / Xcode jump straight to the line."
+    "VS Code / Cursor / Zed / Xcode 可直达行号" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VS Code / Cursor / Zed / Xcode jump straight to the line"
           }
         }
       }
     },
-    "⌥ 作为 Meta 键": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Option as Meta"
+    "Worktree 创建失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't create worktree"
           }
         }
       }
     },
-    "⌥ 作为 Meta 键(发 ESC 前缀)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Option as Meta key (sends ESC prefix)"
+    "Worktree 清理失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't remove worktree"
           }
         }
       }
     },
-    "⌥Space 易与 Raycast / 输入法切换冲突,默认使用 ⌃⌥⌘Space。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌥Space often clashes with Raycast or input-source switching, so ⌃⌥⌘Space is the default."
+    "zsh 里已内置 termite 函数(shell 集成),此安装供 bash / fish / 脚本使用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zsh already ships a termite function (shell integration); this install is for bash, fish and scripts."
           }
         }
       }
     },
-    "⌥Space 易与 Raycast / 输入法切换等冲突,默认使用 ⌃⌥⌘Space。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⌥Space often conflicts with Raycast or input-source switching; the default is ⌃⌥⌘Space."
+    "zsh 里已内置 termite 函数(shell 集成);此安装供 bash/fish/脚本使用。termite [目录] 在 Termite 开新标签,也可以直接把文件夹拖到 Dock 图标上。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zsh already gets a termite function via shell integration; this install is for bash/fish/scripts. `termite [dir]` opens a new tab in Termite — you can also drop a folder onto the Dock icon."
           }
         }
       }
     },
-    "「%@」· 点击查看该提交对本文件的改动": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "“%@” · Click to see this commit’s changes to the file"
+    "上一个工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Workspace"
           }
         }
       }
     },
-    "上一个工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Previous Workspace"
+    "上一条命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Command"
           }
         }
       }
     },
-    "上一条命令": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Previous Command"
+    "上下" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stacked"
           }
         }
       }
     },
-    "上下": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stacked"
+    "上下分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split Up / Down"
           }
         }
       }
     },
-    "上下分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Split Up / Down"
+    "上条命令成功" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last command succeeded"
           }
         }
       }
     },
-    "上条命令成功": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last command succeeded"
+    "上条命令输出像 %@,点击结构化查看" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last output looks like %@ — click for structured view"
           }
         }
       }
     },
-    "上条命令输出像 %@,点击结构化查看": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last output looks like %@ — click for structured view"
+    "上条命令退出码 %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last command exited with %lld"
           }
         }
       }
     },
-    "上条命令退出码 %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last command exited with %lld"
+    "上次 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last %@"
           }
         }
       }
     },
-    "上次 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last %@"
+    "上次的输出已被回滚缓冲修剪,无法对比" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous output was trimmed from scrollback; nothing to compare"
           }
         }
       }
     },
-    "上次的输出已被回滚缓冲修剪,无法对比": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Previous output was trimmed from scrollback; nothing to compare"
+    "下一个工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Workspace"
           }
         }
       }
     },
-    "下一个工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Next Workspace"
+    "下一条命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Command"
           }
         }
       }
     },
-    "下一条命令": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Next Command"
+    "下划线" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Underline"
           }
         }
       }
     },
-    "下划线": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Underline"
+    "下拉终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop-Down Terminal"
           }
         }
       }
     },
-    "下拉终端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop-Down Terminal"
+    "下拉终端 · %@ 收起" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop-down terminal · %@ to hide"
           }
         }
       }
     },
-    "下拉终端 · %@ 收起": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop-down terminal · %@ to hide"
+    "下拉终端(%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop-Down Terminal (%@)"
           }
         }
       }
     },
-    "下拉终端(%@)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop-Down Terminal (%@)"
+    "下拉终端(全局热键)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop-down terminal (global hotkey)"
           }
         }
       }
     },
-    "下拉终端(全局热键)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop-down terminal (global hotkey)"
+    "下拉终端热键" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop-down terminal hotkey"
           }
         }
       }
     },
-    "下拉终端热键": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop-down terminal hotkey"
+    "下载" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
           }
         }
       }
     },
-    "下载": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Download"
+    "不是链接 worktree:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a linked worktree: %@"
           }
         }
       }
     },
-    "不是链接 worktree:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not a linked worktree: %@"
+    "与上次运行的输出对比" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare with previous run"
           }
         }
       }
     },
-    "与上次运行的输出对比": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compare with previous run"
+    "丢弃" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
           }
         }
       }
     },
-    "丢弃": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Discard"
+    "丢弃「%@」的改动?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard changes to “%@”?"
           }
         }
       }
     },
-    "丢弃「%@」的改动?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Discard changes to “%@”?"
+    "丢弃改动…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard Changes…"
           }
         }
       }
     },
-    "丢弃改动…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Discard Changes…"
+    "中键粘贴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Middle-click paste"
           }
         }
       }
     },
-    "中键粘贴": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Middle-click paste"
+    "串口已连接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serial connected:"
           }
         }
       }
     },
-    "串口已连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Serial connected:"
+    "串口连接已断开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serial connection lost"
           }
         }
       }
     },
-    "串口连接已断开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Serial connection lost"
+    "主题" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Themes"
           }
         }
       }
     },
-    "主题": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Themes"
+    "主题:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme: %@"
           }
         }
       }
     },
-    "主题:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Theme: %@"
+    "仅显示前 %lld 行 · 完整内容用「复制原文」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing first %lld lines · use “Copy Raw” for everything"
           }
         }
       }
     },
-    "仅显示前 %lld 行 · 完整内容用「复制原文」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing first %lld lines · use “Copy Raw” for everything"
+    "仅本仓库" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This repo only"
           }
         }
       }
     },
-    "仅本仓库": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This repo only"
+    "今日工作日报" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s Report"
           }
         }
       }
     },
-    "今日工作日报": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today’s Report"
+    "以此名字创建新分支,worktree 目录放在仓库同级(仓库名-名字),新分屏直接进入;分屏名即分支名。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creates a new branch with this name; the worktree directory lives next to the repo (repo-name). The new pane opens inside it, named after the branch."
           }
         }
       }
     },
-    "以此名字创建新分支,worktree 目录放在仓库同级(仓库名-名字),新分屏直接进入;分屏名即分支名。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Creates a new branch with this name; the worktree directory lives next to the repo (repo-name). The new pane opens inside it, named after the branch."
+    "以登录 shell 方式启动(argv[0] 带 -),读取你原本的配置文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started as a login shell (argv[0] prefixed with -), so your usual config files load."
           }
         }
       }
     },
-    "以登录 shell 方式启动(argv[0] 带 -),读取你原本的配置文件。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Started as a login shell (argv[0] prefixed with -), so your usual config files load."
+    "会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session"
           }
         }
       }
     },
-    "会话": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Session"
+    "会话回放" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session Replay"
           }
         }
       }
     },
-    "会话回放": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Session Replay"
+    "作用域" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scope"
           }
         }
       }
     },
-    "作用域": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scope"
+    "依赖 shell 集成(OSC 7),zsh 已自动注入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires shell integration (OSC 7); auto-injected for zsh"
           }
         }
       }
     },
-    "依赖 shell 集成(OSC 133),zsh 已自动注入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Requires shell integration (OSC 133); auto-injected for zsh"
+    "依赖 shell 集成(OSC 133),zsh 已自动注入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires shell integration (OSC 133); auto-injected for zsh"
           }
         }
       }
     },
-    "依赖 shell 集成(OSC 7),zsh 已自动注入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Requires shell integration (OSC 7); auto-injected for zsh"
+    "保存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
           }
         }
       }
     },
-    "保存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save"
+    "保存当前布局为工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Layout as Workspace"
           }
         }
       }
     },
-    "保存当前布局为工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save Layout as Workspace"
+    "保存当前布局为工作区模板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save current layout as a workspace template"
           }
         }
       }
     },
-    "保存当前布局为工作区模板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save current layout as a workspace template"
+    "停止" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
           }
         }
       }
     },
-    "停止": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop"
+    "停止广播输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Broadcasting Input"
           }
         }
       }
     },
-    "停止广播输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop Broadcasting Input"
+    "停止录制(asciinema)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Recording (asciinema)"
           }
         }
       }
     },
-    "停止录制(asciinema)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop Recording (asciinema)"
+    "停止记录会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Logging Session"
           }
         }
       }
     },
-    "停止记录会话": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop Logging Session"
+    "光标" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cursor"
           }
         }
       }
     },
-    "光标": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cursor"
+    "光标样式" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cursor style"
           }
         }
       }
     },
-    "光标样式": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cursor style"
+    "光标闪烁" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blinking cursor"
           }
         }
       }
     },
-    "光标闪烁": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blinking cursor"
+    "全局" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global"
           }
         }
       }
     },
-    "全局": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Global"
+    "全局热键唤出下拉终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global hotkey for the drop-down terminal"
           }
         }
       }
     },
-    "全局热键唤出下拉终端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Global hotkey for the drop-down terminal"
+    "共 %lld 行:\n\n" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld lines total:\n\n"
           }
         }
       }
     },
-    "共 %lld 行:\n\n": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld lines total:\n\n"
+    "关于" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
           }
         }
       }
     },
-    "关于": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About"
+    "关闭" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
           }
         }
       }
     },
-    "关闭": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close"
+    "关闭 Git 面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Git Panel"
           }
         }
       }
     },
-    "关闭 Git 面板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Git Panel"
+    "关闭分屏 / 标签页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Pane / Tab"
           }
         }
       }
     },
-    "关闭分屏 / 标签页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Pane / Tab"
+    "关闭分屏「%@」?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close pane “%@”?"
           }
         }
       }
     },
-    "关闭分屏「%@」?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close pane “%@”?"
+    "关闭前确认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm before closing"
           }
         }
       }
     },
-    "关闭前确认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirm before closing"
+    "关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When off, Option combos type special characters (e.g. ⌥3 → #)."
           }
         }
       }
     },
-    "关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When off, Option combos type special characters (e.g. ⌥3 → #)."
+    "关闭命令时间线" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Command Timeline"
           }
         }
       }
     },
-    "关闭命令时间线": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Command Timeline"
+    "关闭当前分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Current Pane"
           }
         }
       }
     },
-    "关闭当前分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Current Pane"
+    "关闭文件浏览器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close File Browser"
           }
         }
       }
     },
-    "关闭文件浏览器": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close File Browser"
+    "关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm before closing panes/windows with running commands (incl. quitting)"
           }
         }
       }
     },
-    "关闭有命令运行的分屏 / 窗口前需要确认(含退出 App)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirm before closing panes/windows with running commands (incl. quitting)"
+    "关闭标签页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Tab"
           }
         }
       }
     },
-    "关闭标签页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Tab"
+    "关闭标签页?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close tab?"
           }
         }
       }
     },
-    "关闭标签页?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close tab?"
+    "关闭此分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close This Pane"
           }
         }
       }
     },
-    "关闭此分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close This Pane"
+    "关闭窗口?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close window?"
           }
         }
       }
     },
-    "关闭窗口?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close window?"
+    "关闭面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Panel"
           }
         }
       }
     },
-    "关闭面板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close Panel"
+    "最大化 / 还原当前分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximize / Restore Current Pane"
           }
         }
       }
     },
-    "分屏在等待你的输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A pane is awaiting your input"
+    "分屏在等待你的输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pane is awaiting your input"
           }
         }
       }
     },
-    "分屏等待输入时系统通知": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notify when a pane awaits input"
+    "分屏等待输入时系统通知" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify when a pane awaits input"
           }
         }
       }
     },
-    "分支名": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Branch name"
+    "分支名" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Branch name"
           }
         }
       }
     },
-    "分组项目只在所属工作区显示;新工作区从空白开始,现有项目归入第一个工作区。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grouped projects only appear in their workspace. A new workspace starts blank; existing projects belong to the first workspace."
+    "分组项目只在所属工作区显示;新工作区从空白开始,现有项目归入第一个工作区。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grouped projects only appear in their workspace. A new workspace starts blank; existing projects belong to the first workspace."
           }
         }
       }
     },
-    "切换到该项目": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Switch to this project"
+    "切换到该项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to this project"
           }
         }
       }
     },
-    "创建": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Create"
+    "创建" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create"
           }
         }
       }
     },
-    "删除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
+    "删除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
           }
         }
       }
     },
-    "删除工作区(项目归入第一个工作区)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete Workspace (Projects Move to First Workspace)"
+    "删除工作区(项目归入第一个工作区)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Workspace (Projects Move to First Workspace)"
           }
         }
       }
     },
-    "删除工作区「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete Workspace “%@”"
+    "删除工作区「%@」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Workspace “%@”"
           }
         }
       }
     },
-    "刷新": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Refresh"
+    "刷新" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
           }
         }
       }
     },
-    "剪贴板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clipboard"
+    "剪贴板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clipboard"
           }
         }
       }
     },
-    "加载分支…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading branches…"
+    "加载分支…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading branches…"
           }
         }
       }
     },
-    "包含所有标签的分屏结构、比例与各 pane 的工作目录。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Includes every tab’s split layout, ratios and each pane’s working directory."
+    "包含所有标签的分屏结构、比例与各 pane 的工作目录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes every tab’s split layout, ratios and each pane’s working directory."
           }
         }
       }
     },
-    "区分大小写": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Case sensitive"
+    "区分大小写" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Case sensitive"
           }
         }
       }
     },
-    "升级到 Termite %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update to Termite %@"
+    "升级到 Termite %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update to Termite %@"
           }
         }
       }
     },
-    "升级到 Termite %@…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update to Termite %@…"
+    "升级到 Termite %@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update to Termite %@…"
           }
         }
       }
     },
-    "历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "History"
+    "历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
           }
         }
       }
     },
-    "双击文件或右键「打开」时使用;留空跟随 macOS 的默认程序关联。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Used when double-clicking a file or choosing Open; leave empty to follow the macOS default app."
+    "双击文件或右键「打开」时使用;留空跟随 macOS 的默认程序关联。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used when double-clicking a file or choosing Open; leave empty to follow the macOS default app."
           }
         }
       }
     },
-    "双击重命名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Double-click to rename"
+    "双击重命名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double-click to rename"
           }
         }
       }
     },
-    "双击重命名 · 拖动调整顺序": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Double-click to rename · drag to reorder"
+    "双击重命名 · 拖动调整顺序" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double-click to rename · drag to reorder"
           }
         }
       }
     },
-    "发送": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send"
+    "发送" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
           }
         }
       }
     },
-    "发送 ESC 前缀;关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sends an ESC prefix; when off, ⌥ combos type special characters (⌥3 → #)"
+    "发送 ESC 前缀;关闭后 ⌥ 组合键输入特殊字符(如 ⌥3 → #)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sends an ESC prefix; when off, ⌥ combos type special characters (⌥3 → #)"
           }
         }
       }
     },
-    "发送 y": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send y"
+    "发送 y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send y"
           }
         }
       }
     },
-    "发送到该分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send to that pane"
+    "发送到该分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send to that pane"
           }
         }
       }
     },
-    "取消": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
+    "取消" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
           }
         }
       }
     },
-    "取消暂存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unstage"
+    "取消暂存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstage"
           }
         }
       }
     },
-    "变更对新开的标签页生效": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Changes apply to newly opened tabs"
+    "变更对新开的标签页生效" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes apply to newly opened tabs"
           }
         }
       }
     },
-    "变更对新开的标签页生效。以登录 shell 方式启动(argv[0] 带 -)。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Applies to new tabs. Started as a login shell (argv[0] prefixed with -)."
+    "变更对新开的标签页生效。以登录 shell 方式启动(argv[0] 带 -)。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to new tabs. Started as a login shell (argv[0] prefixed with -)."
           }
         }
       }
     },
-    "名字不能为空": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Name cannot be empty"
+    "名字不能为空" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name cannot be empty"
           }
         }
       }
     },
-    "后台运行 ≥10s 的命令结束时发系统通知": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System notification when a background command running ≥10s ends"
+    "后台运行 ≥10s 的命令结束时发系统通知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System notification when a background command running ≥10s ends"
           }
         }
       }
     },
-    "后台长命令(≥10s)完成时系统通知": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notify when a background command (≥10s) finishes"
+    "后台长命令(≥10s)完成时系统通知" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify when a background command (≥10s) finishes"
           }
         }
       }
     },
-    "启动 Shell": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Startup shell"
+    "启动 Shell" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startup shell"
           }
         }
       }
     },
-    "启动时恢复上次的标签页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore last session's tabs on launch"
+    "启动时恢复上次的标签页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore last session's tabs on launch"
           }
         }
       }
     },
-    "启动时恢复上次的标签页(工作目录)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore last session’s tabs on launch (working directories)"
+    "启动时恢复上次的标签页(工作目录)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore last session’s tabs on launch (working directories)"
           }
         }
       }
     },
-    "命令失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command failed"
+    "命令失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command failed"
           }
         }
       }
     },
-    "命令失败(退出码 %lld)· %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command failed (exit %1$lld) · %2$@"
+    "命令失败(退出码 %lld)· %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command failed (exit %1$lld) · %2$@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "命令失败(退出码 %1$lld)· %2$@"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "命令失败(退出码 %1$lld)· %2$@"
           }
         }
       }
     },
-    "命令完成 · %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command finished · %@"
+    "命令完成 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command finished · %@"
           }
         }
       }
     },
-    "命令时间线": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command Timeline"
+    "命令时间线" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command Timeline"
           }
         }
       }
     },
-    "命令时间线(⌘I)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command Timeline (⌘I)"
+    "命令时间线(⌘I)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command Timeline (⌘I)"
           }
         }
       }
     },
-    "命令行工具": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command-Line Tool"
+    "命令行工具" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command-Line Tool"
           }
         }
       }
     },
-    "命令面板…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Command Palette…"
+    "命令面板…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command Palette…"
           }
         }
       }
     },
-    "响铃 / 长输出后静默即视为等待输入,点亮橙色提醒": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A bell, or silence after long output, counts as waiting — lights up an amber hint"
+    "响铃 / 长输出后静默即视为等待输入,点亮橙色提醒" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bell, or silence after long output, counts as waiting — lights up an amber hint"
           }
         }
       }
     },
-    "回填": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insert"
+    "回填" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert"
           }
         }
       }
     },
-    "回填并执行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insert & Run"
+    "回填并执行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert & Run"
           }
         }
       }
     },
-    "回复…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reply…"
+    "回复…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reply…"
           }
         }
       }
     },
-    "回放录制文件…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Replay Recording…"
+    "回放录制文件…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replay Recording…"
           }
         }
       }
     },
-    "回滚行数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scrollback lines"
+    "回滚行数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrollback lines"
           }
         }
       }
     },
-    "回车 cd · 按访问频率与新近度排序": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Return to cd · sorted by frequency and recency"
+    "回车 cd · 按访问频率与新近度排序" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to cd · sorted by frequency and recency"
           }
         }
       }
     },
-    "回车插入命令(不执行) · 按时间倒序": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Return inserts the command (doesn’t run) · newest first"
+    "回车插入命令(不执行) · 按时间倒序" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return inserts the command (doesn’t run) · newest first"
           }
         }
       }
     },
-    "回车确认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Press Enter"
+    "回车确认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press Enter"
           }
         }
       }
     },
-    "图形历史(SourceTree 式)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Graph History (SourceTree-style)"
+    "图形历史(SourceTree 式)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graph History (SourceTree-style)"
           }
         }
       }
     },
-    "在 Finder 中打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open in Finder"
+    "在 Finder 中打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in Finder"
           }
         }
       }
     },
-    "在 Finder 中打开 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open %@ in Finder"
+    "在 Finder 中打开 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %@ in Finder"
           }
         }
       }
     },
-    "在 Finder 中打开工作目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Working Directory in Finder"
+    "在 Finder 中打开工作目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Working Directory in Finder"
           }
         }
       }
     },
-    "在 Finder 中显示": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reveal in Finder"
+    "在 Finder 中显示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reveal in Finder"
           }
         }
       }
     },
-    "在回滚缓冲中搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search scrollback"
+    "在回滚缓冲中搜索" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search scrollback"
           }
         }
       }
     },
-    "在新 Worktree 中分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Split into New Worktree"
+    "在新 Worktree 中分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split into New Worktree"
           }
         }
       }
     },
-    "在新 Worktree 中分屏…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Split into New Worktree…"
+    "在新 Worktree 中分屏…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split into New Worktree…"
           }
         }
       }
     },
-    "在此新建文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Folder Here"
+    "在此新建文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Folder Here"
           }
         }
       }
     },
-    "在浏览器打开 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open %@ in Browser"
+    "在浏览器打开 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %@ in Browser"
           }
         }
       }
     },
-    "在浏览器打开 localhost:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open localhost:%@ in Browser"
+    "在浏览器打开 localhost:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open localhost:%@ in Browser"
           }
         }
       }
     },
-    "在终端 cd 到此目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cd Terminal to This Folder"
+    "在终端 cd 到此目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cd Terminal to This Folder"
           }
         }
       }
     },
-    "在终端中查找": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Find in Terminal"
+    "在终端中查找" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find in Terminal"
           }
         }
       }
     },
-    "在编辑器中打开 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open %@ in Editor"
+    "在编辑器中打开 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %@ in Editor"
           }
         }
       }
     },
-    "在菜单「Termite → 检查更新」中下载升级。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Download it from Termite → Check for Updates."
+    "在菜单「Termite → 检查更新」中下载升级。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download it from Termite → Check for Updates."
           }
         }
       }
     },
-    "在菜单栏显示图标": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show menu bar icon"
+    "在菜单栏显示图标" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show menu bar icon"
           }
         }
       }
     },
-    "复制": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy"
+    "复制" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
           }
         }
       }
     },
-    "复制 Markdown": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Markdown"
+    "复制 hash" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Hash"
           }
         }
       }
     },
-    "复制 hash": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Hash"
+    "复制 Markdown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Markdown"
           }
         }
       }
     },
-    "复制上条命令输出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Last Command Output"
+    "复制上条命令输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Last Command Output"
           }
         }
       }
     },
-    "复制原文": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Raw"
+    "复制原文" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Raw"
           }
         }
       }
     },
-    "复制命令行文本": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Command Text"
+    "复制命令行文本" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Command Text"
           }
         }
       }
     },
-    "复制整个 diff(贴给 AI / PR)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Whole Diff (for AI / PR)"
+    "复制整个 diff(贴给 AI / PR)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Whole Diff (for AI / PR)"
           }
         }
       }
     },
-    "复制路径": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Path"
+    "复制路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Path"
           }
         }
       }
     },
-    "复制这条命令的输出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy this command’s output"
+    "复制这条命令的输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy this command’s output"
           }
         }
       }
     },
-    "外观": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Appearance"
+    "外观" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
           }
         }
       }
     },
-    "多行或危险命令(rm -rf、sudo 等)先确认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirm multi-line or risky commands (rm -rf, sudo …) first"
+    "多行或危险命令(rm -rf、sudo 等)先确认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm multi-line or risky commands (rm -rf, sudo …) first"
           }
         }
       }
     },
-    "夜泊琥珀 Amber Mooring": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Amber Mooring"
+    "夜泊琥珀 Amber Mooring" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amber Mooring"
           }
         }
       }
     },
-    "好": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OK"
+    "好" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
           }
         }
       }
     },
-    "字体": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Font"
+    "字体" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Font"
           }
         }
       }
     },
-    "字体族": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Font family"
+    "字体族" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Font family"
           }
         }
       }
     },
-    "字号": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Size"
+    "字号" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size"
           }
         }
       }
     },
-    "安装 termite 命令到 /usr/local/bin": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Install the termite command into /usr/local/bin"
+    "安装 termite 命令到 /usr/local/bin" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install the termite command into /usr/local/bin"
           }
         }
       }
     },
-    "安装到 /usr/local/bin": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Install to /usr/local/bin"
+    "安装到 /usr/local/bin" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install to /usr/local/bin"
           }
         }
       }
     },
-    "安装取消或失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Install cancelled or failed"
+    "安装取消或失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install cancelled or failed"
           }
         }
       }
     },
-    "安装失败:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Install failed: %@"
+    "安装失败:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install failed: %@"
           }
         }
       }
     },
-    "对 %@ 的改动": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Changes to %@"
+    "对 %@ 的改动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes to %@"
           }
         }
       }
     },
-    "对所有已打开的终端即时生效": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Applies immediately to all open terminals"
+    "对所有已打开的终端即时生效" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies immediately to all open terminals"
           }
         }
       }
     },
-    "对新开的标签页生效": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Applies to newly opened tabs"
+    "对新开的标签页生效" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to newly opened tabs"
           }
         }
       }
     },
-    "将运行 git worktree remove 并关闭该分屏;分支保留,合并后可自行删除。有未提交改动时会先失败。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Runs git worktree remove and closes the pane. The branch is kept so you can merge it. Uncommitted changes make removal fail first."
+    "将运行 git worktree remove 并关闭该分屏;分支保留,合并后可自行删除。有未提交改动时会先失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runs git worktree remove and closes the pane. The branch is kept so you can merge it. Uncommitted changes make removal fail first."
           }
         }
       }
     },
-    "尚未获取到工作目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Working directory not detected yet"
+    "尚未获取到工作目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working directory not detected yet"
           }
         }
       }
     },
-    "巡视:上一屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carousel: Previous"
+    "工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workspaces"
           }
         }
       }
     },
-    "巡视:下一屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carousel: Next"
+    "工作区:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workspace: %@"
           }
         }
       }
     },
-    "巡视分屏(等宽横排滑动)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pane Carousel (equal-width swipe)"
+    "工作区名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workspace name"
           }
         }
       }
     },
-    "巡视分屏:等宽横排滑动(⇧⌘\\)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pane carousel: equal-width swipe (⇧⌘\\)"
+    "工作区名称,如:工作 / 个人" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workspace name, e.g. Work"
           }
         }
       }
     },
-    "工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Workspaces"
+    "工作区改动会还原到 HEAD 版本,不可撤销。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working-tree changes revert to HEAD. This cannot be undone."
           }
         }
       }
     },
-    "工作区:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Workspace: %@"
+    "左右" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Side by side"
           }
         }
       }
     },
-    "工作区名称": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Workspace name"
+    "左右分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split Left / Right"
           }
         }
       }
     },
-    "工作区名称,如:工作 / 个人": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Workspace name, e.g. Work"
+    "已保存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved"
           }
         }
       }
     },
-    "工作区改动会还原到 HEAD 版本,不可撤销。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Working-tree changes revert to HEAD. This cannot be undone."
+    "已最大化 · ⇧⌘↩ 还原" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximized · ⇧⌘↩ to restore"
           }
         }
       }
     },
-    "左右": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Side by side"
+    "已复制" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
           }
         }
       }
     },
-    "左右分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Split Left / Right"
+    "已安装:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installed: %@"
           }
         }
       }
     },
-    "已保存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved"
+    "已完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
           }
         }
       }
     },
-    "已复制": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copied"
+    "已是最新版本" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re up to date"
           }
         }
       }
     },
-    "已安装:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Installed: %@"
+    "已有 Worktree" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Has worktree"
           }
         }
       }
     },
-    "已完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done"
+    "布局 %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout %lld"
           }
         }
       }
     },
-    "已是最新版本": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You’re up to date"
+    "广播输入:键入同步到当前标签所有分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broadcasting: keystrokes go to every pane in this tab"
           }
         }
       }
     },
-    "已最大化 · ⇧⌘↩ 还原": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maximized · ⇧⌘↩ to restore"
+    "广播输入到所有分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broadcast Input to All Panes"
           }
         }
       }
     },
-    "已有 Worktree": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Has worktree"
+    "应用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Application"
           }
         }
       }
     },
-    "布局 %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Layout %lld"
+    "强制删除(丢弃未提交改动)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force Remove (discard uncommitted changes)"
           }
         }
       }
     },
-    "广播输入:键入同步到当前标签所有分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Broadcasting: keystrokes go to every pane in this tab"
+    "强制结束(SIGKILL)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force Kill (SIGKILL)"
           }
         }
       }
     },
-    "广播输入到所有分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Broadcast Input to All Panes"
+    "当前" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current"
           }
         }
       }
     },
-    "应用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Application"
+    "当前版本 %@。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have %@."
           }
         }
       }
     },
-    "强制删除(丢弃未提交改动)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Force Remove (discard uncommitted changes)"
+    "当前目录不在 git 仓库中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current directory is not a Git repository"
           }
         }
       }
     },
-    "强制结束(SIGKILL)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Force Kill (SIGKILL)"
+    "录制中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
           }
         }
       }
     },
-    "当前": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current"
+    "录制会话(asciinema)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Session (asciinema)…"
           }
         }
       }
     },
-    "当前版本 %@。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You have %@."
+    "快速回复…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Reply…"
           }
         }
       }
     },
-    "当前目录不在 git 仓库中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current directory is not a Git repository"
+    "快速查看" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Look"
           }
         }
       }
     },
-    "录制中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording"
+    "恢复" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore"
           }
         }
       }
     },
-    "录制会话(asciinema)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record Session (asciinema)…"
+    "恢复系统默认" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore System Default"
           }
         }
       }
     },
-    "快速回复…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quick Reply…"
+    "打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
           }
         }
       }
     },
-    "快速查看": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quick Look"
+    "打开 Git 面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Git Panel"
           }
         }
       }
     },
-    "恢复": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore"
+    "打开(追加标签)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open (append tabs)"
           }
         }
       }
     },
-    "恢复系统默认": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore System Default"
+    "打开命令时间线" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Command Timeline"
           }
         }
       }
     },
-    "打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open"
+    "打开文件使用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open files with"
           }
         }
       }
     },
-    "打开 Git 面板": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Git Panel"
+    "打开文件浏览器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open File Browser"
           }
         }
       }
     },
-    "打开(追加标签)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open (append tabs)"
+    "打开方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open With"
           }
         }
       }
     },
-    "打开命令时间线": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Command Timeline"
+    "执行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run"
           }
         }
       }
     },
-    "打开文件使用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open files with"
+    "把当前「标签 + 分屏」整套布局存成模板,一键恢复。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the whole tabs-and-splits layout as a template you can restore in one click."
           }
         }
       }
     },
-    "打开文件浏览器": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open File Browser"
+    "提交历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commit History"
           }
         }
       }
     },
-    "打开方式": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open With"
+    "提交身份" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commit Identity"
           }
         }
       }
     },
-    "执行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Run"
+    "提交身份(user.name / email)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commit identity (user.name / email)"
           }
         }
       }
     },
-    "把当前「标签 + 分屏」整套布局存成模板,一键恢复。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save the whole tabs-and-splits layout as a template you can restore in one click."
+    "插入路径到终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert Path into Terminal"
           }
         }
       }
     },
-    "提交历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Commit History"
+    "搜索命令历史…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Command History…"
           }
         }
       }
     },
-    "提交身份": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Commit Identity"
+    "搜索命令历史(跨会话)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search command history (across sessions)"
           }
         }
       }
     },
-    "提交身份(user.name / email)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Commit identity (user.name / email)"
+    "搜索命令历史(跨会话)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Command History (across sessions)…"
           }
         }
       }
     },
-    "插入路径到终端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insert Path into Terminal"
+    "搜索命令或主题…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search commands or themes…"
           }
         }
       }
     },
-    "搜索命令历史(跨会话)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search command history (across sessions)"
+    "放大查看" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In"
           }
         }
       }
     },
-    "搜索命令历史(跨会话)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Command History (across sessions)…"
+    "文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files"
           }
         }
       }
     },
-    "搜索命令历史…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Command History…"
+    "文件修改历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File History"
           }
         }
       }
     },
-    "搜索命令或主题…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search commands or themes…"
+    "文件历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File History"
           }
         }
       }
     },
-    "放大查看": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zoom In"
+    "文件夹名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder name"
           }
         }
       }
     },
-    "文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Files"
+    "文件浏览器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Browser"
           }
         }
       }
     },
-    "文件修改历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File History"
+    "文件浏览器(⇧⌘E)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Browser (⇧⌘E)"
           }
         }
       }
     },
-    "文件历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File History"
+    "文件浏览器双击或右键「打开」;留空跟随 macOS 默认关联" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used by double-click and “Open” in the file browser; empty follows the macOS default"
           }
         }
       }
     },
-    "文件夹名称": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Folder name"
+    "文件较大,仅预览前 512 KB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large file — previewing first 512 KB"
           }
         }
       }
     },
-    "文件浏览器": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File Browser"
+    "新" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
           }
         }
       }
     },
-    "文件浏览器(⇧⌘E)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File Browser (⇧⌘E)"
+    "新分支名,或搜索已有分支…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New branch name, or search existing branches…"
           }
         }
       }
     },
-    "文件浏览器双击或右键「打开」;留空跟随 macOS 默认关联": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Used by double-click and “Open” in the file browser; empty follows the macOS default"
+    "新分支基于当前分支 · 目录与仓库同级" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New branch from your current branch · directory next to the repo"
           }
         }
       }
     },
-    "文件较大,仅预览前 512 KB": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Large file — previewing first 512 KB"
+    "新分支基于当前分支,目录与仓库同级(仓库名-分支名),新分屏直接进入。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creates a new branch from your current one; the worktree directory lives next to the repo (repo-branch). The new pane opens inside it."
           }
         }
       }
     },
-    "新": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New"
+    "新建串口会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Serial Session"
           }
         }
       }
     },
-    "新分支名,或搜索已有分支…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New branch name, or search existing branches…"
+    "新建串口会话…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Serial Session…"
           }
         }
       }
     },
-    "新分支基于当前分支 · 目录与仓库同级": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New branch from your current branch · directory next to the repo"
+    "新建分支" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New branch"
           }
         }
       }
     },
-    "新分支基于当前分支,目录与仓库同级(仓库名-分支名),新分屏直接进入。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Creates a new branch from your current one; the worktree directory lives next to the repo (repo-branch). The new pane opens inside it."
+    "新建工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Workspace"
           }
         }
       }
     },
-    "新建串口会话": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Serial Session"
+    "新建工作区…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Workspace…"
           }
         }
       }
     },
-    "新建串口会话…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Serial Session…"
+    "新建文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Folder"
           }
         }
       }
     },
-    "新建分支": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New branch"
+    "新建标签页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Tab"
           }
         }
       }
     },
-    "新建工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Workspace"
+    "新建标签页(⌘T)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Tab (⌘T)"
           }
         }
       }
     },
-    "新建工作区…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Workspace…"
+    "新建窗口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Window"
           }
         }
       }
     },
-    "新建文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Folder"
+    "新标签页 / 分屏继承当前工作目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New tabs / panes inherit the current directory"
           }
         }
       }
     },
-    "新建标签页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Tab"
+    "方块" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Block"
           }
         }
       }
     },
-    "新建标签页(⌘T)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Tab (⌘T)"
+    "无" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
           }
         }
       }
     },
-    "新建窗口": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Window"
+    "无匹配" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matches"
           }
         }
       }
     },
-    "新标签页 / 分屏继承当前工作目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New tabs / panes inherit the current directory"
+    "无匹配目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matching directories"
           }
         }
       }
     },
-    "方块": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Block"
+    "无法创建文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t create folder"
           }
         }
       }
     },
-    "无": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "None"
+    "无法打开串口设备" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Open Serial Device"
           }
         }
       }
     },
-    "无匹配": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No matches"
+    "无法解析该 .cast 文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t parse this .cast file"
           }
         }
       }
     },
-    "无匹配目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No matching directories"
+    "旧" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Old"
           }
         }
       }
     },
-    "无法创建文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn’t create folder"
+    "显示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display"
           }
         }
       }
     },
-    "无法打开串口设备": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could Not Open Serial Device"
+    "显示 / 隐藏侧边栏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show / Hide Sidebar"
           }
         }
       }
     },
-    "无法解析该 .cast 文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn’t parse this .cast file"
+    "显示 Termite" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Termite"
           }
         }
       }
     },
-    "旧": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Old"
+    "显示/隐藏点文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show/Hide Dotfiles"
           }
         }
       }
     },
-    "显示": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Display"
+    "晨雾玫瑰(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misty Rose (Light)"
           }
         }
       }
     },
-    "显示 / 隐藏侧边栏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show / Hide Sidebar"
+    "暂存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stage"
           }
         }
       }
     },
-    "显示 Termite": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show Termite"
+    "有 %lld 个命令正在运行,退出会终止它们。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld commands are running; quitting will terminate them."
           }
         }
       }
     },
-    "显示/隐藏点文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show/Hide Dotfiles"
+    "有分屏在等待输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pane is awaiting input"
           }
         }
       }
     },
-    "晨雾玫瑰(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Misty Rose (Light)"
+    "有命令在跑的分屏 / 窗口(含退出 App)关闭前先问一句" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asks first when a pane or window with a running command closes (quitting included)"
           }
         }
       }
     },
-    "暂存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stage"
+    "有新输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New output"
           }
         }
       }
     },
-    "最大化 / 还原当前分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maximize / Restore Current Pane"
+    "未命名布局" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled Layout"
           }
         }
       }
     },
-    "有 %lld 个命令正在运行,退出会终止它们。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld commands are running; quitting will terminate them."
+    "未提交" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uncommitted"
           }
         }
       }
     },
-    "有分屏在等待输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A pane is awaiting input"
+    "未跟踪文件会被直接删除,不可撤销。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untracked files will be deleted permanently. This cannot be undone."
           }
         }
       }
     },
-    "有命令在跑的分屏 / 窗口(含退出 App)关闭前先问一句": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Asks first when a pane or window with a running command closes (quitting included)"
+    "本仓库有身份覆盖" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This repo overrides the identity"
           }
         }
       }
     },
-    "有新输出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New output"
+    "本地回显(设备不回显键入时勾选)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local echo (check if the device does not echo input)"
           }
         }
       }
     },
-    "未命名布局": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untitled Layout"
+    "松烟墨 Sumi PRO" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sumi Ink PRO"
           }
         }
       }
     },
-    "未提交": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uncommitted"
+    "查找…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find…"
           }
         }
       }
     },
-    "未跟踪文件会被直接删除,不可撤销。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untracked files will be deleted permanently. This cannot be undone."
+    "查看 Diff" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Diff"
           }
         }
       }
     },
-    "本仓库有身份覆盖": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This repo overrides the identity"
+    "查看源码" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Source"
           }
         }
       }
     },
-    "本地回显(设备不回显键入时勾选)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Local echo (check if the device does not echo input)"
+    "标签与窗口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabs & Windows"
           }
         }
       }
     },
-    "松烟墨 Sumi PRO": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sumi Ink PRO"
+    "标签页 %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab %lld"
           }
         }
       }
     },
-    "查找…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Find…"
+    "样式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style"
           }
         }
       }
     },
-    "查看 Diff": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "View Diff"
+    "检出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Out"
           }
         }
       }
     },
-    "查看源码": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "View Source"
+    "检查更新…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates…"
           }
         }
       }
     },
-    "标签与窗口": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tabs & Windows"
+    "检查更新失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update check failed"
           }
         }
       }
     },
-    "标签页 %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tab %lld"
+    "检测分屏等待输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detect panes waiting for input"
           }
         }
       }
     },
-    "样式": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Style"
+    "检测分屏等待输入(响铃 / 长输出后静默),点亮橙色提醒" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detect panes awaiting input (bell / silence after long output), light up orange"
           }
         }
       }
     },
-    "检出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check Out"
+    "橙" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
           }
         }
       }
     },
-    "检查更新…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check for Updates…"
+    "正则表达式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regular expression"
           }
         }
       }
     },
-    "检查更新失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update check failed"
+    "没有 blame 数据(文件未提交过?)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No blame data (file never committed?)"
           }
         }
       }
     },
-    "检测分屏等待输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Detect panes waiting for input"
+    "没有找到串口设备(/dev/cu.*)。插上 USB 转串口线后再试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No serial devices found (/dev/cu.*). Plug in a USB-to-serial adapter and try again."
           }
         }
       }
     },
-    "检测分屏等待输入(响铃 / 长输出后静默),点亮橙色提醒": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Detect panes awaiting input (bell / silence after long output), light up orange"
+    "没有监听中的 TCP 端口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No listening TCP ports"
           }
         }
       }
     },
-    "橙": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Orange"
+    "没有这个文件的提交记录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No commits touch this file"
           }
         }
       }
     },
-    "正则表达式": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Regular expression"
+    "添加项目文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Project Folder"
           }
         }
       }
     },
-    "没有 blame 数据(文件未提交过?)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No blame data (file never committed?)"
+    "清理此 Worktree(移除并关闭)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clean Up This Worktree (remove & close)…"
           }
         }
       }
     },
-    "没有找到串口设备(/dev/cu.*)。插上 USB 转串口线后再试。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No serial devices found (/dev/cu.*). Plug in a USB-to-serial adapter and try again."
+    "清空回滚缓冲" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Scrollback"
           }
         }
       }
     },
-    "没有监听中的 TCP 端口": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No listening TCP ports"
+    "清除,回落到全局" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear and fall back to global"
           }
         }
       }
     },
-    "没有这个文件的提交记录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No commits touch this file"
+    "渲染预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendered Preview"
           }
         }
       }
     },
-    "添加项目文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Project Folder"
+    "点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click + next to Projects to pick a folder, or drop one here. It opens in that directory; afterwards a single click switches to it."
           }
         }
       }
     },
-    "清理此 Worktree(移除并关闭)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clean Up This Worktree (remove & close)…"
+    "点击 / 触控板横扫 / ⌃⌥←→ 切换工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click, swipe horizontally on the trackpad, or press ⌃⌥←→ to switch workspaces"
           }
         }
       }
     },
-    "清空回滚缓冲": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Scrollback"
+    "点击上方文件查看 diff" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a file above to view its diff"
           }
         }
       }
     },
-    "清除,回落到全局": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear and fall back to global"
+    "点击定位到这条命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to jump to this command"
           }
         }
       }
     },
-    "渲染预览": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendered Preview"
+    "点击聚焦此分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to focus this pane"
           }
         }
       }
     },
-    "点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click + next to Projects to pick a folder, or drop one here. It opens in that directory; afterwards a single click switches to it."
+    "热键" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hotkey"
           }
         }
       }
     },
-    "点击 / 触控板横扫 / ⌃⌥←→ 切换工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click, swipe horizontally on the trackpad, or press ⌃⌥←→ to switch workspaces"
+    "版本" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
           }
         }
       }
     },
-    "点击上方文件查看 diff": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click a file above to view its diff"
+    "玉版宣 Xuan PRO(浅色)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xuan Paper PRO (Light)"
           }
         }
       }
     },
-    "点击定位到这条命令": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click to jump to this command"
+    "生成今日工作日报" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate Today’s Report"
           }
         }
       }
     },
-    "点击聚焦此分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click to focus this pane"
+    "生成今日工作日报…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate Today’s Report…"
           }
         }
       }
     },
-    "热键": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hotkey"
+    "用 %@ 打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open with %@"
           }
         }
       }
     },
-    "版本": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Version"
+    "用当前布局覆盖" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overwrite with Current Layout"
           }
         }
       }
     },
-    "玉版宣 Xuan PRO(浅色)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Xuan Paper PRO (Light)"
+    "用户名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
           }
         }
       }
     },
-    "生成今日工作日报": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Generate Today’s Report"
+    "用默认程序打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open with Default App"
           }
         }
       }
     },
-    "生成今日工作日报…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Generate Today’s Report…"
+    "留空恢复自动标题(目录 / 程序名)。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave empty to restore the automatic title (directory / program name)."
           }
         }
       }
     },
-    "用 %@ 打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open with %@"
+    "登录 Shell(默认)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Login shell (default)"
           }
         }
       }
     },
-    "用当前布局覆盖": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Overwrite with Current Layout"
+    "目录与仓库同级 · 分屏名=分支名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory next to the repo · pane named after the branch"
           }
         }
       }
     },
-    "用户名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Name"
+    "目录历史为空 —— cd 到处走走,这里会记住(需 shell 集成)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No directory history yet — cd around and it’ll be remembered (needs shell integration)"
           }
         }
       }
     },
-    "用默认程序打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open with Default App"
+    "目录已存在:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory already exists: %@"
           }
         }
       }
     },
-    "留空恢复自动标题(目录 / 程序名)。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave empty to restore the automatic title (directory / program name)."
+    "确定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
           }
         }
       }
     },
-    "登录 Shell(默认)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Login shell (default)"
+    "确认粘贴到终端?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste into terminal?"
           }
         }
       }
     },
-    "目录与仓库同级 · 分屏名=分支名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Directory next to the repo · pane named after the branch"
+    "祖母绿圣殿 Emerald" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emerald Temple"
           }
         }
       }
     },
-    "目录历史为空 —— cd 到处走走,这里会记住(需 shell 集成)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No directory history yet — cd around and it’ll be remembered (needs shell integration)"
+    "移到新窗口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to New Window"
           }
         }
       }
     },
-    "目录已存在:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Directory already exists: %@"
+    "移动到工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Workspace"
           }
         }
       }
     },
-    "确定": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OK"
+    "移除(并关闭其标签)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove (and close its tabs)"
           }
         }
       }
     },
-    "确认粘贴到终端?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste into terminal?"
+    "移除「%@」并关闭它的标签?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove “%@” and close its tabs?"
           }
         }
       }
     },
-    "祖母绿圣殿 Emerald": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Emerald Temple"
+    "移除并关闭" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove and Close"
           }
         }
       }
     },
-    "移到新窗口": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Move to New Window"
+    "移除此 Worktree?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this worktree?"
           }
         }
       }
     },
-    "移动到工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Move to Workspace"
+    "稍后" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
           }
         }
       }
     },
-    "移除(并关闭其标签)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove (and close its tabs)"
+    "空目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty folder"
           }
         }
       }
     },
-    "移除「%@」并关闭它的标签?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove “%@” and close its tabs?"
+    "空窗口自动新建终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-open a terminal in empty windows"
           }
         }
       }
     },
-    "移除并关闭": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove and Close"
+    "空窗口自动新建终端(跳过「新建标签页」空白页)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically open a terminal in empty windows (skip the \"New Tab\" placeholder)"
           }
         }
       }
     },
-    "移除此 Worktree?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove this worktree?"
+    "竖线" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bar"
           }
         }
       }
     },
-    "稍后": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Later"
+    "端口管理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports"
           }
         }
       }
     },
-    "空目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Empty folder"
+    "端口管理…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports…"
           }
         }
       }
     },
-    "空窗口自动新建终端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto-open a terminal in empty windows"
+    "端口管理(谁占了 3000)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ports (who’s on 3000)"
           }
         }
       }
     },
-    "空窗口自动新建终端(跳过「新建标签页」空白页)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatically open a terminal in empty windows (skip the \"New Tab\" placeholder)"
-          }
-        }
-      }
-    },
-    "竖线": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bar"
-          }
-        }
-      }
-    },
-    "端口管理": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ports"
-          }
-        }
-      }
-    },
-    "端口管理(谁占了 3000)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ports (who’s on 3000)"
-          }
-        }
-      }
-    },
-    "端口管理…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ports…"
-          }
-        }
-      }
-    },
-    "第 %lld → %lld 行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lines %1$lld → %2$lld"
+    "第 %lld → %lld 行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lines %1$lld → %2$lld"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "第 %1$lld → %2$lld 行"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "第 %1$lld → %2$lld 行"
           }
         }
       }
     },
-    "等了 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "waiting %@"
+    "等了 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "waiting %@"
           }
         }
       }
     },
-    "等待输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Awaiting Input"
+    "等待输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Awaiting Input"
           }
         }
       }
     },
-    "等待输入时系统通知": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System notification when waiting for input"
+    "等待输入时系统通知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System notification when waiting for input"
           }
         }
       }
     },
-    "粉": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pink"
+    "粉" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pink"
           }
         }
       }
     },
-    "粘贴": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste"
+    "粘贴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste"
           }
         }
       }
     },
-    "粘贴保护": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste protection"
+    "粘贴保护" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste protection"
           }
         }
       }
     },
-    "粘贴保护:多行或危险命令先确认": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste protection: confirm multi-line or dangerous commands"
+    "粘贴保护:多行或危险命令先确认" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste protection: confirm multi-line or dangerous commands"
           }
         }
       }
     },
-    "系统等宽(SF Mono)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System monospaced (SF Mono)"
+    "系统等宽(SF Mono)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System monospaced (SF Mono)"
           }
         }
       }
     },
-    "系统默认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System default"
+    "系统默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System default"
           }
         }
       }
     },
-    "紫": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purple"
+    "红" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red"
           }
         }
       }
     },
-    "红": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Red"
+    "纯黑 Pure Black" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pure Black"
           }
         }
       }
     },
-    "纯黑 Pure Black": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pure Black"
+    "紫" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purple"
           }
         }
       }
     },
-    "终止并关闭": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminate and Close"
+    "终止并关闭" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate and Close"
           }
         }
       }
     },
-    "终端": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal"
+    "终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal"
           }
         }
       }
     },
-    "终端列数 × 行数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal columns × rows"
+    "终端列数 × 行数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal columns × rows"
           }
         }
       }
     },
-    "终端引擎": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal engine"
+    "终端引擎" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal engine"
           }
         }
       }
     },
-    "终端配色": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terminal colors"
+    "终端配色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal colors"
           }
         }
       }
     },
-    "结束进程(SIGTERM;右键可强制)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "End Process (SIGTERM; right-click to force)"
+    "结束进程(SIGTERM;右键可强制)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End Process (SIGTERM; right-click to force)"
           }
         }
       }
     },
-    "绿": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Green"
+    "绿" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Green"
           }
         }
       }
     },
-    "编辑命令行(浮层)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit Command Line (Composer)…"
+    "编辑命令行(浮层)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Command Line (Composer)…"
           }
         }
       }
     },
-    "编辑器": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Editor"
+    "编辑器" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editor"
           }
         }
       }
     },
-    "聚焦上方分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus Pane Above"
+    "聚焦上方分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus Pane Above"
           }
         }
       }
     },
-    "聚焦下方分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus Pane Below"
+    "聚焦下方分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus Pane Below"
           }
         }
       }
     },
-    "聚焦右侧分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus Pane Right"
+    "聚焦右侧分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus Pane Right"
           }
         }
       }
     },
-    "聚焦左侧分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus Pane Left"
+    "聚焦左侧分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus Pane Left"
           }
         }
       }
     },
-    "聚焦等待输入的分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus Pane Awaiting Input"
+    "聚焦等待输入的分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus Pane Awaiting Input"
           }
         }
       }
     },
-    "自动换行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wrap lines"
+    "自动换行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrap lines"
           }
         }
       }
     },
-    "自动换行(关闭则横向滚动)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wrap lines (off = horizontal scroll)"
+    "自动换行(关闭则横向滚动)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrap lines (off = horizontal scroll)"
           }
         }
       }
     },
-    "自动检查更新": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check for updates automatically"
+    "自动检查更新" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for updates automatically"
           }
         }
       }
     },
-    "自动检查更新(GitHub Release,每日至多一次)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check for updates automatically (GitHub Releases, at most daily)"
+    "自动检查更新(GitHub Release,每日至多一次)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for updates automatically (GitHub Releases, at most daily)"
           }
         }
       }
     },
-    "自动检测": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto-detect"
+    "自动检测" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-detect"
           }
         }
       }
     },
-    "自动注入命令标记": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inject command markers"
+    "自动注入命令标记" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inject command markers"
           }
         }
       }
     },
-    "自动注入命令标记(OSC 133)与目录上报(OSC 7)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto-inject command marks (OSC 133) and cwd reporting (OSC 7)"
+    "自动注入命令标记(OSC 133)与目录上报(OSC 7)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-inject command marks (OSC 133) and cwd reporting (OSC 7)"
           }
         }
       }
     },
-    "蓝": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blue"
+    "蓝" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue"
           }
         }
       }
     },
-    "行为": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Behavior"
+    "行为" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Behavior"
           }
         }
       }
     },
-    "表格": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Table"
+    "表格" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table"
           }
         }
       }
     },
-    "让 vim、htop 等程序接收鼠标;按住 ⌥ 可临时用本地选择": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lets vim, htop and friends receive the mouse; hold ⌥ for local selection"
+    "让 vim、htop 等程序接收鼠标;按住 ⌥ 可临时用本地选择" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lets vim, htop and friends receive the mouse; hold ⌥ for local selection"
           }
         }
       }
     },
-    "记录会话到文件…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Log Session to File…"
+    "记录会话到文件…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log Session to File…"
           }
         }
       }
     },
-    "设置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Settings"
+    "设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
           }
         }
       }
     },
-    "设置…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Settings…"
+    "设置…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings…"
           }
         }
       }
     },
-    "该分屏正有命令在运行。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A command is running in this pane."
+    "该分屏正有命令在运行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A command is running in this pane."
           }
         }
       }
     },
-    "该标签页有命令正在运行(可能有多个分屏)。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Commands are running in this tab (possibly several panes)."
+    "该标签页有命令正在运行(可能有多个分屏)。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commands are running in this tab (possibly several panes)."
           }
         }
       }
     },
-    "该窗口有 %lld 个命令正在运行,关闭会终止它们。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld commands are running in this window; closing will terminate them."
+    "该窗口有 %lld 个命令正在运行,关闭会终止它们。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld commands are running in this window; closing will terminate them."
           }
         }
       }
     },
-    "该项目有分屏在等待输入(⌘J 跳转)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A pane in this project awaits input (⌘J to jump)"
+    "该项目有分屏在等待输入(⌘J 跳转)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pane in this project awaits input (⌘J to jump)"
           }
         }
       }
     },
-    "该项目有命令已完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A command in this project finished"
+    "该项目有命令已完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A command in this project finished"
           }
         }
       }
     },
-    "该项目的标签里还有 %lld 个命令在运行,关闭会终止它们。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld commands are still running in this project’s tabs; closing will terminate them."
+    "该项目的标签里还有 %lld 个命令在运行,关闭会终止它们。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld commands are still running in this project’s tabs; closing will terminate them."
           }
         }
       }
     },
-    "跟随主题": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Follow theme"
+    "跟随主题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow theme"
           }
         }
       }
     },
-    "跳转到去过的目录…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jump to a visited directory…"
+    "跳转到去过的目录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump to a visited directory…"
           }
         }
       }
     },
-    "跳转目录…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jump to Directory…"
+    "跳转目录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump to Directory…"
           }
         }
       }
     },
-    "跳转过去": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jump There"
+    "跳转过去" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump There"
           }
         }
       }
     },
-    "跳过「新建标签页」空白引导页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skips the blank “New Tab” page"
+    "跳过「新建标签页」空白引导页" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skips the blank “New Tab” page"
           }
         }
       }
     },
-    "输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Input"
+    "输入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input"
           }
         }
       }
     },
-    "输入新分支名,或搜索已有分支": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type a new branch name, or search existing branches"
+    "输入新分支名,或搜索已有分支" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a new branch name, or search existing branches"
           }
         }
       }
     },
-    "输出对比": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Output Diff"
+    "输出对比" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output Diff"
           }
         }
       }
     },
-    "输出已被回滚缓冲修剪,无法查看": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Output was trimmed from scrollback and can’t be shown"
+    "输出已被回滚缓冲修剪,无法查看" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output was trimmed from scrollback and can’t be shown"
           }
         }
       }
     },
-    "过滤:主题 / 作者 / hash": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filter: subject / author / hash"
+    "巡视:上一屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carousel: Previous"
           }
         }
       }
     },
-    "运行中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Running"
+    "巡视:下一屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carousel: Next"
           }
         }
       }
     },
-    "运行中 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Running %@"
+    "巡视分屏:等宽横排滑动(⇧⌘\\)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pane carousel: equal-width swipe (⇧⌘\\)"
           }
         }
       }
     },
-    "返回": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Back"
+    "巡视分屏(等宽横排滑动)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pane Carousel (equal-width swipe)"
           }
         }
       }
     },
-    "返回文件树": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Back to File Tree"
+    "过滤:主题 / 作者 / hash" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter: subject / author / hash"
           }
         }
       }
     },
-    "还没有命令记录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No commands recorded yet"
+    "运行中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
           }
         }
       }
     },
-    "还没有项目": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No projects yet"
+    "运行中 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running %@"
           }
         }
       }
     },
-    "这个文件的修改历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This file’s change history"
+    "返回" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
           }
         }
       }
     },
-    "这次 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This run %@"
+    "返回文件树" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to File Tree"
           }
         }
       }
     },
-    "进程已退出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Process exited"
+    "还没有命令记录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No commands recorded yet"
           }
         }
       }
     },
-    "远程": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "remote"
+    "还没有项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No projects yet"
           }
         }
       }
     },
-    "连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect"
+    "这个文件的修改历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file’s change history"
           }
         }
       }
     },
-    "退出": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quit"
+    "这次 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This run %@"
           }
         }
       }
     },
-    "退出 Termite": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quit Termite"
+    "进程已退出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process exited"
           }
         }
       }
     },
-    "退出 Termite?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quit Termite?"
+    "远程" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "remote"
           }
         }
       }
     },
-    "退出后保留会话": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep sessions alive after quitting"
+    "连接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
           }
         }
       }
     },
-    "退出后保留会话(重启无缝接回,命令继续跑)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep sessions after quitting (reattach seamlessly on relaunch, commands keep running)"
+    "退出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
           }
         }
       }
     },
-    "选中即复制": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy on select"
+    "退出 Termite" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit Termite"
           }
         }
       }
     },
-    "选中即复制到剪贴板": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy on select"
+    "退出 Termite?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit Termite?"
           }
         }
       }
     },
-    "选择 asciinema 录制文件的保存位置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose where to save the asciinema recording"
+    "退出后保留会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep sessions alive after quitting"
           }
         }
       }
     },
-    "选择…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose…"
+    "退出后保留会话(重启无缝接回,命令继续跑)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep sessions after quitting (reattach seamlessly on relaunch, commands keep running)"
           }
         }
       }
     },
-    "选择一个提交": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a commit"
+    "选中即复制" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy on select"
           }
         }
       }
     },
-    "选择会话录制文件的保存位置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose where to save the session log"
+    "选中即复制到剪贴板" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy on select"
           }
         }
       }
     },
-    "选择打开程序…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose App…"
+    "选择 asciinema 录制文件的保存位置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose where to save the asciinema recording"
           }
         }
       }
     },
-    "选择用来打开 file:line 的编辑器": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose the editor for opening file:line"
+    "选择…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
           }
         }
       }
     },
-    "选择用来打开文件的应用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose the app for opening files"
+    "选择一个提交" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a commit"
           }
         }
       }
     },
-    "选择要固定到侧边栏的项目文件夹(左下角可新建)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pick a project folder to pin to the sidebar (New Folder in the corner)"
+    "选择会话录制文件的保存位置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose where to save the session log"
           }
         }
       }
     },
-    "选择设备与波特率(8N1)。串口会话不参与保活与恢复。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a device and baud rate (8N1). Serial sessions are not kept alive or restored."
+    "选择打开程序…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose App…"
           }
         }
       }
     },
-    "通用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "General"
+    "选择用来打开 file:line 的编辑器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the editor for opening file:line"
           }
         }
       }
     },
-    "通知": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications"
+    "选择用来打开文件的应用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the app for opening files"
           }
         }
       }
     },
-    "邮箱": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Email"
+    "选择要固定到侧边栏的项目文件夹(左下角可新建)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a project folder to pin to the sidebar (New Folder in the corner)"
           }
         }
       }
     },
-    "邮箱未设置": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Email not set"
+    "选择设备与波特率(8N1)。串口会话不参与保活与恢复。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a device and baud rate (8N1). Serial sessions are not kept alive or restored."
           }
         }
       }
     },
-    "配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colors apply immediately to every open terminal, window chrome included."
+    "通用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
           }
         }
       }
     },
-    "重启无缝接回,命令继续跑;需要开启启动恢复": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reattaches seamlessly on restart and commands keep running; requires restore on launch"
+    "通知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
           }
         }
       }
     },
-    "重命名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename"
+    "邮箱" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
           }
         }
       }
     },
-    "重命名分屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename Pane"
+    "邮箱未设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email not set"
           }
         }
       }
     },
-    "重命名分屏…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename Pane…"
+    "配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colors apply immediately to every open terminal, window chrome included."
           }
         }
       }
     },
-    "重命名工作区": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename Workspace"
+    "重启无缝接回,命令继续跑;需要开启启动恢复" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reattaches seamlessly on restart and commands keep running; requires restore on launch"
           }
         }
       }
     },
-    "金": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gold"
+    "重命名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
           }
         }
       }
     },
-    "长命令完成时通知": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notify when a long command finishes"
+    "重命名分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Pane"
           }
         }
       }
     },
-    "闪烁": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blink"
+    "重命名分屏…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Pane…"
           }
         }
       }
     },
-    "集成驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码与耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Integration powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code and duration in the status bar, and directory inheritance. Full support on zsh; bash is degraded (no timing); fish 3.6+ works natively."
+    "重命名工作区" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Workspace"
           }
         }
       }
     },
-    "霓虹 '84": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neon ’84"
+    "金" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gold"
           }
         }
       }
     },
-    "青": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cyan"
+    "长命令完成时通知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify when a long command finishes"
           }
         }
       }
     },
-    "项目": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Projects"
+    "长时间运行中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long-running"
           }
         }
       }
     },
-    "项目:%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Project: %@"
+    "闪烁" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blink"
           }
         }
       }
     },
-    "项目颜色": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Project Color"
+    "集成驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码与耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integration powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code and duration in the status bar, and directory inheritance. Full support on zsh; bash is degraded (no timing); fish 3.6+ works natively."
           }
         }
       }
     },
-    "驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码/耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code/duration in the status bar, and directory inheritance. Full support in zsh; bash degrades (no duration); fish 3.6+ is native."
+    "霓虹 '84" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neon ’84"
           }
         }
       }
     },
-    "默认": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default"
+    "青" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan"
           }
         }
       }
     },
-    "默认开启,遇到显示异常可关闭,切换即时生效": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On by default; turn it off if rendering looks wrong — takes effect immediately"
+    "项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projects"
           }
         }
       }
     },
-    "鼠标事件上报": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Report mouse events"
+    "项目:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project: %@"
           }
         }
       }
     },
-    "鼠标事件上报给终端程序(vim/htop 等)": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Report mouse events to terminal apps (vim, htop, …)"
+    "项目颜色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project Color"
+          }
+        }
+      }
+    },
+    "驱动 ⌘↑/⌘↓ 命令跳转、⌘⇧C 复制输出、状态栏退出码/耗时、新标签继承目录。zsh 全功能;bash 降级(无耗时);fish 3.6+ 原生支持。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code/duration in the status bar, and directory inheritance. Full support in zsh; bash degrades (no duration); fish 3.6+ is native."
+          }
+        }
+      }
+    },
+    "默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        }
+      }
+    },
+    "默认开启,遇到显示异常可关闭,切换即时生效" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On by default; turn it off if rendering looks wrong — takes effect immediately"
+          }
+        }
+      }
+    },
+    "鼠标事件上报" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report mouse events"
+          }
+        }
+      }
+    },
+    "鼠标事件上报给终端程序(vim/htop 等)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report mouse events to terminal apps (vim, htop, …)"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

@@ -45,6 +45,9 @@ final class TerminalSession: Identifiable {
     private(set) var lastCommandDuration: TimeInterval?
     /// 当前是否正在执行命令(OSC 133 C..D 之间)
     private(set) var runningCommand = false
+    /// 命令连续跑超过阈值(ssh / dev server / TUI 这类长驻进程):
+    /// 转圈指示降级为静态点,别让菊花永动干扰视线(issue #9)
+    private(set) var longRunningCommand = false
     /// 当前命令开始执行的时间(驱动状态栏实时计时)
     private(set) var commandRunningSince: Date?
     /// 是否有可复制的命令输出(驱动菜单可用态)
@@ -134,6 +137,10 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored weak var manager: SessionManager?
 
     @ObservationIgnored private var commandStartedAt: Date?
+    /// 长驻判定的延时翻转(命令结束即取消)
+    @ObservationIgnored private var longRunningFlip: DispatchWorkItem?
+    /// 连续运行超过这个秒数视为长驻进程
+    private static let longRunningThreshold: TimeInterval = 15
     /// 提示符位置标记(scroll-invariant 行号),⌘↑/⌘↓ 在命令间跳转
     @ObservationIgnored private var commandMarks: [Int] = []
     @ObservationIgnored private var pendingOutputStart: Int?
@@ -629,6 +636,7 @@ final class TerminalSession: Identifiable {
             runningCommand = true
             commandStartedAt = Date()
             commandRunningSince = commandStartedAt
+            scheduleLongRunningFlip()
             SessionManagerRegistry.shared.updateDockBadge()
             let outputRow = currentScrollInvariantRow()
             pendingOutputStart = outputRow
@@ -641,6 +649,9 @@ final class TerminalSession: Identifiable {
             commandStartedAt = nil
             commandRunningSince = nil
             runningCommand = false
+            longRunningCommand = false
+            longRunningFlip?.cancel()
+            longRunningFlip = nil
             lastExitCode = code
             lastCommandDuration = duration
             recordCommand(code: code, duration: duration)
@@ -658,6 +669,19 @@ final class TerminalSession: Identifiable {
                 }
             }
         }
+    }
+
+    /// 命令开跑后挂一个阈值定时器:到点还没结束就标记为长驻(菊花 → 静态点)
+    private func scheduleLongRunningFlip() {
+        longRunningCommand = false
+        longRunningFlip?.cancel()
+        let startedAt = commandStartedAt
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.runningCommand, self.commandStartedAt == startedAt else { return }
+            self.longRunningCommand = true
+        }
+        longRunningFlip = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.longRunningThreshold, execute: work)
     }
 
     /// 后台长命令完成 → 系统通知(App 不活跃,或不是当前聚焦 pane)

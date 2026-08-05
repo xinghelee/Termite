@@ -25,8 +25,10 @@ struct StatusBarView: View {
                 gitItems
                 HStack(spacing: 8) {
                     Spacer(minLength: 8)
+                    // .secondary 而非 .tertiary:时钟是会被读的信息,暗色主题下
+                    // .tertiary(~25% 白)难以辨认(issue #9 用户反馈)
                     Text(context.date.formatted(date: .omitted, time: .standard))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                     separatorDot
                     Text("\(session.terminalView.getTerminal().cols)×\(session.terminalView.getTerminal().rows)")
                         .foregroundStyle(.tertiary)
@@ -82,7 +84,12 @@ struct StatusBarView: View {
         if session.runningCommand {
             separatorDot
             HStack(spacing: 4) {
-                ProgressView().controlSize(.mini)
+                if session.longRunningCommand {
+                    // 长驻进程(ssh / dev server):静态绿点替代永动菊花,经过时间照常走
+                    Circle().fill(Color.green.opacity(0.8)).frame(width: 6, height: 6)
+                } else {
+                    ProgressView().controlSize(.mini)
+                }
                 Text(runningText(now: now))
             }
             .foregroundStyle(.secondary)
