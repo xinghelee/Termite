@@ -43,14 +43,19 @@ final class TermiteAppDelegate: NSObject, NSApplicationDelegate {
             // 保活会话退出后照常在守护进程里跑,重启接回,无需吓唬用户
             let allSurvive = !runningSessions.isEmpty && runningSessions.allSatisfy(\.usesHostTransport)
             let running = runningSessions.count
-            guard confirmEnabled, running > 0, !allSurvive else { return .terminateNow }
+            if !confirmEnabled || running == 0 || allSurvive {
+                SessionManagerRegistry.shared.isTerminating = true
+                return .terminateNow
+            }
             let alert = NSAlert()
             alert.messageText = String(localized: "退出 Termite?")
             alert.informativeText = String(localized: "有 \(running) 个命令正在运行,退出会终止它们。")
             alert.alertStyle = .warning
             alert.addButton(withTitle: String(localized: "退出"))
             alert.addButton(withTitle: String(localized: "取消"))
-            return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+            guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+            SessionManagerRegistry.shared.isTerminating = true
+            return .terminateNow
         }
     }
 }

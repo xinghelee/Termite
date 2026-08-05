@@ -70,6 +70,8 @@ final class PtyHostClient {
                     disconnect(notifySessions: false)
                     return false
                 }
+                // 上一程可能有 kill 发进断掉的传输:趁连接鲜活补刀
+                flushCondemned()
                 return true
             }
             if !spawned {
@@ -249,7 +251,45 @@ final class PtyHostClient {
     }
 
     func kill(id: UUID) {
+        // 先记死刑名单再发帧:send 在传输断开时静默丢帧,丢掉的 kill 意味着
+        // shell 仍活在守护进程里,下次启动会被孤儿收养复活(issue #9 的复活元凶)。
+        // 名单持久化,重连(flushCondemned)/收养(isCondemned)时补刀
+        condemned.insert(id)
+        persistCondemned()
         send(PtyFrameCodec.encode(.kill, json: PtySessionRef(id: id)))
+    }
+
+    // MARK: - 死刑名单(kill 必达兜底)
+
+    private static let condemnedKey = "ptyhost.condemnedSessions"
+
+    private var condemned: Set<UUID> = Set(
+        (UserDefaults.standard.stringArray(forKey: condemnedKey) ?? []).compactMap(UUID.init)
+    )
+
+    private func persistCondemned() {
+        UserDefaults.standard.set(condemned.map(\.uuidString), forKey: Self.condemnedKey)
+    }
+
+    /// 该会话已被判死但 kill 可能没送达(勿收养,补刀即可)
+    func isCondemned(_ id: UUID) -> Bool {
+        condemned.contains(id)
+    }
+
+    /// 连接建立后重发全部未确认的 kill(守护进程单队列,活连接上必达)
+    func flushCondemned() {
+        for id in condemned {
+            send(PtyFrameCodec.encode(.kill, json: PtySessionRef(id: id)))
+        }
+    }
+
+    /// 对照 LIST 结果清名单:不在守护进程里的会话已真正死透
+    func pruneCondemned(listing: [PtySessionInfo]) {
+        let present = Set(listing.map(\.id))
+        let stale = condemned.subtracting(present)
+        guard !stale.isEmpty else { return }
+        condemned.subtract(stale)
+        persistCondemned()
     }
 
     private func encodeJSON<T: Encodable>(_ value: T) -> Data {

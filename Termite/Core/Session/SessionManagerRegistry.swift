@@ -47,8 +47,14 @@ final class SessionManagerRegistry {
                       let manager = registry.windowMap.object(forKey: window) else { return }
                 // 记下关窗时的 frame:Dock 重开在首帧前预放置,不闪旧位置
                 registry.pendingFrames[ObjectIdentifier(manager)] = NSStringFromRect(window.frame)
-                // 关窗前把布局+屏幕内容落盘(含本窗口),然后终止其所有 shell
+                // 关窗前把布局+屏幕内容落盘(含本窗口)
                 registry.persistAllOpenTabs(includeScrollback: true)
+                // 退出中的关窗不是「关窗」:⌘Q/Dock 退出=detach,shell 留在守护进程。
+                // 此前 quit 也走 shutdownAll,kill 是否送达全看进程死得快不快(时序随机,
+                // ptyhost.log 同一操作两种结局);且 removeAll 在前,willTerminate 的
+                // persist 在后,后者会用空 managers 写出空存档,恢复名单清零,
+                // 下次启动全靠孤儿收养——被关标签复活的元凶之一(issue #9)
+                guard !registry.isTerminating else { return }
                 manager.shutdownAll()
                 registry.managers.removeAll { $0 === manager }
                 registry.windowGeneration += 1
@@ -99,6 +105,11 @@ final class SessionManagerRegistry {
     /// 窗口(manager)增删的代数计数。managers 数组是 @ObservationIgnored,
     /// 菜单栏徽标等 SwiftUI 消费者读它以便在开/关窗口后重扫会话集
     private(set) var windowGeneration = 0
+
+    /// app 正在退出(applicationShouldTerminate 确认后置位):
+    /// 随之而来的窗口 willClose 不得杀会话/摘 manager——quit=detach,
+    /// 且 managers 要活到 willTerminate 的最终 persist
+    @ObservationIgnored var isTerminating = false
 
     /// 按窗口 key 取 manager(没有则建):视图树重建时返回同一实例
     func manager(for key: UUID) -> SessionManager {
