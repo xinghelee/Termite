@@ -7,6 +7,9 @@ import SwiftUI
 struct WindowConfigurator: NSViewRepresentable {
     let appearanceName: NSAppearance.Name
     let backgroundColor: NSColor
+    /// 透明 chrome:窗口非不透明 + 清空底色,让 WindowBackdrop 的 behind-window
+    /// 毛玻璃透出桌面;backgroundColor 仅在不透明模式下钉死(挡 desktop tinting)
+    var translucent = false
     /// 独立小窗保留标题文字,主窗口隐藏
     var keepsTitle = false
     /// 内容延伸到标题栏之下(设置窗口:左栏底色一路铺到窗口顶)
@@ -63,6 +66,22 @@ struct WindowConfigurator: NSViewRepresentable {
             window.styleMask.insert(.fullSizeContentView)
         }
         window.titleVisibility = keepsTitle ? .visible : .hidden
-        window.backgroundColor = backgroundColor
+        window.isOpaque = !translucent
+        window.backgroundColor = translucent ? .clear : backgroundColor
     }
+}
+
+/// behind-window 毛玻璃:采样窗口后方(桌面/其他窗口)做模糊,透明 chrome 的最底层。
+/// .sidebar 材质 = 原生侧边栏同款,深浅外观都有明显的透出感;
+/// followsWindowActiveState:失焦时退成平底,与系统窗口行为一致
+struct WindowBackdrop: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = .behindWindow
+        view.material = .sidebar
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }

@@ -15,8 +15,14 @@ struct SidebarView: View {
             spacePager
             spaceSwitcher
         }
-        // chrome 带:与标题栏同色,并越过安全区一路铺到窗口顶,左上角不留色阶断层
-        .background(theme.current.sidebarBackground.ignoresSafeArea())
+        // chrome 带:与标题栏同色,并越过安全区一路铺到窗口顶,左上角不留色阶断层。
+        // 透明 chrome 下不铺:上色统一交给 MainWindowView 的玻璃 tint 层,
+        // 这里再叠一层会比标题栏暗一档,色阶断层就回来了
+        .background {
+            if !SettingsKeys.translucentChromeOn {
+                theme.current.sidebarBackground.ignoresSafeArea()
+            }
+        }
         // 触控板在侧边栏上横扫切换工作区(Arc 手势)
         .background(SpaceSwipeCatcher())
         // 右缘发丝线:与标题栏下方的结构线呼应,划清侧边栏与终端区

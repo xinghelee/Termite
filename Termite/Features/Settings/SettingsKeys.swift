@@ -51,4 +51,11 @@ enum SettingsKeys {
     static let editorAppPath = "terminal.editorAppPath"
     /// 启动时自动检查 GitHub Release 新版本(24h 至多一次)
     static let autoCheckUpdates = "app.autoCheckUpdates"
+    /// chrome 带(标题栏+侧边栏)透明毛玻璃,透出桌面;默认开(暂无设置 UI,defaults 可关)
+    static let translucentChrome = "app.translucentChrome"
+
+    /// 透明 chrome 当前是否生效(多处 UI 按此分支取色)
+    static var translucentChromeOn: Bool {
+        UserDefaults.standard.object(forKey: translucentChrome) as? Bool ?? true
+    }
 }

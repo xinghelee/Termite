@@ -26,10 +26,22 @@ struct MainWindowView: View {
             }
     }
 
+    /// chrome 带透明毛玻璃(默认开;`defaults write` app.translucentChrome 可关)
+    private var translucent: Bool { SettingsKeys.translucentChromeOn }
+
     private func content(_ manager: SessionManager) -> some View {
         // 项目 accent:覆盖本窗口的强调色与标题栏底色,多窗口跑不同项目时一眼分辨
         let projectAccent = ProjectStore.shared.current(for: manager)?.accentHex
         let effectiveTheme = theme.current.withAccent(projectAccent)
+        // chrome 带色(标题栏 = 侧边栏,不透明模式的窗口底色)
+        let chromeBand = projectAccent.map {
+            theme.current.sidebarNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
+        } ?? theme.current.sidebarNSColor
+        // 玻璃 tint 用不压黑的主题背景色:sidebarNSColor 那 35% 黑是给不透明层次用的,
+        // 叠在深色玻璃上整条 chrome 就发死黑,透不出桌面(用户反馈「背景太黑」)
+        let glassTint = projectAccent.map {
+            theme.current.backgroundNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
+        } ?? theme.current.backgroundNSColor
         return ZStack {
             NavigationSplitView(columnVisibility: $sidebarVisibility) {
                 // 系统原生切换按钮在 macOS 26 是尺寸不可调的玻璃大圆,与标题栏
@@ -102,13 +114,24 @@ struct MainWindowView: View {
         .tint(effectiveTheme.accentColor)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.palette.isPresented)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: manager.directoryJumper.isPresented)
+        // 透明 chrome 的底层:整窗毛玻璃 + 半透主题 tint。终端区(chromeBackground)
+        // 与侧边栏选中行等都画在其上,只有标题栏与侧边栏空白处真正透出桌面
+        .background {
+            if translucent {
+                ZStack {
+                    WindowBackdrop()
+                    Color(nsColor: glassTint).opacity(0.45)
+                }
+                .ignoresSafeArea()
+            }
+        }
         .background(WindowConfigurator(
             appearanceName: theme.current.appearanceName,
             // 窗口底色即透明标题栏透出的颜色:用 chrome 带色(= 侧边栏色),
-            // 顶栏与侧边栏连成一块暗底,终端区自己铺亮底
-            backgroundColor: projectAccent.map {
-                theme.current.sidebarNSColor.mixed(with: NSColor(hex: $0), ratio: 0.16)
-            } ?? theme.current.sidebarNSColor,
+            // 顶栏与侧边栏连成一块暗底,终端区自己铺亮底;透明模式下底色清空,
+            // 颜色职责移交上面的 tint 层
+            backgroundColor: chromeBand,
+            translucent: translucent,
             onWindowEarly: { window in
                 // 首帧之前把窗口摆到上次的位置(Dock 重开/冷启动都不闪旧位置)
                 SessionManagerRegistry.shared.prepareForReveal(manager, window: window)

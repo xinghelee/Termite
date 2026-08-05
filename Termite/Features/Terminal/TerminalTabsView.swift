@@ -199,9 +199,13 @@ struct TerminalTabsView: View {
         chipsContentWidth > chipsContainerWidth + 1
     }
 
-    /// 标签条轨道:比 chrome 带(标题栏底色)再暗一档,内凹感,把所有 chips 收进同一个容器
+    /// 标签条轨道:内凹感,把所有 chips 收进同一个容器。
+    /// 透明 chrome 下用半透黑压出凹槽(不透明的 trackBackground 在玻璃上是一块死黑,
+    /// 用户反馈「背景太黑」);不透明模式仍是比 chrome 带再暗一档的实色
     private var chipTrackColor: Color {
-        ThemeStore.shared.current.trackBackground
+        SettingsKeys.translucentChromeOn
+            ? Color.black.opacity(ThemeStore.shared.current.isDark ? 0.28 : 0.08)
+            : ThemeStore.shared.current.trackBackground
     }
 
     /// 标签 chips(标题栏左侧):深色轨道内选中浮起,溢出时两端渐隐,选中自动滚入;
@@ -400,24 +404,30 @@ struct TerminalTabsView: View {
     }
 }
 
-/// 浮起材质胶囊:投影 + 顶部受光细边。选中标签、标题栏按钮共用同一套光影语言
+/// 浮起材质胶囊:选中标签、标题栏按钮、选中项目行共用同一套光影语言。
+/// macOS 26+ 用系统 Liquid Glass(真实折射 + 边缘受光,与原生 chrome 同材质),
+/// 旧系统回退自绘:纯色底 + 投影 + 顶部受光细边
 struct RaisedCapsule: View {
     var body: some View {
         let theme = ThemeStore.shared.current
-        Capsule()
-            .fill(theme.elevatedBackground.shadow(.drop(
-                color: .black.opacity(theme.isDark ? 0.35 : 0.15),
-                radius: 1.5, y: 1
-            )))
-            .overlay(
-                Capsule().strokeBorder(
-                    LinearGradient(
-                        colors: [.white.opacity(theme.isDark ? 0.16 : 0.6), .white.opacity(0)],
-                        startPoint: .top, endPoint: .bottom
-                    ),
-                    lineWidth: 1
+        if #available(macOS 26.0, *) {
+            Color.clear.glassEffect(.regular, in: .capsule)
+        } else {
+            Capsule()
+                .fill(theme.elevatedBackground.shadow(.drop(
+                    color: .black.opacity(theme.isDark ? 0.35 : 0.15),
+                    radius: 1.5, y: 1
+                )))
+                .overlay(
+                    Capsule().strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(theme.isDark ? 0.16 : 0.6), .white.opacity(0)],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
                 )
-            )
+        }
     }
 }
 
