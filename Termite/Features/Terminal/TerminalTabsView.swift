@@ -9,6 +9,16 @@ struct TerminalTabsView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var chipsContentWidth: CGFloat = 0
     @State private var chipsContainerWidth: CGFloat = 0
+    // 标签拖排(DragGesture 手动跟手,轨道坐标系)。不能用 .draggable:
+    // item-provider 的拖起不算 SwiftUI 手势,在标题栏里抢不过 window-move,
+    // 按住 chip 移动的是整个窗口(issue #9);真手势从 mouseDown 即占有事件流
+    @State private var chipFrames: [UUID: CGRect] = [:]
+    @State private var draggingChip: UUID?
+    @State private var dragOffset: CGFloat = 0
+    @State private var dragAnchorX: CGFloat = 0
+    private static let chipTrackSpace = "chipTrack"
+    /// chips HStack 的间距,交换补偿时参与位移计算
+    private static let chipSpacing: CGFloat = 2
     /// 终端区宽度:标签轨道的动态上限基准(超宽会让 NSToolbar 整体收进 » 溢出菜单)
     @State private var contentWidth: CGFloat = 0
     /// 右侧按钮岛实测宽(升级/巡视按钮会动态出现,写死会算漏导致 » 折叠)
@@ -244,20 +254,21 @@ struct TerminalTabsView: View {
                             }
                             // 关闭缩小淡出 / 新建对称弹入(定位滚动保持瞬时,不与此动画打架)
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
-                            // 拖拽重排:拖起 chip 丢到另一枚 chip 上,占据其位置
-                            .draggable(tab.id.uuidString)
-                            .dropDestination(for: String.self) { items, _ in
-                                guard let raw = items.first, let dragged = UUID(uuidString: raw) else { return false }
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                    sessionManager.moveTab(dragged, before: tab.id)
-                                }
-                                return true
-                            }
+                            // 拖拽重排:跟手平移,越过邻居中线即换位(浏览器手感)
+                            .offset(x: draggingChip == tab.id ? dragOffset : 0)
+                            .zIndex(draggingChip == tab.id ? 1 : 0)
+                            .onGeometryChange(for: CGRect.self) {
+                                $0.frame(in: .named(Self.chipTrackSpace))
+                            } action: { chipFrames[tab.id] = $0 }
+                            .gesture(chipDragGesture(for: tab))
                         }
                     }
                     .padding(.horizontal, 4)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.9),
+                    // 拖排进行中即时换位不动画:换位动画期间 chip frame 在飞,
+                    // 越线判定会拿飞行中的坐标连环误换
+                    .animation(draggingChip == nil ? .spring(response: 0.25, dampingFraction: 0.9) : nil,
                                value: sessionManager.visibleTabs.map(\.id))
+                    .coordinateSpace(name: Self.chipTrackSpace)
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chipsContentWidth = $0 }
                 }
                 // minWidth 让窄窗口时工具栏压缩标签条(可滚动)而不是整个丢弃(issue #4 三)。
@@ -300,6 +311,68 @@ struct TerminalTabsView: View {
                 // 瞬时定位:新建标签时 chip 插入与滚动两个动画打架会抖(issue #4 四)
                 proxy.scrollTo(selected, anchor: .center)
             }
+        }
+    }
+
+    /// chip 拖排手势:视觉偏移 = 指针 - 锚点,chip 钉在指针下;越过邻居中线即换位,
+    /// 锚点按换过去的宽度补偿,换位瞬间视觉零跳变
+    private func chipDragGesture(for tab: PaneTab) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.chipTrackSpace))
+            .onChanged { value in
+                if draggingChip != tab.id {
+                    draggingChip = tab.id
+                    dragAnchorX = value.startLocation.x
+                }
+                dragOffset = value.location.x - dragAnchorX
+                swapIfCrossedNeighbor(tab)
+            }
+            .onEnded { _ in
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                    dragOffset = 0
+                }
+                // 等落位动画放完再摘拖拽态(期间保持 zIndex 抬高;新拖动会自行接管)
+                let settled = tab.id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    if draggingChip == settled { draggingChip = nil }
+                }
+            }
+    }
+
+    /// 越线判定与换位。全部用本轮事件的旧布局坐标快照比较;换位后邻居的
+    /// 陈旧 frame 会落在错误的一侧,side 校验自然拦下连环误换
+    private func swapIfCrossedNeighbor(_ tab: PaneTab) {
+        guard let myFrame = chipFrames[tab.id] else { return }
+        let center = myFrame.midX + dragOffset
+        let visible = sessionManager.visibleTabs
+        guard let myIndex = visible.firstIndex(where: { $0.id == tab.id }) else { return }
+
+        var target = myIndex
+        var shift: CGFloat = 0
+        var i = myIndex + 1
+        while i < visible.count, let f = chipFrames[visible[i].id],
+              f.midX > myFrame.midX, center > f.midX {
+            target = i
+            shift += f.width + Self.chipSpacing
+            i += 1
+        }
+        if target > myIndex {
+            sessionManager.moveTab(tab.id, after: visible[target].id)
+            dragAnchorX += shift
+            dragOffset -= shift
+            return
+        }
+
+        i = myIndex - 1
+        while i >= 0, let f = chipFrames[visible[i].id],
+              f.midX < myFrame.midX, center < f.midX {
+            target = i
+            shift += f.width + Self.chipSpacing
+            i -= 1
+        }
+        if target < myIndex {
+            sessionManager.moveTab(tab.id, before: visible[target].id)
+            dragAnchorX -= shift
+            dragOffset += shift
         }
     }
 
@@ -1215,9 +1288,17 @@ private struct TerminalTabChip: View {
                     .frame(width: 7, height: 7)
                     .help("有分屏在等待输入")
             } else if focusedSession?.runningCommand == true {
-                ProgressView()
-                    .controlSize(.mini)
-                    .frame(width: 8, height: 8)
+                if focusedSession?.longRunningCommand == true {
+                    // ssh / dev server 这类长驻进程:菊花永动太吵,降级为静态绿点
+                    Circle()
+                        .fill(Color.green.opacity(0.8))
+                        .frame(width: 6, height: 6)
+                        .help("长时间运行中")
+                } else {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .frame(width: 8, height: 8)
+                }
             } else if hasActivity, !isSelected {
                 Circle()
                     .fill(ThemeStore.shared.current.accentColor)
@@ -1281,6 +1362,9 @@ private struct TerminalTabChip: View {
         .padding(.horizontal, 10)
         // 3 而不是 4:轨道那边多留了 2pt 的沟,chip 自己收一点,整条不至于变高
         .padding(.vertical, 3)
+        // 短标题(zsh)的 chip 会缩成一小粒,不好点(issue #9):
+        // 兜一个最小宽度,内容自然居中,长标题不受影响
+        .frame(minWidth: 92)
         .background {
             // 深色轨道内:选中 chip 用浮起材质,未选中保持透明、悬停微亮
             if isSelected {

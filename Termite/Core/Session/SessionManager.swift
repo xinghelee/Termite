@@ -436,6 +436,16 @@ final class SessionManager {
         persistOpenTabs()
     }
 
+    /// 拖到目标 chip 右侧(拖排手势向右越过邻居;before 变体覆盖不了队尾)
+    func moveTab(_ id: PaneTab.ID, after targetID: PaneTab.ID) {
+        guard id != targetID,
+              let from = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let tab = tabs.remove(at: from)
+        let insertAt = tabs.firstIndex(where: { $0.id == targetID }).map { $0 + 1 } ?? min(from, tabs.count)
+        tabs.insert(tab, at: insertAt)
+        persistOpenTabs()
+    }
+
     /// 有命令在跑的会话数(关窗/退出确认用)
     var runningCommandCount: Int {
         sessions.filter(\.runningCommand).count
@@ -847,13 +857,19 @@ final class SessionManager {
         let liveLocalIDs = Set(SessionManagerRegistry.shared.allSessions.compactMap(\.hostPtyID))
         for info in listing
         where !claimed.contains(info.id) && info.attached != true && !liveLocalIDs.contains(info.id) {
-            if info.alive {
+            if client.isCondemned(info.id) {
+                // 上一程被 ⌘W 关掉但 kill 丢在断掉的传输里:补刀,绝不收养
+                //(收养它 = 用户反馈的「关掉的标签重启后全复活」,issue #9)
+                client.kill(id: info.id)
+            } else if info.alive {
                 newTab(directory: validDirectory(info.cwd),
                        reattach: PtyReattach(id: info.id, offset: info.headOffset))
             } else {
                 client.kill(id: info.id)
             }
         }
+        // 已从守护进程消失的死刑记录清掉,名单不无限膨胀
+        client.pruneCondemned(listing: listing)
     }
 
     /// 调试:把所有会话的视图状态与缓冲区尾部导出到 /tmp(排查渲染/输入问题)
