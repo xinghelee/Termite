@@ -26,6 +26,32 @@ final class PasteProtectionTests: XCTestCase {
     }
 }
 
+final class ClipboardImagePasteTests: XCTestCase {
+
+    func testTiffOnClipboardSavedAsPng() throws {
+        let image = NSImage(size: NSSize(width: 4, height: 4), flipped: false) { rect in
+            NSColor.red.setFill()
+            rect.fill()
+            return true
+        }
+        let pb = NSPasteboard(name: NSPasteboard.Name("termite.test.image"))
+        pb.clearContents()
+        pb.setData(try XCTUnwrap(image.tiffRepresentation), forType: .tiff)
+
+        let path = try XCTUnwrap(TermiteTerminalView.saveClipboardImage(pb))
+        defer { try? FileManager.default.removeItem(atPath: path) }
+        XCTAssertTrue(path.hasSuffix(".png"))
+        let data = try XCTUnwrap(FileManager.default.contents(atPath: path))
+        XCTAssertEqual([UInt8](data.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+    }
+
+    func testEmptyClipboardReturnsNil() {
+        let pb = NSPasteboard(name: NSPasteboard.Name("termite.test.empty"))
+        pb.clearContents()
+        XCTAssertNil(TermiteTerminalView.saveClipboardImage(pb))
+    }
+}
+
 final class CompactTitleTests: XCTestCase {
 
     @MainActor

@@ -4,6 +4,7 @@ import SwiftUI
 
 /// 终端视图子类(内嵌本地 PTY):
 /// - 粘贴保护:多行或含危险命令(sudo/rm -rf/dd/mkfs 等)先弹预览确认,设置可关
+/// - 粘贴文件→转义完整路径;粘贴截图→落盘临时 PNG 贴路径(codex/claude 靠路径附图)
 /// - 右键菜单(复制/粘贴/分屏/查找/复制上条输出)
 /// - 选中即复制(默认开)/ 中键粘贴(默认关)
 /// - 拦截 PTY 输出交给会话做 OSC 133 命令跟踪与录制
@@ -643,12 +644,28 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         super.otherMouseUp(with: event)
     }
 
-    // MARK: - 粘贴保护
+    // MARK: - 粘贴(文件路径 / 图片 / 文本+粘贴保护)
 
     override func paste(_ sender: Any) {
+        let pb = NSPasteboard.general
+        // Finder 复制的文件:贴 shell 转义后的完整路径(Ghostty 同款),
+        // codex/claude 等 TUI 靠粘贴进来的图片路径识别并附加图片
+        if pb.availableType(from: [.fileURL]) != nil,
+           let urls = pb.readObjects(forClasses: [NSURL.self],
+                                     options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !urls.isEmpty {
+            sendAsPaste(urls.map { Self.shellEscaped($0.path) }.joined(separator: " "))
+            return
+        }
+        // 裸图片(截图/浏览器复制的图)没有文字形态,SwiftTerm 默认粘贴会静默失败;
+        // 落盘临时 PNG 后贴路径,Cmd+V 直接可用(Ghostty 至今只支持 Ctrl+V 由 TUI 自己读剪贴板)
+        if pb.string(forType: .string) == nil, let path = Self.saveClipboardImage(pb) {
+            sendAsPaste(Self.shellEscaped(path))
+            return
+        }
         let enabled = UserDefaults.standard.object(forKey: SettingsKeys.pasteProtection) as? Bool ?? true
         guard enabled,
-              let text = NSPasteboard.general.string(forType: .string),
+              let text = pb.string(forType: .string),
               Self.needsConfirmation(text) else {
             super.paste(sender)
             return
@@ -662,6 +679,31 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         if alert.runModal() == .alertFirstButtonReturn {
             super.paste(sender)
         }
+    }
+
+    /// 路径粘贴不走 super.paste(那条路只认字符串),按终端当前括号粘贴模式自己包
+    private func sendAsPaste(_ text: String) {
+        guard inputEnabled else { return }
+        let payload = getTerminal().bracketedPasteMode
+            ? "\u{1b}[200~\(text)\u{1b}[201~" : text
+        if let session {
+            session.sendText(payload)
+        } else {
+            send(txt: payload)
+        }
+    }
+
+    /// 剪贴板图片落盘成临时 PNG(TIFF 转码),返回文件路径;没有图片返回 nil
+    static func saveClipboardImage(_ pb: NSPasteboard) -> String? {
+        var data = pb.data(forType: .png)
+        if data == nil, let tiff = pb.data(forType: .tiff) {
+            data = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
+        }
+        guard let data else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("termite-clipboard-\(UUID().uuidString.prefix(8)).png")
+        guard (try? data.write(to: url)) != nil else { return nil }
+        return url.path
     }
 
     /// 多行,或单行但含高危命令片段
