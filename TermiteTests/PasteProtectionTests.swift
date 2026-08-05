@@ -1,3 +1,4 @@
+import SwiftTerm
 import XCTest
 @testable import Termite
 
@@ -23,6 +24,30 @@ final class PasteProtectionTests: XCTestCase {
         let preview = TermiteTerminalView.preview(text)
         XCTAssertTrue(preview.contains("…"))
         XCTAssertTrue(preview.contains("30"))
+    }
+}
+
+final class SearchActivationTests: XCTestCase {
+
+    /// 搜索激活期间关 allowMouseReporting(防输出清选区)并换高对比选区色;关闭全部还原
+    @MainActor
+    func testActivateAndCloseRestoreTerminalState() {
+        let view = TerminalView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        let originalColor = view.selectedTextBackgroundColor
+        view.allowMouseReporting = true
+
+        let model = TerminalSearchModel()
+        model.terminalView = view
+        model.activate()
+        XCTAssertFalse(view.allowMouseReporting)
+        XCTAssertNotEqual(view.selectedTextBackgroundColor, originalColor)
+
+        // 重复激活不覆盖暂存值
+        model.activate()
+
+        model.close()
+        XCTAssertTrue(view.allowMouseReporting)
+        XCTAssertEqual(view.selectedTextBackgroundColor, originalColor)
     }
 }
 

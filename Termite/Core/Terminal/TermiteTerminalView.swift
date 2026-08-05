@@ -138,6 +138,13 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     /// 仅普通缓冲区且无鼠标上报时生效(vim/TUI 不受影响);折行命令按列数折算,
     /// 点过命令边界的多余方向键由 zle 自行截停
     override func mouseDown(with event: NSEvent) {
+        // 点 pane 聚焦在 AppKit 层自己做:macOS 15 上 SwiftUI 的 onTapGesture
+        // 收不到被 NSView 消费的点击(标签拖动同款事件路径差异),
+        // 模型焦点(focusedID)与键盘焦点(firstResponder)在这里一起接管
+        if let session, inputEnabled,
+           session.manager?.selectedID != session.id || window?.firstResponder !== self {
+            session.manager?.focusPane(session.id)
+        }
         if event.modifierFlags.contains(.option), event.clickCount == 1,
            inputEnabled, session != nil, moveCursorToClick(event) {
             return
@@ -329,6 +336,9 @@ final class TermiteTerminalView: LocalProcessTerminalView {
             }
             windowKeyObservers.append(token)
         }
+        // 挂窗时先按当前焦点态整形一次:视图在容器间搬家(分屏/巡视/最大化切换)
+        // 期间观察停摆,错过的焦点进出会留下「失焦还在闪 / 聚焦不闪」的僵尸状态
+        applyFocusCursorStyle(focused: hasFocus)
         firstResponderObservation = window.observe(\.firstResponder, options: [.old, .new]) { [weak self] _, change in
             MainActor.assumeIsolated {
                 guard let self else { return }

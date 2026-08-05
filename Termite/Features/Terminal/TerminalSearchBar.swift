@@ -1,3 +1,4 @@
+import AppKit
 import SwiftTerm
 import SwiftUI
 
@@ -13,6 +14,27 @@ final class TerminalSearchModel {
     private(set) var searched = false
 
     weak var terminalView: TerminalView?
+
+    /// 搜索期间暂存的终端状态(关闭时还原)
+    private var savedMouseReporting: Bool?
+    private var savedSelectionColor: NSColor?
+
+    /// 搜索打开时接管终端两处状态:
+    /// 1. 关 allowMouseReporting——SwiftTerm 的 feedPrepare 在它开着时逢输出就清
+    ///    选区,pane 里有 TUI 在刷屏(spinner/时钟)高亮设上即被抹掉;
+    /// 2. 选区色换成「强调色对半调向背景」的高对比色——主题选区色贴着背景
+    ///    (如默认 #2A3350),当搜索高亮几乎看不见。用实色不用 alpha,
+    ///    CoreGraphics 与 Metal 两条渲染路径表现一致
+    func activate() {
+        guard let terminalView, savedMouseReporting == nil else { return }
+        savedMouseReporting = terminalView.allowMouseReporting
+        savedSelectionColor = terminalView.selectedTextBackgroundColor
+        terminalView.allowMouseReporting = false
+        let theme = ThemeStore.shared.current
+        let accent = NSColor(hex: theme.accent)
+        terminalView.selectedTextBackgroundColor =
+            accent.blended(withFraction: 0.5, of: theme.backgroundNSColor) ?? accent
+    }
 
     var statusText: String {
         guard searched, !query.isEmpty else { return "" }
@@ -50,6 +72,10 @@ final class TerminalSearchModel {
     }
 
     func close() {
+        if let saved = savedMouseReporting { terminalView?.allowMouseReporting = saved }
+        if let color = savedSelectionColor { terminalView?.selectedTextBackgroundColor = color }
+        savedMouseReporting = nil
+        savedSelectionColor = nil
         terminalView?.clearSearch()
         query = ""
         searched = false

@@ -506,9 +506,17 @@ final class SessionManager {
         if let newRoot = tab.root.removing(leaf: session.id) {
             tab.root = newRoot
             if tab.focusedID == session.id { tab.focusedID = neighbor ?? newRoot.firstLeaf }
+            // 键盘焦点交接:firstResponder 还挂在刚拆掉的视图上,不接手就死键盘。
+            // 简单布局以前能自愈是运气——树塌缩恰好让幸存视图重挂窗触发
+            // viewDidMoveToWindow 抢焦点;复杂布局邻居不搬家,谁也不接
+            if selectedTabID == tab.id { self.session(tab.focusedID)?.focusTerminal() }
         } else {
             tabs.removeAll { $0.id == tab.id }
-            if selectedTabID == tab.id { selectSuccessor(closedGroup: closedGroup) }
+            if selectedTabID == tab.id {
+                selectSuccessor(closedGroup: closedGroup)
+                // 后继标签的视图未挂窗时这里是空操作,viewDidMoveToWindow 兜底
+                selected?.focusTerminal()
+            }
         }
         persistOpenTabs()
     }
@@ -544,7 +552,10 @@ final class SessionManager {
             sessions.removeAll { $0.id == id }
         }
         tabs.removeAll { $0.id == tab.id }
-        if selectedTabID == tab.id { selectSuccessor(closedGroup: closedGroup) }
+        if selectedTabID == tab.id {
+            selectSuccessor(closedGroup: closedGroup)
+            selected?.focusTerminal()
+        }
         persistOpenTabs()
     }
 
