@@ -247,10 +247,19 @@ private struct ProjectListPage: View {
 
     @Environment(SessionManager.self) private var sessionManager
     @State private var theme = ThemeStore.shared
+    // 纵向拖排(AppKit mouseDragged 驱动,行事件层上报 ΔY;与标签 chip 同一状态机)
+    @State private var rowFrames: [UUID: CGRect] = [:]
+    @State private var draggingRow: UUID?
+    @State private var dragOffset: CGFloat = 0
+    /// 越线换位的累计补偿:视觉偏移 = 指针 ΔY − 已换位高度,换位瞬间零跳变
+    @State private var dragSwapShift: CGFloat = 0
+    private static let rowSpace = "projectRows"
+    /// LazyVStack 行间距,交换补偿时参与位移计算
+    private static let rowSpacing: CGFloat = 2
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 2) {
+            LazyVStack(alignment: .leading, spacing: Self.rowSpacing) {
                 header
                 ForEach(projects) { project in
                     ProjectRow(
@@ -258,16 +267,87 @@ private struct ProjectListPage: View {
                         isActive: isActive(project),
                         attention: SessionManagerRegistry.shared.attention(inProject: project.path),
                         open: { sessionManager.openProject(path: project.path) },
-                        remove: { remove(project) }
+                        remove: { remove(project) },
+                        dragChanged: { rowDragChanged(project, deltaY: $0) },
+                        dragEnded: { rowDragEnded(project) }
                     )
+                    .offset(y: draggingRow == project.id ? dragOffset : 0)
+                    .zIndex(draggingRow == project.id ? 1 : 0)
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .named(Self.rowSpace))
+                    } action: { rowFrames[project.id] = $0 }
                 }
                 if showsGuide { guide }
                 // 新工作区没有内容时保持空白(Arc 惯例):不塞引导文案
             }
+            // 拖排进行中即时换位不动画:换位动画期间行 frame 在飞,
+            // 越线判定会拿飞行中的坐标连环误换(与标签 chip 同一护栏)
+            .animation(draggingRow == nil ? .spring(response: 0.25, dampingFraction: 0.9) : nil,
+                       value: projects.map(\.id))
+            .coordinateSpace(name: Self.rowSpace)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
         }
         .scrollContentBackground(.hidden)
+    }
+
+    // MARK: 拖排状态机(纵向,镜像 TerminalTabsView 的 chip 版本)
+
+    private func rowDragChanged(_ project: Project, deltaY: CGFloat) {
+        if draggingRow != project.id {
+            draggingRow = project.id
+            dragSwapShift = 0
+        }
+        dragOffset = deltaY - dragSwapShift
+        swapIfCrossedNeighbor(project)
+    }
+
+    private func rowDragEnded(_ project: Project) {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            dragOffset = 0
+        }
+        // 等落位动画放完再摘拖拽态(期间保持 zIndex 抬高;新拖动会自行接管)
+        let settled = project.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if draggingRow == settled { draggingRow = nil }
+        }
+    }
+
+    /// 越线判定与换位:全部用本轮事件的旧布局坐标快照比较;换位后邻居的
+    /// 陈旧 frame 落在错误一侧,midY 校验自然拦下连环误换
+    private func swapIfCrossedNeighbor(_ project: Project) {
+        guard let myFrame = rowFrames[project.id] else { return }
+        let center = myFrame.midY + dragOffset
+        guard let myIndex = projects.firstIndex(where: { $0.id == project.id }) else { return }
+
+        var target = myIndex
+        var shift: CGFloat = 0
+        var i = myIndex + 1
+        while i < projects.count, let f = rowFrames[projects[i].id],
+              f.midY > myFrame.midY, center > f.midY {
+            target = i
+            shift += f.height + Self.rowSpacing
+            i += 1
+        }
+        if target > myIndex {
+            ProjectStore.shared.move(project.id, after: projects[target].id)
+            dragSwapShift += shift
+            dragOffset -= shift
+            return
+        }
+
+        i = myIndex - 1
+        while i >= 0, let f = rowFrames[projects[i].id],
+              f.midY < myFrame.midY, center < f.midY {
+            target = i
+            shift += f.height + Self.rowSpacing
+            i -= 1
+        }
+        if target < myIndex {
+            ProjectStore.shared.move(project.id, before: projects[target].id)
+            dragSwapShift -= shift
+            dragOffset += shift
+        }
     }
 
     private var header: some View {
@@ -346,15 +426,6 @@ enum SidebarActions {
         if let last = paths.last {
             manager.openProject(path: (last as NSString).standardizingPath)
         }
-    }
-}
-
-/// 项目行拖拽重排的载荷:走私有 JSON 类型,与 Finder 文件拖拽的公共类型互不相认
-struct ProjectDragPayload: Codable, Transferable {
-    let id: UUID
-
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .json)
     }
 }
 
@@ -479,7 +550,13 @@ private struct SpaceDot: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isSelected)
             .animation(.easeOut(duration: 0.12), value: hovering)
             .onHover { hovering = $0 }
-            .onTapGesture(perform: select)
+            // 按下即切换(AppKit 事件层,与标签/项目行同一手感);连击改名顺手给
+            .overlay {
+                PressDragLayer(
+                    onPress: select,
+                    onDoubleClick: { SpacePrompt.rename(space) }
+                )
+            }
             .contextMenu {
                 Button("重命名") { SpacePrompt.rename(space) }
                 Button("新建工作区…") { SpacePrompt.create() }
@@ -695,6 +772,9 @@ private struct ProjectRow: View {
     var attention: SessionManagerRegistry.ProjectAttention = .none
     let open: () -> Void
     let remove: () -> Void
+    /// 纵向拖排回调(窗口坐标 ΔY,向下为正);ProjectRows(List 场景)不接拖排
+    var dragChanged: (CGFloat) -> Void = { _ in }
+    var dragEnded: () -> Void = {}
 
     @Environment(SessionManager.self) private var sessionManager
     @State private var hovering = false
@@ -793,25 +873,19 @@ private struct ProjectRow: View {
         .contentShape(Capsule())
         .animation(.easeOut(duration: 0.12), value: hovering)
         .onHover { hovering = $0 }
-        // 双击改名(先注册,优先于单击打开;首击仍会切过去,正好选中被改名的项目)
-        .onTapGesture(count: 2) {
-            guard !isRenaming else { return }
-            isRenaming = true
-        }
-        .onTapGesture {
-            guard !isRenaming else { return }
-            open()
-        }
-        // 拖拽重排:拖起一行丢到另一行上,占据其位置(与标签 chip 同一手感)。
-        // 载荷用私有 JSON 类型而不是字符串——Finder 拖文件夹时会一并提供纯文本,
-        // 行上若挂着字符串 drop 目标就会把「拖文件夹进侧边栏」半路截胡
-        .draggable(ProjectDragPayload(id: project.id))
-        .dropDestination(for: ProjectDragPayload.self) { items, _ in
-            guard let dragged = items.first?.id else { return false }
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                ProjectStore.shared.move(dragged, before: project.id)
+        // 事件层(AppKit):按下即切换(不再等系统的单击/双击判定,15 上尤其明显)、
+        // 连击改名、按住纵向拖动就地重排(替代 .draggable——item-provider 拖起
+        // 有系统延迟且跟手感差,与标签 chip 统一为同一套手感);
+        // 改名中撤掉,把点击还给 TextField。右键沿响应链交还 .contextMenu
+        .overlay {
+            if !isRenaming {
+                PressDragLayer(
+                    onPress: open,
+                    onDoubleClick: { isRenaming = true },
+                    onDragChanged: { dragChanged($0.y) },
+                    onDragEnded: dragEnded
+                )
             }
-            return true
         }
         .contextMenu {
             Button("切换到该项目") { open() }

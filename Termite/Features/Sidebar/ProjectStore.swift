@@ -56,6 +56,16 @@ final class ProjectStore {
         save()
     }
 
+    /// 向下拖越线用:把 dragged 移到 target 之后(与标签 chip 的 moveTab(after:) 对称)
+    func move(_ dragged: UUID, after targetID: UUID) {
+        guard dragged != targetID,
+              let from = projects.firstIndex(where: { $0.id == dragged }) else { return }
+        let project = projects.remove(at: from)
+        let insertAt = projects.firstIndex { $0.id == targetID }.map { $0 + 1 } ?? min(from, projects.count)
+        projects.insert(project, at: insertAt)
+        save()
+    }
+
     /// 重命名:留空还原成目录名(改名只动显示名,路径与绑定不变)
     func rename(_ projectID: UUID, to name: String) {
         guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
