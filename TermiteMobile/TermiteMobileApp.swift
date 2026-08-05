@@ -12,6 +12,8 @@ struct TermiteMobileApp: App {
             RootView(client: client)
                 .environment(store)
                 .preferredColorScheme(.dark)
+                // Termite 品牌琥珀:芯片/按钮/选中态统一(终端页内再被主题强调色覆盖)
+                .tint(Color(red: 0.91, green: 0.64, blue: 0.24))
         }
     }
 }
@@ -44,8 +46,15 @@ private struct RootView: View {
     }
 
     private func reconfigure() {
-        guard let mac = store.selected, let endpoint = store.endpoint(for: mac) else {
+        guard let mac = store.selected else {
             client.shutdown()
+            return
+        }
+        guard let endpoint = store.endpoint(for: mac) else {
+            // Keychain 里没有这台 Mac 的密钥(换机恢复/被清):别卡在「连接中」,
+            // 直接移除这条残缺配对,回到扫码引导给用户出路
+            client.shutdown()
+            store.remove(mac)
             return
         }
         client.shutdown()

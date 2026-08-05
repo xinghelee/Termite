@@ -11,6 +11,8 @@ struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let alive: Bool
     let running: Bool
     let attention: String?
+    /// 进入注意力态多少秒(「已等待 X 分钟」)
+    let attentionSeconds: Int?
     let cols: Int
     let rows: Int
     /// 侧边栏语义:项目分组 + 工作空间筛选(对齐 Mac)
@@ -21,7 +23,7 @@ struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let window: Int?
 }
 
-/// Mac 主题色板(attached 下发,远端同款观感)
+/// Mac 主题色板(list / attached 下发,远端同款观感)
 struct RemoteThemePayload: Decodable, Equatable {
     let background: String
     let foreground: String
@@ -216,6 +218,7 @@ final class RemoteClient {
             retryDelay = 0.5
         case "list":
             sessions = msg.sessions ?? []
+            if let theme = msg.theme { self.theme = theme }
         case "attached":
             gridCols = msg.cols ?? 80
             gridRows = msg.rows ?? 24

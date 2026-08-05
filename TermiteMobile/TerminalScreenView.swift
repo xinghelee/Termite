@@ -3,6 +3,7 @@ import SwiftUI
 /// 终端画面:iPhone 栈式推入 / iPad 双栏详情通用。
 /// 默认「适配设备」:PTY 跟随本机网格,SwiftTerm 原生滚回滚动,无任何外层滚动视图;
 /// 「镜像 Mac」为切换项:按 Mac 网格整体缩放看全貌(Mac 端 resize 会自动切回镜像跟随)。
+/// chrome 同色:导航栏/按键条与终端主题同底,一块完整的「面」(与 Mac 端设计语言一致)。
 struct TerminalScreenView: View {
     let client: RemoteClient
     let session: RemoteSessionSummary
@@ -23,28 +24,46 @@ struct TerminalScreenView: View {
     @State private var resizeDebounce: Task<Void, Never>?
     /// 上次已请求的网格:布局多次落定会重复触发,同尺寸不再打扰 PTY(避免连发 SIGWINCH)
     @State private var lastRequestedGrid: (cols: Int, rows: Int)?
+    @State private var keyboardVisible = false
+    /// 滚回中(非底部)显示「回到底部」浮钮
+    @State private var atBottom = true
+
+    // MARK: - 主题派生色(chrome 与终端同一块面)
+
+    private var themeIsDark: Bool { client.theme?.isDark ?? true }
 
     private var themeBackground: Color {
         client.theme.map { Color(UIColor(hex: $0.background)) } ?? Color(red: 0.078, green: 0.086, blue: 0.102)
     }
 
+    private var themeAccent: Color {
+        client.theme.map { Color(UIColor(hex: $0.accent)) } ?? Color(red: 0.91, green: 0.64, blue: 0.24)
+    }
+
+    /// 按键底色:主题底上抬一层(深色抬白、浅色压黑)
+    private var keyFill: Color {
+        themeIsDark ? Color.white.opacity(0.09) : Color.black.opacity(0.06)
+    }
+
+    private var keyText: Color {
+        client.theme.map { Color(UIColor(hex: $0.foreground)) } ?? .primary
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            TerminalCanvas(
-                bridge: bridge,
-                mirror: !fitMode,
-                mirrorSize: bridge.mirrorContentSize(cols: client.gridCols, rows: client.gridRows,
-                                                     fontSize: CGFloat(fontSize))
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(themeBackground)
+            terminalArea
             keyBar
                 .frame(maxWidth: 620)
         }
         .frame(maxWidth: .infinity)
-        .background(.bar)
+        .background(themeBackground.ignoresSafeArea())
         .navigationTitle(session.title)
         .navigationBarTitleDisplayMode(.inline)
+        // chrome 同色:导航栏融进终端主题,不再是一条系统灰
+        .toolbarBackground(themeBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(themeIsDark ? .dark : .light, for: .navigationBar)
+        .tint(themeAccent)
         .toolbar { toolbarContent }
         .onAppear { activate() }
         .onDisappear { deactivate() }
@@ -52,7 +71,16 @@ struct TerminalScreenView: View {
         .onChange(of: bellHaptics) { bridge.hapticsEnabled = bellHaptics }
         .onChange(of: fontSize) { applyFont() }
         .onChange(of: fitMode) { applyMode() }
-        .alert("会话已结束", isPresented: .constant(endedMessage != nil)) {
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
+        .alert("会话已结束", isPresented: Binding(
+            get: { endedMessage != nil },
+            set: { if !$0 { endedMessage = nil } }
+        )) {
             Button("好") {
                 endedMessage = nil
                 dismiss()
@@ -60,22 +88,58 @@ struct TerminalScreenView: View {
         } message: {
             Text(endedMessage ?? "")
         }
-        .overlay {
+    }
+
+    // MARK: - 终端区(重连横幅 + 回到底部浮钮)
+
+    private var terminalArea: some View {
+        TerminalCanvas(
+            bridge: bridge,
+            mirror: !fitMode,
+            mirrorSize: bridge.mirrorContentSize(cols: client.gridCols, rows: client.gridRows,
+                                                 fontSize: CGFloat(fontSize))
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .top) {
+            // 非阻塞横幅:重连中内容照常可见,别拿全屏遮罩挡人
             if client.phase == .connecting {
-                ZStack {
-                    Color.black.opacity(0.55)
-                    ProgressView("重连中…")
-                        .tint(.white)
-                        .foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("重连中…")
+                        .font(.system(size: 12))
                 }
-                .ignoresSafeArea()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(.ultraThinMaterial))
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if !atBottom {
+                Button {
+                    bridge.scrollToBottom()
+                } label: {
+                    Image(systemName: "arrow.down.to.line")
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(10)
+                        .background(Circle().fill(.ultraThinMaterial))
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 14)
+                .padding(.bottom, 12)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: client.phase)
+        .animation(.easeOut(duration: 0.18), value: atBottom)
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button {
+                tapHaptic()
                 fitMode.toggle()
             } label: {
                 Image(systemName: fitMode ? "macwindow" : "iphone")
@@ -155,6 +219,7 @@ struct TerminalScreenView: View {
             fontSize = ((pinchBase ?? fontSize) * scale).clamped(to: MobileSettingsKeys.fontSizeRange)
             if ended { pinchBase = nil }
         }
+        bridge.onAtBottomChange = { atBottom = $0 }
         client.onAttached = {
             bridge.reset()
             if let theme = client.theme { bridge.applyTheme(theme) }
@@ -185,7 +250,7 @@ struct TerminalScreenView: View {
         client.onMacResize = nil
     }
 
-    // MARK: - 按键条
+    // MARK: - 按键条(与终端同底,按键为主题上的浮层)
 
     private var keyBar: some View {
         HStack(spacing: 4) {
@@ -207,6 +272,7 @@ struct TerminalScreenView: View {
 
     private var ctrlButton: some View {
         Button {
+            tapHaptic()
             ctrlArmed.toggle()
         } label: {
             Text("ctrl")
@@ -215,8 +281,8 @@ struct TerminalScreenView: View {
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(ctrlArmed ? Color.orange : Color(.secondarySystemBackground))
-                .foregroundStyle(ctrlArmed ? .black : .primary)
+                .background(ctrlArmed ? themeAccent : keyFill)
+                .foregroundStyle(ctrlArmed ? Color.black : keyText)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -238,7 +304,8 @@ struct TerminalScreenView: View {
                 .font(.system(size: 13))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
-                .background(Color(.secondarySystemBackground))
+                .background(keyFill)
+                .foregroundStyle(keyText)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -247,17 +314,19 @@ struct TerminalScreenView: View {
     /// 收起/呼出键盘:半屏键盘挡终端是手机第一痛点,给个一键开关
     private var keyboardToggle: some View {
         Button {
-            if bridge.terminalView.isFirstResponder {
+            tapHaptic()
+            if keyboardVisible {
                 _ = bridge.terminalView.resignFirstResponder()
             } else {
                 _ = bridge.terminalView.becomeFirstResponder()
             }
         } label: {
-            Image(systemName: "keyboard.chevron.compact.down")
+            Image(systemName: keyboardVisible ? "keyboard.chevron.compact.down" : "keyboard")
                 .font(.system(size: 13))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
-                .background(Color(.secondarySystemBackground))
+                .background(keyFill)
+                .foregroundStyle(keyText)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -272,7 +341,8 @@ struct TerminalScreenView: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Color(.secondarySystemBackground))
+                .background(keyFill)
+                .foregroundStyle(keyText)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -280,10 +350,11 @@ struct TerminalScreenView: View {
 
     /// 方向键长按连发(0.4s 起步,80ms/次)——TUI 菜单里单点太折磨
     private func repeatKeyButton(_ label: String, send: String) -> some View {
-        RepeatKeyButton(label: label) { sendKey(send) }
+        RepeatKeyButton(label: label, fill: keyFill, textColor: keyText) { sendKey(send) }
     }
 
     private func sendKey(_ text: String) {
+        tapHaptic()
         // ctrl 粘滞:armed 时下一个字母键转控制码(a→^A)
         if ctrlArmed, text.count == 1, let scalar = text.uppercased().unicodeScalars.first,
            scalar.value >= 64, scalar.value < 96 {
@@ -294,11 +365,18 @@ struct TerminalScreenView: View {
         ctrlArmed = false
         client.sendInput(text)
     }
+
+    private func tapHaptic() {
+        guard bellHaptics else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.7)
+    }
 }
 
 /// 按下即发一次,按住 0.4s 后以 80ms 间隔连发
 private struct RepeatKeyButton: View {
     let label: String
+    let fill: Color
+    let textColor: Color
     let fire: () -> Void
 
     @State private var pressed = false
@@ -310,7 +388,8 @@ private struct RepeatKeyButton: View {
             .lineLimit(1)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(pressed ? Color(.systemGray3) : Color(.secondarySystemBackground))
+            .background(pressed ? Color.gray.opacity(0.4) : fill)
+            .foregroundStyle(textColor)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .gesture(
                 DragGesture(minimumDistance: 0)

@@ -11,6 +11,8 @@ struct RemoteSessionInfo: Codable {
     var running: Bool
     /// 等待输入 / 命令刚跑完的注意力状态("input" / "finished" / nil)
     var attention: String?
+    /// 进入注意力态多少秒(远端显示「已等待 X 分钟」)
+    var attentionSeconds: Int?
     var cols: Int
     var rows: Int
     /// 侧边栏语义(远端按项目分组、按工作空间筛选,对齐 Mac 侧边栏)
@@ -23,7 +25,7 @@ struct RemoteSessionInfo: Codable {
     var window: Int
 }
 
-/// attached 下发的主题色板:远端终端与 Mac 观感一致
+/// list / attached 下发的主题色板:远端列表与终端都和 Mac 观感一致
 struct RemoteTheme: Codable {
     var background: String
     var foreground: String
@@ -182,6 +184,9 @@ final class RemoteSessionHub {
         case .needsInput: "input"
         case .finished: "finished"
         }
+        let attentionSeconds = attention == nil ? nil : session.attentionSince.map {
+            max(0, Int(Date().timeIntervalSince($0)))
+        }
         return RemoteSessionInfo(
             id: session.id,
             title: session.displayTitle,
@@ -190,6 +195,7 @@ final class RemoteSessionHub {
             alive: alive,
             running: session.runningCommand,
             attention: attention,
+            attentionSeconds: attentionSeconds,
             cols: terminal.cols,
             rows: terminal.rows,
             project: project?.name ?? projectPath.map { ($0 as NSString).lastPathComponent },

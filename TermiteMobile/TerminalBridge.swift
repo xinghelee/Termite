@@ -18,6 +18,12 @@ final class TerminalBridge: NSObject {
     var onGridChange: ((Int, Int) -> Void)?
     /// 捏合调字号(UIKit 手势,SwiftUI 手势在 UIScrollView 上不可靠)
     var onPinchScale: ((CGFloat, Bool) -> Void)?
+    /// 是否停在底部:驱动「回到底部」浮钮显隐。
+    /// 注意不能用 TerminalViewDelegate.scrolled——用户手指滚动不走那条回调,
+    /// 只能 KVO contentOffset(TerminalView 本身就是 UIScrollView)
+    var onAtBottomChange: ((Bool) -> Void)?
+    private var offsetObservation: NSKeyValueObservation?
+    private var lastAtBottom = true
 
     override init() {
         terminalView = SwiftTerm.TerminalView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
@@ -34,6 +40,18 @@ final class TerminalBridge: NSObject {
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         pinch.delegate = self
         terminalView.addGestureRecognizer(pinch)
+        offsetObservation = terminalView.observe(\.contentOffset, options: [.new]) { [weak self] view, _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let maxOffset = max(0, view.contentSize.height - view.bounds.height)
+                // 半行容差:流式输出时贴底判定别抖
+                let atBottom = view.contentOffset.y >= maxOffset - 22
+                if atBottom != self.lastAtBottom {
+                    self.lastAtBottom = atBottom
+                    self.onAtBottomChange?(atBottom)
+                }
+            }
+        }
     }
 
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
@@ -90,6 +108,13 @@ final class TerminalBridge: NSObject {
     func currentGrid() -> (cols: Int, rows: Int) {
         let terminal = terminalView.getTerminal()
         return (terminal.cols, terminal.rows)
+    }
+
+    /// 翻旧账后一键回到实时输出(TerminalView 是 UIScrollView,直接滚到底)
+    func scrollToBottom() {
+        let bottom = max(0, terminalView.contentSize.height - terminalView.bounds.height
+                         + terminalView.adjustedContentInset.bottom)
+        terminalView.setContentOffset(CGPoint(x: 0, y: bottom), animated: true)
     }
 }
 

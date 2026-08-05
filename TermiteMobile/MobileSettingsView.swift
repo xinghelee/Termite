@@ -85,7 +85,10 @@ struct MobileSettingsView: View {
                     Button("完成") { dismiss() }
                 }
             }
-            .alert("重命名", isPresented: .constant(renaming != nil)) {
+            .alert("重命名", isPresented: Binding(
+                get: { renaming != nil },
+                set: { if !$0 { renaming = nil } }
+            )) {
                 TextField("名称", text: $renameText)
                 Button("好") {
                     if let mac = renaming { store.rename(mac, to: renameText) }

@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "%lld 个会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sessions"
+          }
+        }
+      }
+    },
     "End": {
       "localizations": {
         "en": {
@@ -191,6 +201,16 @@
         }
       }
     },
+    "命令已完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command finished"
+          }
+        }
+      }
+    },
     "响铃触感": {
       "localizations": {
         "en": {
@@ -291,6 +311,26 @@
         }
       }
     },
+    "已等待 %lld 分钟": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "waiting %lld min"
+          }
+        }
+      }
+    },
+    "已等待 %lld 小时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "waiting %lld h"
+          }
+        }
+      }
+    },
     "已连接": {
       "localizations": {
         "en": {
@@ -331,6 +371,16 @@
         }
       }
     },
+    "更多": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
+          }
+        }
+      }
+    },
     "或粘贴访问链接": {
       "localizations": {
         "en": {
@@ -347,6 +397,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn on “Allow iPhone / iPad connections”"
+          }
+        }
+      }
+    },
+    "打开终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open terminal"
           }
         }
       }
@@ -457,6 +517,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Waiting for you"
+          }
+        }
+      }
+    },
+    "等待输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for input"
+          }
+        }
+      }
+    },
+    "空间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space"
           }
         }
       }

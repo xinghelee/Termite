@@ -106,9 +106,10 @@ targets:
         # 文案本地化在 */InfoPlist.strings(此处仅兜底)
         NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码
         NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite
-        # 数据面是 LAN/Tailscale 内网 ws://(IP 直连),不走公网明文
+        # 数据面是 LAN/Tailscale 内网 ws://(IP 字面量直连,ATS 本就豁免 IP 地址),
+        # 不开全局明文放行(NSAllowsArbitraryLoads 是审核红旗);仅声明本地网络场景
         NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.termite.mobile

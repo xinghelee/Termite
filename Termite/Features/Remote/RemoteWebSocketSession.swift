@@ -168,7 +168,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             MainActor.assumeIsolated {
                 switch msg.type {
                 case "list":
-                    self.sendJSON(ListMsg(sessions: RemoteSessionHub.shared.list()))
+                    self.sendJSON(ListMsg(sessions: RemoteSessionHub.shared.list(),
+                                          theme: RemoteTheme.current()))
                 case "attach":
                     if let id = msg.id { self.attach(id) }
                 case "detach":
@@ -273,6 +274,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private struct ListMsg: Encodable {
         var type = "list"
         var sessions: [RemoteSessionInfo]
+        var theme: RemoteTheme
     }
 
     private struct AttachedMsg: Encodable {
