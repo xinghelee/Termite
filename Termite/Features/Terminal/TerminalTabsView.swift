@@ -9,13 +9,15 @@ struct TerminalTabsView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var chipsContentWidth: CGFloat = 0
     @State private var chipsContainerWidth: CGFloat = 0
-    // 标签拖排(DragGesture 手动跟手,轨道坐标系)。不能用 .draggable:
-    // item-provider 的拖起不算 SwiftUI 手势,在标题栏里抢不过 window-move,
-    // 按住 chip 移动的是整个窗口(issue #9);真手势从 mouseDown 即占有事件流
+    // 标签拖排(AppKit mouseDragged 驱动,chip 的事件层上报窗口坐标 ΔX)。
+    // 不能用 .draggable(item-provider 拖起不算手势,标题栏里抢不过 window-move);
+    // 也不能用 DragGesture:macOS 15 的标题栏拖窗机制在 SwiftUI 手势判定前就接管,
+    // 按住 chip 移动的仍是整个窗口(issue #9 两度复发),26 的新工具栏才让手势赢
     @State private var chipFrames: [UUID: CGRect] = [:]
     @State private var draggingChip: UUID?
     @State private var dragOffset: CGFloat = 0
-    @State private var dragAnchorX: CGFloat = 0
+    /// 越线换位的累计补偿:视觉偏移 = 指针 ΔX − 已换位宽度,换位瞬间零跳变
+    @State private var dragSwapShift: CGFloat = 0
     private static let chipTrackSpace = "chipTrack"
     /// chips HStack 的间距,交换补偿时参与位移计算
     private static let chipSpacing: CGFloat = 2
@@ -236,7 +238,9 @@ struct TerminalTabsView: View {
                                 hasActivity: hasActivity(tab),
                                 hasAttention: hasAttention(tab),
                                 select: { sessionManager.selectTab(tab.id) },
-                                close: { sessionManager.requestCloseTab(tab) }
+                                close: { sessionManager.requestCloseTab(tab) },
+                                dragChanged: { chipDragChanged(tab, deltaX: $0) },
+                                dragEnded: { chipDragEnded(tab) }
                             )
                             .id(tab.id)
                             .contextMenu {
@@ -261,7 +265,6 @@ struct TerminalTabsView: View {
                             .onGeometryChange(for: CGRect.self) {
                                 $0.frame(in: .named(Self.chipTrackSpace))
                             } action: { chipFrames[tab.id] = $0 }
-                            .gesture(chipDragGesture(for: tab))
                         }
                     }
                     .padding(.horizontal, 4)
@@ -315,28 +318,26 @@ struct TerminalTabsView: View {
         }
     }
 
-    /// chip 拖排手势:视觉偏移 = 指针 - 锚点,chip 钉在指针下;越过邻居中线即换位,
-    /// 锚点按换过去的宽度补偿,换位瞬间视觉零跳变
-    private func chipDragGesture(for tab: PaneTab) -> some Gesture {
-        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.chipTrackSpace))
-            .onChanged { value in
-                if draggingChip != tab.id {
-                    draggingChip = tab.id
-                    dragAnchorX = value.startLocation.x
-                }
-                dragOffset = value.location.x - dragAnchorX
-                swapIfCrossedNeighbor(tab)
-            }
-            .onEnded { _ in
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
-                    dragOffset = 0
-                }
-                // 等落位动画放完再摘拖拽态(期间保持 zIndex 抬高;新拖动会自行接管)
-                let settled = tab.id
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    if draggingChip == settled { draggingChip = nil }
-                }
-            }
+    /// chip 拖排(事件层上报窗口坐标 ΔX,方向与轨道一致):chip 钉在指针下,
+    /// 越过邻居中线即换位;越线判定仍用轨道坐标系的 frame 快照,ΔX 是纯相对量,两系通用
+    private func chipDragChanged(_ tab: PaneTab, deltaX: CGFloat) {
+        if draggingChip != tab.id {
+            draggingChip = tab.id
+            dragSwapShift = 0
+        }
+        dragOffset = deltaX - dragSwapShift
+        swapIfCrossedNeighbor(tab)
+    }
+
+    private func chipDragEnded(_ tab: PaneTab) {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            dragOffset = 0
+        }
+        // 等落位动画放完再摘拖拽态(期间保持 zIndex 抬高;新拖动会自行接管)
+        let settled = tab.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if draggingChip == settled { draggingChip = nil }
+        }
     }
 
     /// 越线判定与换位。全部用本轮事件的旧布局坐标快照比较;换位后邻居的
@@ -358,7 +359,7 @@ struct TerminalTabsView: View {
         }
         if target > myIndex {
             sessionManager.moveTab(tab.id, after: visible[target].id)
-            dragAnchorX += shift
+            dragSwapShift += shift
             dragOffset -= shift
             return
         }
@@ -372,7 +373,7 @@ struct TerminalTabsView: View {
         }
         if target < myIndex {
             sessionManager.moveTab(tab.id, before: visible[target].id)
-            dragAnchorX -= shift
+            dragSwapShift -= shift
             dragOffset += shift
         }
     }
@@ -1256,6 +1257,9 @@ private struct TerminalTabChip: View {
     var hasAttention = false
     let select: () -> Void
     let close: () -> Void
+    /// 拖排回调(窗口坐标 ΔX):事件层直连父级的重排状态机
+    let dragChanged: (CGFloat) -> Void
+    let dragEnded: () -> Void
 
     @Environment(SessionManager.self) private var sessionManager
     @State private var isHovering = false
@@ -1314,8 +1318,8 @@ private struct TerminalTabChip: View {
             if tab.isRenaming {
                 TextField("", text: $editText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .frame(width: 110)
+                    .font(.system(size: 13))
+                    .frame(width: 130)
                     .focused($renameFocused)
                     .onSubmit { commitRename() }
                     .onExitCommand {
@@ -1332,9 +1336,9 @@ private struct TerminalTabChip: View {
                     }
             } else {
                 Text(title)
-                    .font(.system(size: 12))
+                    .font(.system(size: 13))
                     .lineLimit(1)
-                    .frame(maxWidth: 150)
+                    .frame(maxWidth: 180)
             }
             if paneCount > 1 {
                 Text("\(paneCount)")
@@ -1346,26 +1350,21 @@ private struct TerminalTabChip: View {
                     .help("\(paneCount) 个分屏")
             }
             // 只在选中/悬停时占位:隐形关闭钮(opacity 0)会撑宽未选中 chip,
-            // 字面间距被拉到 chip 内部间距的 6 倍,整条看着疏密失衡
+            // 字面间距被拉到 chip 内部间距的 6 倍,整条看着疏密失衡。
+            // 这里只占位不承载按钮:真按钮压在事件层之上(见下方 overlay),
+            // 否则 ChipMouseLayer 会吞掉它的点击
             if isHovering || isSelected {
-                Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                        // 命中区比 8pt 字形大一圈:点偏一点不该变成「选中标签」
-                        .frame(width: 16, height: 16)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .opacity(0.7)
-                .transition(.opacity)
+                Color.clear
+                    .frame(width: 18, height: 18)
+                    .transition(.opacity)
             }
         }
-        .padding(.horizontal, 10)
-        // 3 而不是 4:轨道那边多留了 2pt 的沟,chip 自己收一点,整条不至于变高
-        .padding(.vertical, 3)
-        // 短标题(zsh)的 chip 会缩成一小粒,不好点(issue #9):
+        .padding(.horizontal, 12)
+        // 比轨道的沟(2pt)略收:chip 自己不顶满,整条不显臃肿
+        .padding(.vertical, 5.5)
+        // 短标题(zsh)的 chip 会缩成一小粒,不好点(issue #9 两轮反馈嫌小):
         // 兜一个最小宽度,内容自然居中,长标题不受影响
-        .frame(minWidth: 92)
+        .frame(minWidth: 130)
         .background {
             // 深色轨道内:选中 chip 用浮起材质,未选中保持透明、悬停微亮
             if isSelected {
@@ -1376,14 +1375,105 @@ private struct TerminalTabChip: View {
         }
         .foregroundStyle(isSelected ? .primary : .secondary)
         .contentShape(Capsule())
-        .animation(.easeOut(duration: 0.12), value: isHovering)
-        // 双击重命名(先注册,优先于单击选中;首击仍会触发 select,正好选中被改名的标签)
-        .onTapGesture(count: 2) {
-            guard !tab.isRenaming else { return }
-            tab.isRenaming = true
+        // 事件层(AppKit)承接按下选中/连击改名/拖动重排,并掐断标题栏拖窗;
+        // 改名中撤掉把点击还给 TextField;× 可见时尾部让位,不与按钮争命中
+        .overlay {
+            if !tab.isRenaming {
+                ChipMouseLayer(
+                    onPress: select,
+                    onDoubleClick: { tab.isRenaming = true },
+                    onDragChanged: dragChanged,
+                    onDragEnded: dragEnded
+                )
+                .padding(.trailing, (isHovering || isSelected) ? 30 : 0)
+            }
         }
-        .onTapGesture(perform: select)
+        // 关闭钮独立于事件层:点 × 只关不选,与旧行为一致
+        .overlay(alignment: .trailing) {
+            if isHovering || isSelected {
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        // 命中区比字形大一圈:点偏一点不该变成「选中标签」
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .opacity(0.7)
+                .transition(.opacity)
+                .padding(.trailing, 12)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
         .onHover { isHovering = $0 }
+    }
+}
+
+/// chip 的 AppKit 事件层。SwiftUI 手势在 macOS 15 的标题栏里抢不过窗口拖动
+/// (拖窗机制在手势判定前就接管,v1.24 的 DragGesture 方案只在 26 生效,issue #9),
+/// 用真 NSView 占有事件流一劳永逸:mouseDownCanMoveWindow=false 掐断拖窗,
+/// 按下即选中(原生标签手感,也绕开旧系统上单击等待双击判定的迟滞),
+/// 连击改名,拖动上报 ΔX 由父级重排。右键不拦,沿响应链上浮给 .contextMenu
+private struct ChipMouseLayer: NSViewRepresentable {
+    let onPress: () -> Void
+    let onDoubleClick: () -> Void
+    let onDragChanged: (CGFloat) -> Void
+    let onDragEnded: () -> Void
+
+    func makeNSView(context: Context) -> MouseView {
+        let view = MouseView()
+        update(view)
+        return view
+    }
+
+    func updateNSView(_ view: MouseView, context: Context) {
+        update(view)
+    }
+
+    private func update(_ view: MouseView) {
+        view.onPress = onPress
+        view.onDoubleClick = onDoubleClick
+        view.onDragChanged = onDragChanged
+        view.onDragEnded = onDragEnded
+    }
+
+    final class MouseView: NSView {
+        var onPress: (() -> Void)?
+        var onDoubleClick: (() -> Void)?
+        var onDragChanged: ((CGFloat) -> Void)?
+        var onDragEnded: (() -> Void)?
+        private var downX: CGFloat = 0
+        private var dragging = false
+
+        override var mouseDownCanMoveWindow: Bool { false }
+        /// 后台窗口点标签一击即选(原生标签栏行为),不用先点一下激活窗口
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        /// 自己不出菜单:返回 nil 让右键沿响应链交给 SwiftUI 的 .contextMenu
+        override func menu(for event: NSEvent) -> NSMenu? { nil }
+
+        override func mouseDown(with event: NSEvent) {
+            downX = event.locationInWindow.x
+            dragging = false
+            if event.clickCount == 2 {
+                onDoubleClick?()
+            } else {
+                onPress?()  // 首击已选中,连击改名正好落在已选中的标签上
+            }
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            let delta = event.locationInWindow.x - downX
+            // 与旧 DragGesture 的 minimumDistance=4 对齐,点按时的手抖不触发重排
+            if !dragging, abs(delta) < 4 { return }
+            dragging = true
+            onDragChanged?(delta)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            if dragging { onDragEnded?() }
+            dragging = false
+        }
     }
 }
 
