@@ -35,6 +35,12 @@ private struct RootView: View {
             // 重新配对同一台 Mac(token 换新)后立刻用新凭据重连
             reconfigure()
         }
+        // termite://pair?host=..&port=..&t=..:点链接一键配对(AirDrop/信息里发链接可直达)
+        .onOpenURL { url in
+            if let endpoint = Endpoint.parse(url.absoluteString) {
+                store.adopt(endpoint)
+            }
+        }
     }
 
     private func reconfigure() {

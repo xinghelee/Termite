@@ -61,6 +61,8 @@ final class RemoteClient {
     var onOutput: ((Data) -> Void)?
     /// 会话结束/出错,附提示文案
     var onSessionEnded: ((String) -> Void)?
+    /// Mac 端主动 resize(夺回尺寸主导权;attach 初始网格不触发)
+    var onMacResize: (() -> Void)?
 
     private var endpoint: Endpoint?
     private var task: URLSessionWebSocketTask?
@@ -222,6 +224,7 @@ final class RemoteClient {
         case "resize":
             gridCols = msg.cols ?? gridCols
             gridRows = msg.rows ?? gridRows
+            onMacResize?()
         case "exited":
             attachedID = nil
             onSessionEnded?(String(localized: "会话已结束"))

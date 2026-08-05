@@ -27,12 +27,23 @@ struct Endpoint: Equatable {
 
     var displayName: String { "\(host):\(port)" }
 
-    /// 接受完整链接(http://192.168.1.8:9280/?t=xxx)或裸 host[:port]?t=xxx
+    /// 接受完整链接(http://192.168.1.8:9280/?t=xxx)、裸 host[:port]?t=xxx,
+    /// 以及 termite://pair?host=..&port=..&t=..(URL scheme 一键配对)
     static func parse(_ text: String) -> Endpoint? {
         var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if !trimmed.contains("://") { trimmed = "http://" + trimmed }
-        guard let comps = URLComponents(string: trimmed), let host = comps.host, !host.isEmpty,
+        guard let comps = URLComponents(string: trimmed) else { return nil }
+        if comps.scheme == "termite" {
+            guard let items = comps.queryItems,
+                  let host = items.first(where: { $0.name == "host" })?.value, !host.isEmpty,
+                  let token = items.first(where: { $0.name == "t" })?.value, !token.isEmpty else {
+                return nil
+            }
+            let port = items.first(where: { $0.name == "port" })?.value.flatMap { UInt16($0) } ?? 9280
+            return Endpoint(host: host, port: port, token: token)
+        }
+        guard let host = comps.host, !host.isEmpty,
               let token = comps.queryItems?.first(where: { $0.name == "t" })?.value, !token.isEmpty else {
             return nil
         }

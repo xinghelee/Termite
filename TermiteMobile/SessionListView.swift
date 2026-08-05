@@ -108,6 +108,7 @@ struct MainView: View {
         .refreshable { client.requestList() }
         .navigationTitle(store.selected?.name ?? "Termite")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) { statusPill }
             ToolbarItem(placement: .topBarTrailing) { menu }
@@ -192,15 +193,13 @@ struct MainView: View {
         .buttonStyle(.plain)
     }
 
+    /// 连接状态:窄工具栏里只放一个圆点(文字挤进去必折行),状态说明交给标题旁的副标题
     private var statusPill: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(client.phase == .connected ? Color.green : Color.orange)
-                .frame(width: 7, height: 7)
-            Text(client.phase == .connected ? "已连接" : "连接中")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-        }
+        Circle()
+            .fill(client.phase == .connected ? Color.green : Color.orange)
+            .frame(width: 8, height: 8)
+            .accessibilityLabel(client.phase == .connected
+                                ? Text("已连接") : Text("连接中"))
     }
 
     private var menu: some View {

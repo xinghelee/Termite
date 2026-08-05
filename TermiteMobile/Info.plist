@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.termite.mobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>termite</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSAppTransportSecurity</key>
@@ -26,9 +37,9 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>扫描 Mac 上 Termite 设置页的配对二维码(Scan the pairing QR code in Termite on your Mac)</string>
+	<string>扫描 Mac 上 Termite 设置页的配对二维码</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>连接局域网内 Mac 上的 Termite(Connects to Termite on your Mac over the local network)</string>
+	<string>连接局域网内 Mac 上的 Termite</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

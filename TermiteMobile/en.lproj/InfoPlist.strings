@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Scan the pairing QR code shown in Termite on your Mac";
+"NSLocalNetworkUsageDescription" = "Connects to Termite on your Mac over the local network";

@@ -99,8 +99,13 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码(Scan the pairing QR code in Termite on your Mac)
-        NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite(Connects to Termite on your Mac over the local network)
+        # termite://pair?host=..&port=..&t=.. 一键配对(链接/自动化直达)
+        CFBundleURLTypes:
+          - CFBundleURLName: com.termite.mobile
+            CFBundleURLSchemes: [termite]
+        # 文案本地化在 */InfoPlist.strings(此处仅兜底)
+        NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码
+        NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite
         # 数据面是 LAN/Tailscale 内网 ws://(IP 直连),不走公网明文
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

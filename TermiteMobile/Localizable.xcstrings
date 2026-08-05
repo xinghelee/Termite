@@ -541,6 +541,16 @@
         }
       }
     },
+    "适配本机宽度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fit to this device"
+          }
+        }
+      }
+    },
     "选一个会话": {
       "localizations": {
         "en": {
@@ -597,6 +607,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Link not recognized"
+          }
+        }
+      }
+    },
+    "镜像 %lld×%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirror %lld×%lld"
+          }
+        }
+      }
+    },
+    "镜像 Mac 尺寸(整体缩放看全貌)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirror Mac size (scaled to fit)"
           }
         }
       }

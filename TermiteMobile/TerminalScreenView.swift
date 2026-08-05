@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// 终端画面:iPhone 栈式推入 / iPad 双栏详情通用。
-/// 尺寸两种模式:镜像 Mac 网格(默认,可读字号+横向滚动)/「适配手机宽度」
-/// (tmux 语义,PTY 临时改成本机列数,Mac 端 resize 自动夺回)。
+/// 默认「适配设备」:PTY 跟随本机网格,SwiftTerm 原生滚回滚动,无任何外层滚动视图;
+/// 「镜像 Mac」为切换项:按 Mac 网格整体缩放看全貌(Mac 端 resize 会自动切回镜像跟随)。
 struct TerminalScreenView: View {
     let client: RemoteClient
     let session: RemoteSessionSummary
@@ -18,10 +18,11 @@ struct TerminalScreenView: View {
     @State private var ctrlArmed = false
     @State private var endedMessage: String?
     @State private var pinchBase: Double?
-    /// 适配手机宽度(会话内状态;Mac 端 resize 会把它顶回镜像模式)
-    @State private var fitWidth = false
-    @State private var terminalSize = CGSize.zero
+    /// true = 适配设备(默认);false = 镜像 Mac(整体缩放)
+    @State private var fitMode = true
     @State private var resizeDebounce: Task<Void, Never>?
+    /// 上次已请求的网格:布局多次落定会重复触发,同尺寸不再打扰 PTY(避免连发 SIGWINCH)
+    @State private var lastRequestedGrid: (cols: Int, rows: Int)?
 
     private var themeBackground: Color {
         client.theme.map { Color(UIColor(hex: $0.background)) } ?? Color(red: 0.078, green: 0.086, blue: 0.102)
@@ -29,9 +30,19 @@ struct TerminalScreenView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            terminalArea
+            TerminalCanvas(
+                bridge: bridge,
+                mirror: !fitMode,
+                mirrorSize: bridge.mirrorContentSize(cols: client.gridCols, rows: client.gridRows,
+                                                     fontSize: CGFloat(fontSize))
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(themeBackground)
             keyBar
+                .frame(maxWidth: 620)
         }
+        .frame(maxWidth: .infinity)
+        .background(.bar)
         .navigationTitle(session.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
@@ -39,11 +50,8 @@ struct TerminalScreenView: View {
         .onDisappear { deactivate() }
         .onChange(of: keepAwake) { UIApplication.shared.isIdleTimerDisabled = keepAwake }
         .onChange(of: bellHaptics) { bridge.hapticsEnabled = bellHaptics }
-        // Mac 端 resize 夺回尺寸:退出适配模式,跟随 Mac 网格
-        .onChange(of: client.gridCols) { fitWidth = false; relayout() }
-        .onChange(of: client.gridRows) { fitWidth = false; relayout() }
-        .onChange(of: fontSize) { relayout() }
-        .onChange(of: fitWidth) { relayout() }
+        .onChange(of: fontSize) { applyFont() }
+        .onChange(of: fitMode) { applyMode() }
         .alert("会话已结束", isPresented: .constant(endedMessage != nil)) {
             Button("好") {
                 endedMessage = nil
@@ -65,62 +73,14 @@ struct TerminalScreenView: View {
         }
     }
 
-    // MARK: - 终端区
-
-    private var terminalArea: some View {
-        GeometryReader { geo in
-            ScrollView(.horizontal, showsIndicators: false) {
-                TerminalCanvas(bridge: bridge)
-                    .frame(width: bridge.contentSize.width, height: bridge.contentSize.height)
-            }
-            .onAppear {
-                terminalSize = geo.size
-                relayout()
-            }
-            .onChange(of: geo.size) {
-                terminalSize = geo.size
-                relayout()
-            }
-        }
-        .background(themeBackground)
-        // 捏合调字号,落点持久化;适配模式下列数随字号联动重算
-        .simultaneousGesture(
-            MagnificationGesture()
-                .onChanged { scale in
-                    if pinchBase == nil { pinchBase = fontSize }
-                    fontSize = ((pinchBase ?? fontSize) * scale).clamped(to: MobileSettingsKeys.fontSizeRange)
-                }
-                .onEnded { _ in pinchBase = nil }
-        )
-    }
-
-    /// 当前生效网格:适配模式用本机算出的列数,镜像模式跟 Mac
-    private func relayout() {
-        guard terminalSize.width > 40 else { return }
-        if fitWidth {
-            let grid = bridge.gridThatFits(size: terminalSize, fontSize: CGFloat(fontSize))
-            bridge.layout(cols: grid.cols, rows: grid.rows, fontSize: CGFloat(fontSize))
-            // SIGWINCH 防抖:捏合/旋转中不要连环轰炸 PTY
-            resizeDebounce?.cancel()
-            resizeDebounce = Task {
-                try? await Task.sleep(for: .milliseconds(250))
-                guard !Task.isCancelled else { return }
-                client.requestResize(cols: grid.cols, rows: grid.rows)
-            }
-        } else {
-            bridge.layout(cols: client.gridCols, rows: client.gridRows, fontSize: CGFloat(fontSize))
-        }
-    }
-
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button {
-                toggleFit()
+                fitMode.toggle()
             } label: {
-                Image(systemName: fitWidth
-                      ? "rectangle.compress.vertical" : "iphone.sizes")
+                Image(systemName: fitMode ? "macwindow" : "iphone")
             }
-            .help(fitWidth ? "恢复 Mac 端尺寸" : "适配手机宽度")
+            .help(fitMode ? "镜像 Mac 尺寸(整体缩放看全貌)" : "适配本机宽度")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -136,25 +96,49 @@ struct TerminalScreenView: View {
                     }
                 }
             } label: {
-                Image(systemName: "textformat.size")
+                Image(systemName: "slider.horizontal.3")
             }
         }
     }
 
     private var gridLabel: String {
-        let grid = fitWidth
-            ? bridge.gridThatFits(size: terminalSize, fontSize: CGFloat(fontSize))
-            : (cols: client.gridCols, rows: client.gridRows)
-        return "\(grid.cols)×\(grid.rows) · \(Int(fontSize))pt"
+        if fitMode {
+            let grid = bridge.currentGrid()
+            return "\(grid.cols)×\(grid.rows) · \(Int(fontSize))pt"
+        }
+        return String(localized: "镜像 \(client.gridCols)×\(client.gridRows)")
     }
 
-    private func toggleFit() {
-        if fitWidth {
-            fitWidth = false
-            // 显式还给 Mac(不等解附):按 Mac 网格请求一次
-            client.requestResize(cols: client.gridCols, rows: client.gridRows)
+    // MARK: - 模式与尺寸
+
+    private func applyFont() {
+        bridge.setFont(size: CGFloat(fontSize))
+        // 适配模式:字号变 → 网格变 → sizeChanged 会走 syncPty;镜像模式只影响缩放比
+    }
+
+    private func applyMode() {
+        bridge.fitMode = fitMode
+        if fitMode {
+            bridge.setFont(size: CGFloat(fontSize))
+            schedulePtySync()
         } else {
-            fitWidth = true
+            // 镜像:PTY 还给 Mac 网格,视图钉死同网格再整体缩放
+            bridge.pinGrid(cols: client.gridCols, rows: client.gridRows)
+            lastRequestedGrid = (client.gridCols, client.gridRows)
+            client.requestResize(cols: client.gridCols, rows: client.gridRows)
+        }
+    }
+
+    /// 把 PTY 尺寸同步成视图当前网格(防抖:旋转/捏合/键盘弹收连环触发)
+    private func schedulePtySync() {
+        resizeDebounce?.cancel()
+        resizeDebounce = Task {
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled, fitMode else { return }
+            let grid = bridge.currentGrid()
+            guard lastRequestedGrid?.cols != grid.cols || lastRequestedGrid?.rows != grid.rows else { return }
+            lastRequestedGrid = grid
+            client.requestResize(cols: grid.cols, rows: grid.rows)
         }
     }
 
@@ -163,19 +147,29 @@ struct TerminalScreenView: View {
     private func activate() {
         bridge.client = client
         bridge.hapticsEnabled = bellHaptics
+        bridge.fitMode = true
+        bridge.setFont(size: CGFloat(fontSize))
+        bridge.onGridChange = { _, _ in schedulePtySync() }
+        bridge.onPinchScale = { scale, ended in
+            if pinchBase == nil { pinchBase = fontSize }
+            fontSize = ((pinchBase ?? fontSize) * scale).clamped(to: MobileSettingsKeys.fontSizeRange)
+            if ended { pinchBase = nil }
+        }
         client.onAttached = {
             bridge.reset()
             if let theme = client.theme { bridge.applyTheme(theme) }
-            fitWidth = false
-            relayout()
+            fitMode = true
+            bridge.fitMode = true
+            schedulePtySync()
         }
         client.onOutput = { bridge.feed($0) }
         client.onSessionEnded = { endedMessage = $0 }
+        // Mac 端主动 resize = 有人在 Mac 前:切回镜像跟随,不跟真人抢尺寸
+        client.onMacResize = { fitMode = false }
         if let theme = client.theme { bridge.applyTheme(theme) }
         client.attach(session.id)
         if let mac = store.selected { store.rememberSession(session.id, of: mac) }
         UIApplication.shared.isIdleTimerDisabled = keepAwake
-        _ = bridge.terminalView.becomeFirstResponder()
     }
 
     /// iPad 双栏切换会话时,新视图的 activate 可能先于旧视图的 deactivate:
@@ -188,12 +182,13 @@ struct TerminalScreenView: View {
         client.onAttached = nil
         client.onOutput = nil
         client.onSessionEnded = nil
+        client.onMacResize = nil
     }
 
     // MARK: - 按键条
 
     private var keyBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             keyButton("esc", send: "\u{1b}")
             keyButton("tab", send: "\t")
             ctrlButton
@@ -208,7 +203,6 @@ struct TerminalScreenView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
-        .background(.bar)
     }
 
     private var ctrlButton: some View {
@@ -216,9 +210,11 @@ struct TerminalScreenView: View {
             ctrlArmed.toggle()
         } label: {
             Text("ctrl")
-                .font(.system(size: 13, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
                 .background(ctrlArmed ? Color.orange : Color(.secondarySystemBackground))
                 .foregroundStyle(ctrlArmed ? .black : .primary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -272,9 +268,10 @@ struct TerminalScreenView: View {
             sendKey(send)
         } label: {
             Text(label)
-                .font(.system(size: 13, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
+                .lineLimit(1)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
@@ -309,9 +306,10 @@ private struct RepeatKeyButton: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 13, design: .monospaced))
+            .font(.system(size: 12, design: .monospaced))
+            .lineLimit(1)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 9)
+            .padding(.vertical, 10)
             .background(pressed ? Color(.systemGray3) : Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .gesture(
