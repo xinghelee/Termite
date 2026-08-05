@@ -197,7 +197,13 @@ struct TerminalTabsView: View {
     private var leadingControls: some View {
         HStack(spacing: 6) {
             if let toggleSidebar {
-                PanelIconButton(symbol: "sidebar.leading", help: String(localized: "显示 / 隐藏侧边栏")) {
+                // prominent:26+ 自绘常驻玻璃圆底,对齐右侧按钮组的系统风格;
+                // 旧系统仍是裸图标+悬停圆,与全排一致
+                PanelIconButton(
+                    symbol: "sidebar.leading",
+                    help: String(localized: "显示 / 隐藏侧边栏"),
+                    prominent: true
+                ) {
                     toggleSidebar()
                 }
             }
@@ -511,22 +517,56 @@ struct PanelIconButton: View {
     let symbol: String
     let help: String
     var tint: Color?
+    /// 常驻玻璃圆底(macOS 26)。系统只给 primaryAction 位的按钮内省加圆底,
+    /// .navigation 位(侧边栏开关)拿不到,自绘一枚对齐右侧按钮组的风格
+    var prominent = false
     let action: () -> Void
 
     @State private var hovering = false
 
+    /// 旧系统没有玻璃圆底,28pt 容器只在 26+ 随圆底一起生效,
+    /// 15 上保持 24pt 与全排图标钮一致(不引入版本间视觉分裂)
+    private var effectiveSide: CGFloat {
+        guard prominent else { return 24 }
+        if #available(macOS 26.0, *) { return 28 }
+        return 24
+    }
+
     var body: some View {
+        // 常驻圆底的按钮加大内间距(28pt),图标四周留足呼吸感;
+        // 容器必须是正方形——玻璃/悬停底才是正圆而不是椭圆
+        let side = effectiveSide
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(tint ?? .secondary)
-                .frame(width: 24, height: 24)
+                .frame(width: side, height: side)
+                .background {
+                    if prominent, #available(macOS 26.0, *) {
+                        // 玻璃自己钉死正方形再画圆:背景吃外层尺寸提议时
+                        // 曾被拉成 29×27 的椭圆(用户截图实测),不能信任提议
+                        Color.clear
+                            .glassEffect(.regular, in: .circle)
+                            .frame(width: side, height: side)
+                    }
+                }
                 .background(Circle().fill(hovering ? Color.primary.opacity(0.08) : .clear))
+                // 悬停轻微浮起,与「选中 = 浮起」一个语言;按下回缩在 ButtonStyle 里
+                .scaleEffect(hovering ? 1.06 : 1)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableIconStyle())
         .animation(.easeOut(duration: 0.12), value: hovering)
         .onHover { hovering = $0 }
         .help(help)
+    }
+}
+
+/// 图标钮按下回缩:.plain 没有任何按压反馈,鼠标按下瞬间给一点物理感
+private struct PressableIconStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1)
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
