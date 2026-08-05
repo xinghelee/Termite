@@ -380,6 +380,10 @@ final class TerminalSession: Identifiable {
     func kickRedraw() {
         guard let hostPtyID else { return }
         let terminal = terminalView.getTerminal()
+        // 只对备用屏(vim/claude/grok 这类全屏 TUI)做「行数减一再复原」的双
+        // SIGWINCH 唤醒——它们才会漏末次重绘;普通 shell 收最终尺寸自己会画,
+        // 白挨这两下反而内容上移一行再弹回,肉眼可见地抖(巡视切换反馈)
+        guard terminal.isCurrentBufferAlternate else { return }
         PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: max(terminal.rows - 1, 1))
         // 两步必须隔开:ssh 会话里 SIGWINCH 会合并,紧挨着发 ssh 只读到复原后的尺寸,
         // 与远端一致就不转发,远端 TUI(grok/deepseek cli 等)收不到任何变化、不重画

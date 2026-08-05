@@ -102,6 +102,15 @@ struct TerminalTabsView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
+                // 巡视/最大化切换的幕布:与终端同底色,盖住幕后的折行重排,
+                // 由 SessionManager 揭幕淡出。落幕不动画(同事务盖住新布局首帧)
+                .overlay {
+                    if sessionManager.relayoutVeilVisible {
+                        Color(nsColor: ThemeStore.shared.current.backgroundNSColor)
+                            .transition(.opacity)
+                            .allowsHitTesting(false)
+                    }
+                }
                 if let session = sessionManager.selected {
                     StatusBarView(session: session)
                 }
@@ -651,6 +660,9 @@ private struct PaneCarouselView: View {
     @Environment(SessionManager.self) private var sessionManager
     /// 当前吸附的 pane(scrollPosition 双向同步;与 focusedID 互跟,靠值判等防环)
     @State private var snappedID: UUID?
+    /// 页码圆点:翻页/进入时显现,静止 1.5s 后淡出(方位感,3 页以上防迷失)
+    @State private var dotsVisible = false
+    @State private var dotsGeneration = 0
 
     var body: some View {
         let leaves = tab.root.leafIDs()
@@ -676,12 +688,32 @@ private struct PaneCarouselView: View {
         .contentMargins(.horizontal, 12, for: .scrollContent)
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $snappedID)
+        // 页码圆点:当前页强调色、等待输入页橙色、其余弱化;不拦点击
+        .overlay(alignment: .bottom) {
+            if dotsVisible {
+                HStack(spacing: 7) {
+                    ForEach(leaves, id: \.self) { sid in
+                        Circle()
+                            .fill(dotColor(for: sid))
+                            .frame(width: 6.5, height: 6.5)
+                    }
+                }
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(ThemeStore.shared.current.chromeBackground.opacity(0.88)))
+                .overlay(Capsule().strokeBorder(ThemeStore.shared.current.borderColor, lineWidth: 1))
+                .padding(.bottom, 12)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+            }
+        }
         .onChange(of: snappedID) { _, snapped in
             // 翻到哪页都把全部 pane 标脏:屏外挂载的 Metal 图层可能停摆,
             // 缓冲区有内容却不画,滑到面前是空白
             for sid in tab.root.leafIDs() {
                 sessionManager.session(sid)?.terminalView.needsDisplay = true
             }
+            revealDots()
             guard let snapped, snapped != tab.focusedID else { return }
             sessionManager.focusPane(snapped)
         }
@@ -692,8 +724,26 @@ private struct PaneCarouselView: View {
         .onAppear {
             snappedID = tab.focusedID
             CarouselScrollRouter.shared.install()
+            revealDots()
         }
         .onDisappear { CarouselScrollRouter.shared.remove() }
+    }
+
+    private func dotColor(for sid: UUID) -> Color {
+        if sessionManager.session(sid)?.attention.needsInput == true { return .orange }
+        if sid == (snappedID ?? tab.focusedID) { return ThemeStore.shared.current.accentColor }
+        return Color.primary.opacity(0.25)
+    }
+
+    /// 显现圆点并计划 1.5s 后淡出;期间再翻页则续期
+    private func revealDots() {
+        withAnimation(.easeOut(duration: 0.15)) { dotsVisible = true }
+        dotsGeneration += 1
+        let generation = dotsGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            guard generation == dotsGeneration else { return }
+            withAnimation(.easeOut(duration: 0.4)) { dotsVisible = false }
+        }
     }
 }
 
@@ -1419,10 +1469,10 @@ private struct TerminalTabChip: View {
         // 改名中撤掉把点击还给 TextField;× 可见时尾部让位,不与按钮争命中
         .overlay {
             if !tab.isRenaming {
-                ChipMouseLayer(
+                PressDragLayer(
                     onPress: select,
                     onDoubleClick: { tab.isRenaming = true },
-                    onDragChanged: dragChanged,
+                    onDragChanged: { dragChanged($0.x) },
                     onDragEnded: dragEnded
                 )
                 .padding(.trailing, (isHovering || isSelected) ? 30 : 0)
@@ -1450,16 +1500,17 @@ private struct TerminalTabChip: View {
     }
 }
 
-/// chip 的 AppKit 事件层。SwiftUI 手势在 macOS 15 的标题栏里抢不过窗口拖动
-/// (拖窗机制在手势判定前就接管,v1.24 的 DragGesture 方案只在 26 生效,issue #9),
-/// 用真 NSView 占有事件流一劳永逸:mouseDownCanMoveWindow=false 掐断拖窗,
-/// 按下即选中(原生标签手感,也绕开旧系统上单击等待双击判定的迟滞),
-/// 连击改名,拖动上报 ΔX 由父级重排。右键不拦,沿响应链上浮给 .contextMenu
-private struct ChipMouseLayer: NSViewRepresentable {
+/// 行/chip 通用的 AppKit 事件层。SwiftUI 手势在 macOS 15 的标题栏里抢不过窗口
+/// 拖动(拖窗机制在手势判定前就接管,v1.24 的 DragGesture 方案只在 26 生效,
+/// issue #9),内容区的单击又要等双击判定才落地;用真 NSView 占有事件流一劳永逸:
+/// mouseDownCanMoveWindow=false 掐断拖窗,按下即选中(原生手感,零判定等待),
+/// 连击改名,拖动上报窗口坐标位移(y 已翻转为 SwiftUI 向下为正)由父级重排。
+/// 右键不拦,沿响应链上浮给 .contextMenu
+struct PressDragLayer: NSViewRepresentable {
     let onPress: () -> Void
     let onDoubleClick: () -> Void
-    let onDragChanged: (CGFloat) -> Void
-    let onDragEnded: () -> Void
+    var onDragChanged: (CGPoint) -> Void = { _ in }
+    var onDragEnded: () -> Void = {}
 
     func makeNSView(context: Context) -> MouseView {
         let view = MouseView()
@@ -1481,31 +1532,35 @@ private struct ChipMouseLayer: NSViewRepresentable {
     final class MouseView: NSView {
         var onPress: (() -> Void)?
         var onDoubleClick: (() -> Void)?
-        var onDragChanged: ((CGFloat) -> Void)?
+        var onDragChanged: ((CGPoint) -> Void)?
         var onDragEnded: (() -> Void)?
-        private var downX: CGFloat = 0
+        private var downPoint: CGPoint = .zero
         private var dragging = false
 
         override var mouseDownCanMoveWindow: Bool { false }
-        /// 后台窗口点标签一击即选(原生标签栏行为),不用先点一下激活窗口
+        /// 后台窗口一击即选(原生行为),不用先点一下激活窗口
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
         /// 自己不出菜单:返回 nil 让右键沿响应链交给 SwiftUI 的 .contextMenu
         override func menu(for event: NSEvent) -> NSMenu? { nil }
 
         override func mouseDown(with event: NSEvent) {
-            downX = event.locationInWindow.x
+            downPoint = event.locationInWindow
             dragging = false
             if event.clickCount == 2 {
                 onDoubleClick?()
             } else {
-                onPress?()  // 首击已选中,连击改名正好落在已选中的标签上
+                onPress?()  // 首击已选中,连击改名正好落在已选中的行上
             }
         }
 
         override func mouseDragged(with event: NSEvent) {
-            let delta = event.locationInWindow.x - downX
+            // AppKit 窗口坐标 y 向上,翻转成 SwiftUI 的向下为正
+            let delta = CGPoint(
+                x: event.locationInWindow.x - downPoint.x,
+                y: downPoint.y - event.locationInWindow.y
+            )
             // 与旧 DragGesture 的 minimumDistance=4 对齐,点按时的手抖不触发重排
-            if !dragging, abs(delta) < 4 { return }
+            if !dragging, abs(delta.x) < 4, abs(delta.y) < 4 { return }
             dragging = true
             onDragChanged?(delta)
         }

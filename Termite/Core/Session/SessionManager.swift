@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import SwiftUI
 import UniformTypeIdentifiers
 
 /// 一个主窗口的会话管理:持有该窗口的 TerminalSession(会话池)与标签页(每个标签是一棵可无限嵌套的分屏树)。
@@ -285,9 +286,35 @@ final class SessionManager {
 
     // MARK: - 分屏(可无限嵌套)
 
+    /// 整屏重排的幕布过渡:Metal 内容截不了图(cacheDisplay 拿不到 MTKView 像素),
+    /// 传统快照 crossfade 走不通;改为切换瞬间同事务落一层终端底色幕布,
+    /// 折行重排/SIGWINCH 轻推全在幕后完成,幕布再淡出——眼睛只看到内容柔和淡入
+    var relayoutVeilVisible = false
+    /// 快速连按时只认最后一次切换的揭幕计划
+    private var relayoutVeilGeneration = 0
+
+    private func runRelayoutVeil(for tab: PaneTab) {
+        relayoutVeilVisible = true
+        relayoutVeilGeneration += 1
+        let generation = relayoutVeilGeneration
+        // 分档:纯 shell 布局+重绘 0.2s 内落定,幕布提前揭;
+        // 备用屏 TUI 要等 nudge 的双 SIGWINCH 唤醒(0.45+0.15s),用足 0.45s
+        let hasTUI = tab.root.leafIDs().contains {
+            session($0)?.terminalView.getTerminal().isCurrentBufferAlternate == true
+        }
+        let hold = hasTUI ? 0.45 : 0.2
+        DispatchQueue.main.asyncAfter(deadline: .now() + hold) { [weak self] in
+            guard let self, self.relayoutVeilGeneration == generation else { return }
+            withAnimation(.easeOut(duration: 0.22)) {
+                self.relayoutVeilVisible = false
+            }
+        }
+    }
+
     /// ⇧⌘↩:临时最大化当前 pane / 还原分屏布局
     func toggleMaximizePane() {
         guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
+        runRelayoutVeil(for: tab)
         tab.isCarousel = false
         tab.maximizedID = tab.maximizedID == nil ? tab.focusedID : nil
         persistOpenTabs()
@@ -297,6 +324,7 @@ final class SessionManager {
     /// ⇧⌘\:巡视模式开关——所有 pane 等宽横排分页滑动,再按一次还原分屏布局
     func toggleCarousel() {
         guard let tab = selectedTab, tab.root.leafIDs().count > 1 else { return }
+        runRelayoutVeil(for: tab)
         tab.maximizedID = nil
         tab.isCarousel.toggle()
         selected?.focusTerminal()
@@ -304,15 +332,16 @@ final class SessionManager {
     }
 
     /// 巡视/最大化整屏重排的动画会连发中间尺寸的 SIGWINCH,部分 TUI(grok cli 等)
-    /// 漏掉末次重绘停在空白。布局落定后给每个 pane 补一记尺寸轻推,强制按最终尺寸重画
+    /// 漏掉末次重绘停在空白。布局落定后给每个 pane 补一记尺寸轻推,强制按最终尺寸重画。
+    /// 不再全量重启 Metal 渲染器:当年治的「搬家停摆」根因是孤儿态重建出死图层,
+    /// 已由宿主容器回收注册表 + restartMetalRenderer 护栏根治;全量关开本身
+    /// 会让每个 pane 肉眼可见地闪一下(巡视切换「抖动」反馈的元凶)
     private func nudgePanesAfterRelayout(_ tab: PaneTab) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
             guard let self else { return }
             for id in tab.root.leafIDs() {
                 guard let session = self.session(id) else { continue }
                 session.kickRedraw()
-                // 搬家可能让 Metal 停摆(光标在、正文空白),重启渲染器 + 标脏双保险
-                session.terminalView.restartMetalRenderer()
                 session.terminalView.needsDisplay = true
             }
         }
