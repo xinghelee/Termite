@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Termite iOS:Mac 端 Termite 的远程终端(LAN/Tailscale 内网直连)。
-/// 未配对显示扫码页;配好即连,进会话列表。
+/// 未配对显示扫码引导;配好即连,进会话仪表盘。
 @main
 struct TermiteMobileApp: App {
     @State private var store = ConnectionStore()
@@ -22,24 +22,27 @@ private struct RootView: View {
 
     var body: some View {
         Group {
-            if store.endpoint == nil {
+            if store.macs.isEmpty {
                 PairingView()
             } else {
-                SessionListView(client: client)
+                MainView(client: client)
             }
         }
-        .onChange(of: store.endpoint, initial: true) {
-            if let endpoint = store.endpoint {
-                client.configure(endpoint)
-            } else {
-                client.shutdown()
-            }
+        .onChange(of: store.selectedID, initial: true) {
+            reconfigure()
         }
-        // token 被拒(Mac 端重新生成过):回配对页重扫
-        .onChange(of: client.phase) {
-            if client.phase == .denied {
-                store.endpoint = nil
-            }
+        .onChange(of: store.macs) {
+            // 重新配对同一台 Mac(token 换新)后立刻用新凭据重连
+            reconfigure()
         }
+    }
+
+    private func reconfigure() {
+        guard let mac = store.selected, let endpoint = store.endpoint(for: mac) else {
+            client.shutdown()
+            return
+        }
+        client.shutdown()
+        client.configure(endpoint)
     }
 }

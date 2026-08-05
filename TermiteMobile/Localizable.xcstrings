@@ -1,12 +1,122 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "End": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
+          }
+        }
+      }
+    },
+    "Mac 上打开 Termite → 设置 → 远程": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On your Mac open Termite → Settings → Remote"
+          }
+        }
+      }
+    },
+    "Mac 端重新生成过密钥,请重新扫码配对": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The key was regenerated on your Mac — scan the new QR code to re-pair"
+          }
+        }
+      }
+    },
+    "Page Down": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Down"
+          }
+        }
+      }
+    },
+    "Page Up": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Up"
+          }
+        }
+      }
+    },
+    "^D 结束输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^D End of input"
+          }
+        }
+      }
+    },
+    "^L 清屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^L Clear screen"
+          }
+        }
+      }
+    },
+    "^R 搜索历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^R Search history"
+          }
+        }
+      }
+    },
+    "^Z 挂起": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^Z Suspend"
+          }
+        }
+      }
+    },
     "http://192.168.1.8:9280/?t=…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "http://192.168.1.8:9280/?t=…"
+          }
+        }
+      }
+    },
+    "上次": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last"
           }
         }
       }
@@ -31,12 +141,62 @@
         }
       }
     },
+    "全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "关于": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        }
+      }
+    },
     "刷新": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Refresh"
+          }
+        }
+      }
+    },
+    "取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        }
+      }
+    },
+    "响铃触感": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bell haptics"
           }
         }
       }
@@ -61,6 +221,116 @@
         }
       }
     },
+    "字号": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text size"
+          }
+        }
+      }
+    },
+    "字号减小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smaller text"
+          }
+        }
+      }
+    },
+    "字号加大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Larger text"
+          }
+        }
+      }
+    },
+    "完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "局域网 / Tailscale 直连": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct over LAN / Tailscale"
+          }
+        }
+      }
+    },
+    "左侧点开任意终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open any terminal from the sidebar"
+          }
+        }
+      }
+    },
+    "左滑可改名或移除;移除会一并删除本机保存的访问密钥。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe left to rename or remove. Removing also deletes the stored access key on this device."
+          }
+        }
+      }
+    },
+    "已连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        }
+      }
+    },
+    "恢复 Mac 端尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Mac size"
+          }
+        }
+      }
+    },
+    "恢复默认字号": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default text size"
+          }
+        }
+      }
+    },
+    "我的 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My Macs"
+          }
+        }
+      }
+    },
     "或粘贴访问链接": {
       "localizations": {
         "en": {
@@ -71,12 +341,52 @@
         }
       }
     },
+    "打开「允许手机 / iPad 连接」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on “Allow iPhone / iPad connections”"
+          }
+        }
+      }
+    },
     "扫描 Mac 端「设置 → 远程」里的二维码": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Scan the QR code in Settings → Remote of Termite on your Mac"
+          }
+        }
+      }
+    },
+    "扫描出现的二维码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan the QR code that appears"
+          }
+        }
+      }
+    },
+    "改名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        }
+      }
+    },
+    "未分组": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungrouped"
           }
         }
       }
@@ -101,12 +411,82 @@
         }
       }
     },
+    "添加 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Mac"
+          }
+        }
+      }
+    },
+    "版本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
     "相机不可用,下方粘贴链接也能连": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Camera unavailable — paste the link below instead"
+          }
+        }
+      }
+    },
+    "移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "等待你": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for you"
+          }
+        }
+      }
+    },
+    "终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal"
+          }
+        }
+      }
+    },
+    "终端页保持屏幕常亮": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep screen awake in terminal"
+          }
+        }
+      }
+    },
+    "设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
           }
         }
       }
@@ -127,6 +507,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connect to Mac"
+          }
+        }
+      }
+    },
+    "连接中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting"
+          }
+        }
+      }
+    },
+    "连接方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection"
+          }
+        }
+      }
+    },
+    "适配手机宽度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fit to phone width"
+          }
+        }
+      }
+    },
+    "选一个会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a session"
+          }
+        }
+      }
+    },
+    "配对已失效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing expired"
+          }
+        }
+      }
+    },
+    "重命名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
           }
         }
       }

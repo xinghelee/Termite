@@ -20,6 +20,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
 
     // 主线程上的桥接状态
     private var attachedSessionID: UUID?
+    /// 上次见到的 Mac 视图网格(变化 = Mac 端 resize 夺回尺寸主导权,推给远端)
     private var lastCols = 0
     private var lastRows = 0
     private var statusTimer: DispatchSourceTimer?
@@ -157,6 +158,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private struct ClientMsg: Decodable {
         let type: String
         let id: UUID?
+        let cols: Int?
+        let rows: Int?
     }
 
     private func handleText(_ data: Data) {
@@ -170,6 +173,14 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     if let id = msg.id { self.attach(id) }
                 case "detach":
                     self.detachCurrent()
+                case "resize":
+                    // 「适配手机宽度」:远端接管 PTY 尺寸,解附自动还给 Mac。
+                    // 不动 lastCols/lastRows——它们跟踪的是 Mac 视图网格(变化=Mac 夺回),
+                    // override 只改 PTY,Mac 视图不变,轮询自然不误报
+                    if let sid = self.attachedSessionID, let cols = msg.cols, let rows = msg.rows {
+                        RemoteSessionHub.shared.overrideSize(connID: self.connID, sessionID: sid,
+                                                             cols: cols, rows: rows)
+                    }
                 default:
                     break
                 }
@@ -199,7 +210,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         attachedSessionID = sessionID
         lastCols = result.cols
         lastRows = result.rows
-        sendJSON(AttachedMsg(id: sessionID, cols: result.cols, rows: result.rows))
+        sendJSON(AttachedMsg(id: sessionID, cols: result.cols, rows: result.rows,
+                             theme: RemoteTheme.current()))
         // 镜像缓冲为空时用屏幕快照垫底(灰字示意历史内容),否则回放缓冲
         if let snapshot = result.snapshot {
             let normalized = snapshot.replacingOccurrences(of: "\n", with: "\r\n")
@@ -268,6 +280,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var id: UUID
         var cols: Int
         var rows: Int
+        /// 当前 Mac 主题色板,远端终端同款观感
+        var theme: RemoteTheme
     }
 
     private struct ResizeMsg: Encodable {

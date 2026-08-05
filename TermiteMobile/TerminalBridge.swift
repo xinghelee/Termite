@@ -3,15 +3,21 @@ import SwiftUI
 import UIKit
 
 /// SwiftTerm TerminalView 的持有者与代理:输出喂给视图、键入转发给 RemoteClient。
-/// 网格钉死策略:Mac 端 PTY 尺寸是权威,这里按列数反推字号装进屏宽
-/// (最小 7pt,再宽就横向滚动),frame 精确到格,视图自算的格数与 PTY 一致。
+/// 网格钉死策略:Mac 端 PTY 尺寸是权威;字号「可读优先」——用用户偏好字号渲染,
+/// 列数装不下屏宽就横向滚动,绝不为塞下而把字缩到看不清。
 @MainActor
 final class TerminalBridge: NSObject {
     let terminalView: SwiftTerm.TerminalView
     weak var client: RemoteClient?
+    /// 响铃触感开关(设置页)
+    var hapticsEnabled = true
 
     /// 当前内容尺寸(SwiftUI 侧用来定 frame)
     private(set) var contentSize = CGSize(width: 320, height: 480)
+
+    private var cols = 80
+    private var rows = 24
+    private var fontSize: CGFloat = MobileSettingsKeys.defaultFontSize
 
     override init() {
         terminalView = SwiftTerm.TerminalView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
@@ -31,31 +37,45 @@ final class TerminalBridge: NSObject {
         terminalView.feed(text: "\u{1b}c")
     }
 
-    /// 按 PTY 网格与容器宽度定字号和 frame
-    func fit(cols: Int, rows: Int, containerWidth: CGFloat) {
-        guard cols > 0, rows > 0, containerWidth > 40 else { return }
-        var size: CGFloat = 17
-        while size > 7 {
-            if cellWidth(fontSize: size) * CGFloat(cols) <= containerWidth { break }
-            size -= 1
-        }
-        let font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+    /// Mac 下发的主题色板整套应用(终端与 Mac 同款观感)
+    func applyTheme(_ theme: RemoteThemePayload) {
+        let background = UIColor(hex: theme.background)
+        terminalView.backgroundColor = background
+        terminalView.nativeBackgroundColor = background
+        terminalView.nativeForegroundColor = UIColor(hex: theme.foreground)
+        terminalView.caretColor = UIColor(hex: theme.cursor)
+        terminalView.installColors(theme.ansi.map { SwiftTerm.Color(hex: $0) })
+    }
+
+    /// 网格/字号变化后重排:frame 精确到格,视图自算的格数与 PTY 一致
+    func layout(cols: Int, rows: Int, fontSize: CGFloat) {
+        guard cols > 0, rows > 0 else { return }
+        self.cols = cols
+        self.rows = rows
+        self.fontSize = fontSize
+        let font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         terminalView.font = font
-        // frame 取整到「刚好装下 cols 列」:多给 1pt,避免向下取整少一列
-        let width = ceil(cellWidth(fontSize: size) * CGFloat(cols)) + 1
+        // 多给 1pt,避免视图按 bounds 向下取整少一列
+        let width = ceil(cellWidth(font: font) * CGFloat(cols)) + 1
         let height = ceil(font.lineHeight * CGFloat(rows))
         terminalView.frame = CGRect(x: 0, y: 0, width: width, height: height)
         contentSize = CGSize(width: width, height: height)
-        // 视图按 bounds 自算格数可能差一列,以 PTY 为准兜底钉一次
         let terminal = terminalView.getTerminal()
         if terminal.cols != cols || terminal.rows != rows {
             terminal.resize(cols: cols, rows: rows)
         }
     }
 
-    private func cellWidth(fontSize: CGFloat) -> CGFloat {
+    private func cellWidth(font: UIFont) -> CGFloat {
+        ("W" as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    /// 「适配手机宽度」用:这块屏幕在该字号下能装下的网格
+    func gridThatFits(size: CGSize, fontSize: CGFloat) -> (cols: Int, rows: Int) {
         let font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        return ("W" as NSString).size(withAttributes: [.font: font]).width
+        let cols = max(10, Int((size.width - 6) / cellWidth(font: font)))
+        let rows = max(4, Int(size.height / font.lineHeight))
+        return (cols, rows)
     }
 }
 
@@ -84,6 +104,7 @@ extension TerminalBridge: TerminalViewDelegate {
     }
 
     func bell(source: SwiftTerm.TerminalView) {
+        guard hapticsEnabled else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
@@ -99,4 +120,31 @@ struct TerminalCanvas: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: SwiftTerm.TerminalView, context: Context) {}
+}
+
+extension SwiftTerm.Color {
+    convenience init(hex: String) {
+        let ui = UIColor(hex: hex)
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
+        ui.getRed(&red, green: &green, blue: &blue, alpha: nil)
+        self.init(red: UInt16(red * 65535), green: UInt16(green * 65535), blue: UInt16(blue * 65535))
+    }
+}
+
+extension UIColor {
+    /// "#RRGGBB" / "RRGGBB" → UIColor(解析失败回落中灰,别黑屏)
+    convenience init(hex: String) {
+        var value: UInt64 = 0
+        let cleaned = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard Scanner(string: cleaned).scanHexInt64(&value), cleaned.count == 6 else {
+            self.init(white: 0.5, alpha: 1)
+            return
+        }
+        self.init(
+            red: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
+    }
 }

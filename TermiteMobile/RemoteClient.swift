@@ -1,7 +1,8 @@
 import Foundation
+import Network
 import Observation
 
-/// 会话摘要(与 Mac 端 RemoteSessionInfo 的 JSON 对应)
+/// 会话摘要(与 Mac 端 RemoteSessionInfo 的 JSON 对应;分组字段为增量,老服务端缺省容错)
 struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let id: UUID
     let title: String
@@ -12,11 +13,28 @@ struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let attention: String?
     let cols: Int
     let rows: Int
+    /// 侧边栏语义:项目分组 + 工作空间筛选(对齐 Mac)
+    let project: String?
+    let projectPath: String?
+    let projectColor: String?
+    let space: String?
+    let window: Int?
+}
+
+/// Mac 主题色板(attached 下发,远端同款观感)
+struct RemoteThemePayload: Decodable, Equatable {
+    let background: String
+    let foreground: String
+    let cursor: String
+    let selection: String
+    let accent: String
+    let isDark: Bool
+    let ansi: [String]
 }
 
 /// Mac 端 WebSocket 协议客户端。
 /// 文本帧 = JSON 控制(list/attach/detach/resize/exited/error),二进制帧 = 终端字节流。
-/// 断线指数退避重连;重连时若附着着会话则自动重附(服务端回放镜像,画面无缝接上)。
+/// 断线指数退避重连 + 网络路径变化立即重试;重连时自动重附,服务端回放镜像无缝接上。
 @MainActor
 @Observable
 final class RemoteClient {
@@ -34,6 +52,8 @@ final class RemoteClient {
     private(set) var gridCols = 80
     private(set) var gridRows = 24
     private(set) var attachedID: UUID?
+    /// Mac 当前主题(attached 到达时更新)
+    private(set) var theme: RemoteThemePayload?
 
     /// 附着确认(含重连重附):先重置终端,随后镜像回放帧到达
     var onAttached: (() -> Void)?
@@ -48,11 +68,13 @@ final class RemoteClient {
     private var generation = 0
     private var retryDelay: TimeInterval = 0.5
     private var retryTask: Task<Void, Never>?
+    private var pathMonitor: NWPathMonitor?
 
     // MARK: - 生命周期
 
     func configure(_ endpoint: Endpoint) {
         self.endpoint = endpoint
+        startPathMonitor()
         reconnectNow()
     }
 
@@ -60,11 +82,20 @@ final class RemoteClient {
         generation += 1
         retryTask?.cancel()
         retryTask = nil
+        pathMonitor?.cancel()
+        pathMonitor = nil
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         phase = .idle
         attachedID = nil
         sessions = []
+        theme = nil
+    }
+
+    /// 回前台 / 网络恢复时调用:没连上就立刻重试(跳过退避等待)
+    func kickReconnect() {
+        guard endpoint != nil, phase != .connected, phase != .denied else { return }
+        reconnectNow()
     }
 
     func reconnectNow() {
@@ -85,6 +116,18 @@ final class RemoteClient {
         } else {
             requestList()
         }
+    }
+
+    /// Wi-Fi ↔ 蜂窝 ↔ 网线切换即触发重连,不等退避计时器
+    private func startPathMonitor() {
+        guard pathMonitor == nil else { return }
+        let monitor = NWPathMonitor()
+        pathMonitor = monitor
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.kickReconnect() }
+        }
+        monitor.start(queue: .main)
     }
 
     // MARK: - 请求
@@ -113,7 +156,13 @@ final class RemoteClient {
         task?.send(.data(data)) { _ in }
     }
 
-    private func sendControl(_ dict: [String: String]) {
+    /// 「适配手机宽度」:请求接管 PTY 尺寸(服务端解附自动还给 Mac)
+    func requestResize(cols: Int, rows: Int) {
+        guard attachedID != nil else { return }
+        sendControl(["type": "resize", "cols": cols, "rows": rows])
+    }
+
+    private func sendControl(_ dict: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: dict),
               let text = String(data: data, encoding: .utf8) else { return }
         task?.send(.string(text)) { _ in }
@@ -155,6 +204,7 @@ final class RemoteClient {
         let cols: Int?
         let rows: Int?
         let message: String?
+        let theme: RemoteThemePayload?
     }
 
     private func handleControl(_ msg: ServerMsg) {
@@ -167,6 +217,7 @@ final class RemoteClient {
         case "attached":
             gridCols = msg.cols ?? 80
             gridRows = msg.rows ?? 24
+            if let theme = msg.theme { self.theme = theme }
             onAttached?()
         case "resize":
             gridCols = msg.cols ?? gridCols

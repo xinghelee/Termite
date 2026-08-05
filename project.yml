@@ -93,6 +93,12 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iPad 多任务(非全屏 App)要求全方向支持,含倒置竖屏
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码(Scan the pairing QR code in Termite on your Mac)
         NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite(Connects to Termite on your Mac over the local network)
         # 数据面是 LAN/Tailscale 内网 ws://(IP 直连),不走公网明文
