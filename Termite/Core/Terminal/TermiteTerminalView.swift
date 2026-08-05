@@ -87,6 +87,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // 永远不会绘制(显隐动画由 NSScrollView 私有管理),但宽度仍被预留,
         // 表现为右侧空白条且看不到滚动位置。legacy 样式可正常绘制(同 Berth #8)
         scrollerStyle = .legacy
+        subdueScroller()
         addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
     }
 
@@ -94,7 +95,13 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         super.init(coder: coder)
         registerForDraggedTypes([.fileURL])
         scrollerStyle = .legacy
+        subdueScroller()
         addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
+    }
+
+    /// legacy 滑块跟随 appearance 画成亮灰,深色主题近黑背景下太扎眼,整体压暗融入正文
+    private func subdueScroller() {
+        subviews.first { $0 is NSScroller }?.alphaValue = 0.35
     }
 
     // MARK: - 捏合进出巡视模式(Safari 标签概览惯例:捏合=摊平总览,张开=还原)
