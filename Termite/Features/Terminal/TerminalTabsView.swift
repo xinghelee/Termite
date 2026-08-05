@@ -19,6 +19,7 @@ struct TerminalTabsView: View {
     private static let chipTrackSpace = "chipTrack"
     /// chips HStack 的间距,交换补偿时参与位移计算
     private static let chipSpacing: CGFloat = 2
+    @AppStorage(SettingsKeys.translucentChrome) private var translucentChrome = true
     /// 终端区宽度:标签轨道的动态上限基准(超宽会让 NSToolbar 整体收进 » 溢出菜单)
     @State private var contentWidth: CGFloat = 0
     /// 右侧按钮岛实测宽(升级/巡视按钮会动态出现,写死会算漏导致 » 折叠)
@@ -213,7 +214,7 @@ struct TerminalTabsView: View {
     /// 透明 chrome 下用半透黑压出凹槽(不透明的 trackBackground 在玻璃上是一块死黑,
     /// 用户反馈「背景太黑」);不透明模式仍是比 chrome 带再暗一档的实色
     private var chipTrackColor: Color {
-        SettingsKeys.translucentChromeOn
+        translucentChrome
             ? Color.black.opacity(ThemeStore.shared.current.isDark ? 0.28 : 0.08)
             : ThemeStore.shared.current.trackBackground
     }
@@ -559,7 +560,7 @@ private final class CarouselScrollRouter {
         installCount += 1
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            MainActor.assumeIsolated { self?.route(event) ?? event }
+            self?.route(event) ?? event
         }
     }
 

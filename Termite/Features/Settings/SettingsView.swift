@@ -10,6 +10,7 @@ enum SettingsWindow {
 struct SettingsView: View {
     @State private var themeStore = ThemeStore.shared
     @State private var section: SettingsSection = .terminal
+    @AppStorage(SettingsKeys.translucentChrome) private var translucentChrome = true
 
     private var theme: TerminalTheme { themeStore.current }
 
@@ -34,9 +35,21 @@ struct SettingsView: View {
             minHeight: 460, idealHeight: 600, maxHeight: .infinity
         )
         .tint(theme.accentColor)
+        // 与主窗口同一套液态玻璃:整窗毛玻璃 + 半透主题 tint 打底,
+        // 内容列自己铺不透明底,左栏透出玻璃;跟随同一个「透明毛玻璃窗口」开关
+        .background {
+            if translucentChrome {
+                ZStack {
+                    WindowBackdrop()
+                    Color(nsColor: theme.backgroundNSColor).opacity(0.45)
+                }
+                .ignoresSafeArea()
+            }
+        }
         .background(WindowConfigurator(
             appearanceName: theme.appearanceName,
             backgroundColor: theme.backgroundNSColor,
+            translucent: translucentChrome,
             keepsTitle: true,
             fullSizeContent: true
         ))
@@ -88,6 +101,7 @@ private struct SettingsSidebar: View {
     @Binding var selection: SettingsSection
 
     @State private var themeStore = ThemeStore.shared
+    @AppStorage(SettingsKeys.translucentChrome) private var translucentChrome = true
 
     private var theme: TerminalTheme { themeStore.current }
 
@@ -114,7 +128,12 @@ private struct SettingsSidebar: View {
         .padding(.horizontal, 10)
         .frame(width: 194)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(theme.sidebarBackground)
+        // 玻璃模式左栏不铺底,透出整窗毛玻璃(同主窗口侧边栏);不透明模式照旧
+        .background {
+            if !translucentChrome {
+                theme.sidebarBackground
+            }
+        }
     }
 }
 
@@ -262,12 +281,22 @@ private struct TerminalSettingsPage: View {
 // MARK: - 外观
 
 private struct AppearanceSettingsPage: View {
+    @AppStorage(SettingsKeys.translucentChrome) private var translucentChrome = true
+
     var body: some View {
         SettingsPage {
             SettingsPanel("终端配色") {
                 ThemePanelGrid(adaptiveMinimum: 150)
             }
             SettingsFootnote("配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。")
+
+            SettingsGroup("窗口") {
+                SettingsToggleRow(
+                    title: "透明毛玻璃窗口",
+                    caption: "标题栏与侧边栏透出桌面,终端内容区保持不透明",
+                    isOn: $translucentChrome
+                )
+            }
         }
     }
 }

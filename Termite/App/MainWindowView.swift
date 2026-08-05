@@ -26,8 +26,8 @@ struct MainWindowView: View {
             }
     }
 
-    /// chrome 带透明毛玻璃(默认开;`defaults write` app.translucentChrome 可关)
-    private var translucent: Bool { SettingsKeys.translucentChromeOn }
+    /// chrome 带透明毛玻璃(设置 → 外观可关;@AppStorage 保证切换即时生效)
+    @AppStorage(SettingsKeys.translucentChrome) private var translucent = true
 
     private func content(_ manager: SessionManager) -> some View {
         // 项目 accent:覆盖本窗口的强调色与标题栏底色,多窗口跑不同项目时一眼分辨

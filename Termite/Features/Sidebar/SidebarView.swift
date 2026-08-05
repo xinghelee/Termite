@@ -9,6 +9,7 @@ struct SidebarView: View {
     @State private var workspaceStore = WorkspaceStore.shared
     @State private var spaceStore = SpaceStore.shared
     @State private var theme = ThemeStore.shared
+    @AppStorage(SettingsKeys.translucentChrome) private var translucentChrome = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +20,7 @@ struct SidebarView: View {
         // 透明 chrome 下不铺:上色统一交给 MainWindowView 的玻璃 tint 层,
         // 这里再叠一层会比标题栏暗一档,色阶断层就回来了
         .background {
-            if !SettingsKeys.translucentChromeOn {
+            if !translucentChrome {
                 theme.current.sidebarBackground.ignoresSafeArea()
             }
         }
@@ -571,7 +572,7 @@ private struct SpaceSwipeCatcher: NSViewRepresentable {
                 }
             } else if monitor == nil {
                 monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-                    MainActor.assumeIsolated { self?.route(event) ?? event }
+                    self?.route(event) ?? event
                 }
             }
         }
