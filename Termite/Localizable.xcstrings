@@ -396,6 +396,16 @@
         }
       }
     },
+    "iOS 端 Termite 扫码即连;手机浏览器扫同一个码走网页版。二维码即访问链接,重新生成密钥后旧码作废。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan with Termite for iOS to connect; a phone browser scanning the same code opens the web client. The QR code is the access link — regenerating the key invalidates old codes."
+          }
+        }
+      }
+    },
     "pid %@ · %@": {
       "localizations": {
         "zh-Hans": {
@@ -836,6 +846,26 @@
         }
       }
     },
+    "二维码用这个地址": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use this address for the QR code"
+          }
+        }
+      }
+    },
+    "仅在受信任的网络里开启。链接含访问密钥,泄露等于交出本机终端;怀疑泄露立即重新生成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable only on trusted networks. The link contains the access key — leaking it hands over your terminal. Regenerate immediately if you suspect exposure."
+          }
+        }
+      }
+    },
     "仅显示前 %lld 行 · 完整内容用「复制原文」": {
       "localizations": {
         "en": {
@@ -893,6 +923,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Session"
+          }
+        }
+      }
+    },
+    "会话不存在或已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session does not exist or is closed"
           }
         }
       }
@@ -1003,6 +1043,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stop Logging Session"
+          }
+        }
+      }
+    },
+    "允许手机 / iPad 连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow iPhone / iPad connections"
           }
         }
       }
@@ -1329,6 +1379,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh"
+          }
+        }
+      }
+    },
+    "刷新网络地址": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh network addresses"
           }
         }
       }
@@ -2155,6 +2215,26 @@
         }
       }
     },
+    "局域网": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LAN"
+          }
+        }
+      }
+    },
+    "局域网或 Tailscale 内网直连本机,凭配对码访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct connection over LAN or Tailscale, authorized by pairing code"
+          }
+        }
+      }
+    },
     "巡视:上一屏": {
       "localizations": {
         "en": {
@@ -2573,6 +2653,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save the whole tabs-and-splits layout as a template you can restore in one click."
+          }
+        }
+      }
+    },
+    "拷贝链接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy link"
           }
         }
       }
@@ -3290,6 +3380,16 @@
         }
       }
     },
+    "没有可用的网络接口(Wi-Fi / 网线 / Tailscale 都没连)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable network interface (Wi-Fi, Ethernet and Tailscale all disconnected)"
+          }
+        }
+      }
+    },
     "没有找到串口设备(/dev/cu.*)。插上 USB 转串口线后再试。": {
       "localizations": {
         "en": {
@@ -3440,6 +3540,16 @@
         }
       }
     },
+    "状态": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
     "玉版宣 Xuan PRO(浅色)": {
       "localizations": {
         "en": {
@@ -3526,6 +3636,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Login shell (default)"
+          }
+        }
+      }
+    },
+    "监听失败:%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening failed: %@"
           }
         }
       }
@@ -3707,6 +3827,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bar"
+          }
+        }
+      }
+    },
+    "端口 %lld 监听失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to listen on port %lld"
           }
         }
       }
@@ -4416,7 +4546,17 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "remote"
+            "value": "Remote"
+          }
+        }
+      }
+    },
+    "远程访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Access"
           }
         }
       }
@@ -4643,6 +4783,16 @@
         }
       }
     },
+    "配对": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing"
+          }
+        }
+      }
+    },
     "配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。": {
       "localizations": {
         "en": {
@@ -4699,6 +4849,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename Workspace"
+          }
+        }
+      }
+    },
+    "重新生成密钥": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regenerate Key"
           }
         }
       }

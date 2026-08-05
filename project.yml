@@ -24,6 +24,10 @@ targets:
     sources:
       - path: Termite
       - path: PtyHostShared
+      # 远程访问 Web 客户端(folder reference 整体拷进 Resources/RemoteWeb)
+      - path: RemoteWeb
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: SwiftTerm
       # 只要构建顺序,不链接;产物由 postBuildScripts 拷进 bundle
@@ -70,6 +74,38 @@ targets:
         DEVELOPMENT_TEAM: 99LYH6FNPS
         ENABLE_HARDENED_RUNTIME: false
         DEAD_CODE_STRIPPING: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  TermiteMobile:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: TermiteMobile
+    dependencies:
+      - package: SwiftTerm
+    info:
+      path: TermiteMobile/Info.plist
+      properties:
+        CFBundleDisplayName: Termite
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码(Scan the pairing QR code in Termite on your Mac)
+        NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite(Connects to Termite on your Mac over the local network)
+        # 数据面是 LAN/Tailscale 内网 ws://(IP 直连),不走公网明文
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.termite.mobile
+        SWIFT_VERSION: "5.0"
+        SWIFT_EMIT_LOC_STRINGS: true
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 99LYH6FNPS
+        TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   PtyHostDaemon:

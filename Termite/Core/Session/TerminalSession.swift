@@ -607,6 +607,7 @@ final class TerminalSession: Identifiable {
         trackAttentionOutput()
         appendToLog(bytes)
         appendToCast(bytes)
+        RemoteSessionHub.shared.mirror(sessionID: id, bytes: bytes)
         scanForLocalURL(bytes)
         let events = osc133.scan(bytes)
         if events.isEmpty {

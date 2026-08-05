@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111214">
+<title>Termite</title>
+<link rel="stylesheet" href="/vendor/xterm.min.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div id="list-screen">
+  <header class="bar">
+    <h1>Termite</h1>
+    <span id="conn-state"></span>
+  </header>
+  <main id="session-list"></main>
+  <p id="list-empty" hidden data-i18n="noSessions"></p>
+</div>
+
+<div id="term-screen" hidden>
+  <header class="bar">
+    <button id="back-btn" class="key" data-i18n="back"></button>
+    <div id="term-title"></div>
+    <div id="term-size"></div>
+  </header>
+  <div id="term-holder"></div>
+  <div id="key-bar">
+    <button class="key" data-send="&#x1b;">esc</button>
+    <button class="key" data-send="&#x9;">tab</button>
+    <button class="key" id="ctrl-btn">ctrl</button>
+    <button class="key" data-send="&#x3;">^C</button>
+    <button class="key" data-send="&#x1b;[A">↑</button>
+    <button class="key" data-send="&#x1b;[B">↓</button>
+    <button class="key" data-send="&#x1b;[D">←</button>
+    <button class="key" data-send="&#x1b;[C">→</button>
+    <button class="key" data-send="&#xd;">⏎</button>
+  </div>
+</div>
+
+<div id="overlay" hidden><div id="overlay-text"></div></div>
+
+<script src="/vendor/xterm.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

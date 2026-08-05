@@ -62,6 +62,7 @@ struct SettingsView: View {
         case .shell: ShellSettingsPage()
         case .session: SessionSettingsPage()
         case .behavior: BehaviorSettingsPage()
+        case .remote: RemoteSettingsPage()
         case .general: GeneralSettingsPage()
         }
     }
@@ -70,7 +71,7 @@ struct SettingsView: View {
 // MARK: - 分类
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case terminal, appearance, shell, session, behavior, general
+    case terminal, appearance, shell, session, behavior, remote, general
 
     var id: String { rawValue }
 
@@ -81,6 +82,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .shell: return String(localized: "Shell")
         case .session: return String(localized: "会话")
         case .behavior: return String(localized: "行为")
+        case .remote: return String(localized: "远程")
         case .general: return String(localized: "通用")
         }
     }
@@ -92,6 +94,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .shell: return "chevron.left.forwardslash.chevron.right"
         case .session: return "rectangle.stack"
         case .behavior: return "hand.tap"
+        case .remote: return "iphone.and.arrow.right.inward"
         case .general: return "gearshape"
         }
     }

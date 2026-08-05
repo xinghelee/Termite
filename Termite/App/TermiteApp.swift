@@ -69,6 +69,7 @@ struct TermiteApp: App {
         ThemeStore.shared.applyWindowChrome()
         ShellIntegration.ensureInstalled()
         QuickTerminalController.shared.registerHotKeyIfEnabled()
+        RemoteAccessServer.shared.startIfEnabled()
         // 更新检查让位启动恢复:延后几秒再发网络请求
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))

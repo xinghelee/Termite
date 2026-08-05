@@ -54,4 +54,10 @@ enum SettingsKeys {
     /// chrome 带(标题栏+侧边栏)透明毛玻璃,透出桌面;默认开,设置 → 外观可关。
     /// 消费点一律 @AppStorage(切换即时生效),别再加静态便捷读取
     static let translucentChrome = "app.translucentChrome"
+    /// 远程访问(手机/iPad 浏览器,LAN/Tailscale 内网):默认关
+    static let remoteAccessEnabled = "remote.enabled"
+    /// 远程访问监听端口(0/越界 = 默认 9280)
+    static let remoteAccessPort = "remote.port"
+    /// 远程访问 token(首次启用时生成,可重新生成)
+    static let remoteAccessToken = "remote.token"
 }

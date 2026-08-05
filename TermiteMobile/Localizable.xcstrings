@@ -1,0 +1,176 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "http://192.168.1.8:9280/?t=…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "http://192.168.1.8:9280/?t=…"
+          }
+        }
+      }
+    },
+    "会话不存在或已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session does not exist or is closed"
+          }
+        }
+      }
+    },
+    "会话已结束": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session ended"
+          }
+        }
+      }
+    },
+    "刷新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
+    "在 Mac 上开个终端标签就会出现在这里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a terminal tab on your Mac and it will show up here"
+          }
+        }
+      }
+    },
+    "好": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "或粘贴访问链接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or paste the access link"
+          }
+        }
+      }
+    },
+    "扫描 Mac 端「设置 → 远程」里的二维码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan the QR code in Settings → Remote of Termite on your Mac"
+          }
+        }
+      }
+    },
+    "正在连接 %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        }
+      }
+    },
+    "没有打开的会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No open sessions"
+          }
+        }
+      }
+    },
+    "相机不可用,下方粘贴链接也能连": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera unavailable — paste the link below instead"
+          }
+        }
+      }
+    },
+    "连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
+          }
+        }
+      }
+    },
+    "连接 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to Mac"
+          }
+        }
+      }
+    },
+    "重新配对": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-pair"
+          }
+        }
+      }
+    },
+    "重连中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting…"
+          }
+        }
+      }
+    },
+    "链接无法识别": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link not recognized"
+          }
+        }
+      }
+    },
+    "需要形如 http://192.168.x.x:9280/?t=xxxx 的链接,在 Mac 端 Termite 设置 → 远程 里获取": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expected a link like http://192.168.x.x:9280/?t=xxxx — get one from Termite on your Mac under Settings → Remote"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
