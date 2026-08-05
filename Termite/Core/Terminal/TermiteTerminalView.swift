@@ -2,6 +2,48 @@ import AppKit
 import SwiftTerm
 import SwiftUI
 
+/// SwiftTerm 会在像素 frame 变化时立即把新列行数转发给本地 PTY。TUI 固定网格期间
+/// 用代理截住这条回调，但把输入、标题、滚动和剪贴板行为原样交还给终端视图。
+private final class SharedGridTerminalDelegate: TerminalViewDelegate {
+    weak var owner: TermiteTerminalView?
+
+    init(owner: TermiteTerminalView) {
+        self.owner = owner
+    }
+
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        owner?.pinSharedGridAfterLayout()
+    }
+
+    func setTerminalTitle(source: TerminalView, title: String) {
+        owner?.setTerminalTitle(source: source, title: title)
+    }
+
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+        owner?.hostCurrentDirectoryUpdate(source: source, directory: directory)
+    }
+
+    func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        owner?.send(source: source, data: data)
+    }
+
+    func scrolled(source: TerminalView, position: Double) {
+        owner?.scrolled(source: source, position: position)
+    }
+
+    func clipboardCopy(source: TerminalView, content: Data) {
+        owner?.clipboardCopy(source: source, content: content)
+    }
+
+    func clipboardRead(source: TerminalView) -> Data? {
+        owner?.clipboardRead(source: source)
+    }
+
+    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {
+        owner?.rangeChanged(source: source, startY: startY, endY: endY)
+    }
+}
+
 /// 终端视图子类(内嵌本地 PTY):
 /// - 粘贴保护:多行或含危险命令(sudo/rm -rf/dd/mkfs 等)先弹预览确认,设置可关
 /// - 粘贴文件→转义完整路径;粘贴截图→落盘临时 PNG 贴路径(codex/claude 靠路径附图)
@@ -83,9 +125,81 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     /// Metal 渲染路径下引擎不再回调 sizeChanged,PTY winsize 滞留在启动值
     /// (表现:视图 126 列而 ls 只看到 84 列 → 单列输出)。尺寸稳定后手动同步,按列行数去重。
     private var lastSyncedGrid = (cols: 0, rows: 0)
+    /// TUI 的语义网格进入时冻结；Mac 只通过临时字号把它适配到当前窗口。
+    private var sharedTUIGrid: (cols: Int, rows: Int)?
+    private var naturalGrid = (cols: 80, rows: 24)
+    private var naturalFont: NSFont?
+    private lazy var sharedGridDelegate = SharedGridTerminalDelegate(owner: self)
+
+    var usesSharedTUIRenderGrid: Bool { sharedTUIGrid != nil }
+
+    var localViewportGrid: (cols: Int, rows: Int) {
+        if sharedTUIGrid != nil { return naturalGrid }
+        let terminal = getTerminal()
+        return (terminal.cols, terminal.rows)
+    }
+
+    func setSharedTUIRenderGrid(_ grid: (Int, Int)?) {
+        let terminal = getTerminal()
+        if sharedTUIGrid == nil, grid != nil {
+            naturalGrid = (terminal.cols, terminal.rows)
+            naturalFont = font
+            terminalDelegate = sharedGridDelegate
+        }
+        sharedTUIGrid = grid.map { (cols: $0.0, rows: $0.1) }
+        if sharedTUIGrid != nil {
+            fitSharedGridToViewport()
+            return
+        }
+
+        terminalDelegate = self
+        if let naturalFont,
+           font.fontName != naturalFont.fontName || abs(font.pointSize - naturalFont.pointSize) > 0.01 {
+            font = naturalFont
+        }
+        self.naturalFont = nil
+        naturalGrid = (terminal.cols, terminal.rows)
+        lastSyncedGrid = (0, 0)
+        syncPtyWindowSize()
+    }
+
+    fileprivate func pinSharedGridAfterLayout() {
+        guard let sharedTUIGrid else { return }
+        let terminal = getTerminal()
+        if terminal.cols != sharedTUIGrid.cols || terminal.rows != sharedTUIGrid.rows {
+            terminal.resize(cols: sharedTUIGrid.cols, rows: sharedTUIGrid.rows)
+            needsDisplay = true
+        }
+    }
+
+    /// 保持 TUI 的列行语义不变，仅调整 Mac 本地字号以装入当前窗口。
+    private func fitSharedGridToViewport() {
+        guard sharedTUIGrid != nil, bounds.width > 10, bounds.height > 10 else {
+            pinSharedGridAfterLayout()
+            return
+        }
+        pinSharedGridAfterLayout()
+        let content = getOptimalFrameSize().size
+        guard content.width > 0, content.height > 0 else { return }
+        let ratio = min(bounds.width / content.width, bounds.height / content.height)
+        let baseSize = naturalFont?.pointSize ?? font.pointSize
+        let desiredSize = min(max(font.pointSize * ratio, 8), baseSize * 1.6)
+        guard abs(desiredSize - font.pointSize) > 0.15 else { return }
+        let descriptor = (naturalFont ?? font).fontDescriptor
+        if let fitted = NSFont(descriptor: descriptor, size: desiredSize) {
+            font = fitted
+            pinSharedGridAfterLayout()
+        }
+    }
 
     func syncPtyWindowSize() {
         let terminal = getTerminal()
+        if sharedTUIGrid != nil {
+            // 只更新本地适配；代理已截断 SwiftTerm 默认的 PTY resize 回调。
+            fitSharedGridToViewport()
+            return
+        }
+        naturalGrid = (terminal.cols, terminal.rows)
         guard terminal.cols != lastSyncedGrid.cols || terminal.rows != lastSyncedGrid.rows else { return }
         if let session, session.usesHostTransport {
             // 保活模式:LocalProcessTerminalView.sizeChanged 会因 process 未运行直接 return,

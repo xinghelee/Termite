@@ -12,6 +12,9 @@ final class HostSession {
     private(set) var alive = true
     private(set) var exitCode: Int32?
     private(set) var ring = OutputRing()
+    private var synchronizedFrameLocator = SynchronizedFrameLocator()
+    private var synchronizedFrameStarts: [UInt64] = []
+    private var firstRetainedFrameIndex = 0
 
     private let masterFD: Int32
     private var readSource: DispatchSourceRead?
@@ -69,6 +72,18 @@ final class HostSession {
                 let start = ring.tailOffset
                 let data = Data(buf[0..<n])
                 ring.append(data)
+                synchronizedFrameStarts.append(contentsOf:
+                    synchronizedFrameLocator.ingest(data, startingAt: start)
+                )
+                while firstRetainedFrameIndex < synchronizedFrameStarts.count,
+                      synchronizedFrameStarts[firstRetainedFrameIndex] < ring.headOffset {
+                    firstRetainedFrameIndex += 1
+                }
+                if firstRetainedFrameIndex > 1024,
+                   firstRetainedFrameIndex * 2 > synchronizedFrameStarts.count {
+                    synchronizedFrameStarts.removeFirst(firstRetainedFrameIndex)
+                    firstRetainedFrameIndex = 0
+                }
                 onOutput?(id, start, data)
                 continue
             }
@@ -114,6 +129,8 @@ final class HostSession {
     var info: PtySessionInfo {
         PtySessionInfo(id: id, pid: pid, cwd: cwd, startedAt: startedAt,
                        alive: alive, exitCode: exitCode,
-                       headOffset: ring.headOffset, tailOffset: ring.tailOffset)
+                       headOffset: ring.headOffset, tailOffset: ring.tailOffset,
+                       screenReplayOffset: firstRetainedFrameIndex < synchronizedFrameStarts.count
+                           ? synchronizedFrameStarts[firstRetainedFrameIndex] : nil)
     }
 }

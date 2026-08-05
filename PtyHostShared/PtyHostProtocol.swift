@@ -1,5 +1,55 @@
 import Foundation
 
+/// 在单调递增的 PTY 输出流里定位每一帧完整 synchronized-output。
+/// 守护进程保留环形缓冲中最早的完整帧边界，并从那里连续回放到当前；单独回放
+/// 最后一帧不可靠，因为 synchronized-output 只保证原子显示，不保证它是全屏重绘。
+struct SynchronizedFrameLocator {
+    private static let begin: [UInt8] = [0x1b, 0x5b, 0x3f, 0x32, 0x30, 0x32, 0x36, 0x68]
+    private static let end: [UInt8] = [0x1b, 0x5b, 0x3f, 0x32, 0x30, 0x32, 0x36, 0x6c]
+    private static let maxFrameBytes: UInt64 = 2 * 1024 * 1024
+
+    private var beginMatched = 0
+    private var endMatched = 0
+    private var frameStart: UInt64?
+
+    mutating func ingest(_ data: Data, startingAt offset: UInt64) -> [UInt64] {
+        var completedStarts: [UInt64] = []
+        for (index, byte) in data.enumerated() {
+            let absolute = offset + UInt64(index)
+            if let start = frameStart {
+                if byte == Self.end[endMatched] {
+                    endMatched += 1
+                    if endMatched == Self.end.count {
+                        completedStarts.append(start)
+                        frameStart = nil
+                        endMatched = 0
+                        beginMatched = 0
+                    }
+                } else {
+                    endMatched = byte == Self.end[0] ? 1 : 0
+                }
+                if absolute - start > Self.maxFrameBytes {
+                    frameStart = nil
+                    endMatched = 0
+                }
+                continue
+            }
+
+            if byte == Self.begin[beginMatched] {
+                beginMatched += 1
+                if beginMatched == Self.begin.count {
+                    frameStart = absolute + 1 - UInt64(Self.begin.count)
+                    beginMatched = 0
+                    endMatched = 0
+                }
+            } else {
+                beginMatched = byte == Self.begin[0] ? 1 : 0
+            }
+        }
+        return completedStarts
+    }
+}
+
 /// termite-ptyhost 守护进程与 app 之间的线上协议。
 /// 帧格式:[type: u8][length: u32 BE][payload]。
 /// 控制帧 payload 为 JSON;INPUT/OUTPUT 走二进制热路径(见各 case 注释)。
@@ -87,6 +137,9 @@ struct PtySessionInfo: Codable {
     /// 环形缓冲覆盖的流偏移区间 [headOffset, tailOffset)
     var headOffset: UInt64
     var tailOffset: UInt64
+    /// 环形缓冲中最早的完整 TUI 同步帧起点；从这里连续回放才能重建增量绘制。
+    /// 旧守护进程缺省为 nil，客户端回落到 headOffset。
+    var screenReplayOffset: UInt64? = nil
     /// 当前连接是否已绑定该会话(孤儿判定:绑定中的不是孤儿)。
     /// Optional:老守护进程的 LIST 没有此字段,解码得 nil,收养方需另行兜底
     var attached: Bool?

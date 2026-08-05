@@ -15,6 +15,11 @@ packages:
     # 1.12+ 引入 Metal GPU 渲染后端;1.14+ 内置 scrollback 搜索(高亮/正则)
     url: https://github.com/migueldeicaza/SwiftTerm.git
     from: 1.14.0
+  SandboxServer:
+    url: https://github.com/xinghelee/SandboxServer.git
+    exactVersion: 0.1.0
+    traits:
+      - SandboxServerEnabled
 
 targets:
   Termite:
@@ -84,6 +89,7 @@ targets:
       - path: TermiteMobile
     dependencies:
       - package: SwiftTerm
+      - package: SandboxServer
     info:
       path: TermiteMobile/Info.plist
       properties:
@@ -106,6 +112,8 @@ targets:
         # 文案本地化在 */InfoPlist.strings(此处仅兜底)
         NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码
         NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite
+        NSBonjourServices:
+          - _sandboxserver._tcp
         # 数据面是 LAN/Tailscale 内网 ws://(IP 字面量直连,ATS 本就豁免 IP 地址),
         # 不开全局明文放行(NSAllowsArbitraryLoads 是审核红旗);仅声明本地网络场景
         NSAppTransportSecurity:

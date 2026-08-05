@@ -36,6 +36,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_sandboxserver._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>扫描 Mac 上 Termite 设置页的配对二维码</string>
 	<key>NSLocalNetworkUsageDescription</key>

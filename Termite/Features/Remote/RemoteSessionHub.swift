@@ -21,8 +21,25 @@ struct RemoteSessionInfo: Codable {
     /// 项目强调色 hex;nil = 跟随主题
     var projectColor: String?
     var space: String?
+    /// 稳定的工作区标识；名称仅用于展示，不能用于区分重名工作区。
+    var spaceID: UUID?
     /// 多窗口区分(0 起)
     var window: Int
+}
+
+/// 完整侧边栏目录独立于会话下发，空项目/空工作区也不会在移动端消失。
+struct RemoteSidebarSpaceInfo: Codable {
+    var id: UUID
+    var name: String
+}
+
+struct RemoteSidebarProjectInfo: Codable {
+    var id: UUID
+    var name: String
+    var path: String
+    var accent: String?
+    /// 已按 SpaceStore 的回落规则解析后的实际归属。
+    var spaceID: UUID?
 }
 
 /// list / attached 下发的主题色板:远端列表与终端都和 Mac 观感一致
@@ -45,7 +62,8 @@ struct RemoteTheme: Codable {
 }
 
 /// 远程访问的会话中枢:输出镜像 + 订阅分发 + 输入注入。
-/// Web 端是 Mac 的「镜像显示器」:PTY 尺寸由 Mac 端拥有,远端只跟随渲染。
+/// 普通 shell 的 PTY 网格属于 Mac，远端各自在自己的网格中渲染；进入 TUI 后冻结
+/// 唯一 PTY 网格，所有设备只在本地缩放这块画布，输入、旋转和窗口变化都不再修改它。
 /// 全部在 MainActor 上——processOutput / sendRawInput 本就活在主线程,
 /// 网络层经 DispatchQueue.main 串行入主线程,保证键入顺序。
 @MainActor
@@ -57,19 +75,45 @@ final class RemoteSessionHub {
 
     /// 服务开着才镜像;关闭时 processOutput 里的 tee 一次布尔判断就返回
     private(set) var active = false
-
     private var rings: [UUID: OutputRing] = [:]
-    /// connID → (会话, 推送闭包);推送闭包内部负责跳回连接自己的队列
-    private var sinks: [UUID: (sessionID: UUID, push: (Data) -> Void)] = [:]
+
+    private struct Grid: Equatable {
+        var cols: Int
+        var rows: Int
+    }
+
+    private struct TUIState {
+        var grid: Grid
+    }
+
+    private struct Sink {
+        var sessionID: UUID
+        var pushOutput: (Data) -> Void
+        var pushViewport: (_ cols: Int, _ rows: Int, _ tuiMode: Bool) -> Void
+    }
+
+    /// connID → 输出/视口推送。所有回调内部负责跳回连接自己的发送队列。
+    private var sinks: [UUID: Sink] = [:]
+    /// Mac 视图的自然网格。TUI 期间仅用于退出后的恢复，不参与共享网格更新。
+    private var macGrids: [UUID: Grid] = [:]
+    private var tuiStates: [UUID: TUIState] = [:]
 
     func start() {
         active = true
     }
 
     func stop() {
+        for sessionID in tuiStates.keys {
+            guard let session = findSession(sessionID) else { continue }
+            session.setSharedTUIRenderGrid(nil)
+            let local = session.terminalView.localViewportGrid
+            session.resizePTY(cols: local.cols, rows: local.rows)
+        }
         active = false
         rings = [:]
         sinks = [:]
+        macGrids = [:]
+        tuiStates = [:]
     }
 
     // MARK: - 输出镜像(TerminalSession.processOutput 尾挂)
@@ -79,8 +123,8 @@ final class RemoteSessionHub {
         let data = Data(bytes)
         // subscript(_:default:) 走 _modify 就地追加,不复制整个缓冲
         rings[sessionID, default: OutputRing(capacity: Self.ringCapacity)].append(data)
-        for (_, sink) in sinks where sink.sessionID == sessionID {
-            sink.push(data)
+        for sink in sinks.values where sink.sessionID == sessionID {
+            sink.pushOutput(data)
         }
     }
 
@@ -92,59 +136,125 @@ final class RemoteSessionHub {
         var snapshot: String?
         var cols: Int
         var rows: Int
+        var tuiMode: Bool
+        /// 从 Mac 当前 Terminal 模型生成的完整 ANSI 画面，不依赖最后一帧是否全量绘制。
+        var screenSnapshot: Data?
     }
 
     /// attach 即订阅:先回放已有镜像,再实时跟流。会话不存在返回 nil。
-    func attach(connID: UUID, sessionID: UUID, push: @escaping (Data) -> Void) -> AttachResult? {
+    func attach(
+        connID: UUID,
+        sessionID: UUID,
+        pushOutput: @escaping (Data) -> Void,
+        pushViewport: @escaping (_ cols: Int, _ rows: Int, _ tuiMode: Bool) -> Void
+    ) -> AttachResult? {
         guard active, let session = findSession(sessionID) else { return nil }
         let backlog = rings[sessionID]?.read(from: 0).data ?? Data()
         let snapshot = backlog.isEmpty ? session.scrollbackSnapshot(maxLines: 500) : nil
-        sinks[connID] = (sessionID, push)
-        let terminal = session.terminalView.getTerminal()
+        let localGrid = session.terminalView.localViewportGrid
+        let macGrid = Grid(cols: localGrid.cols, rows: localGrid.rows)
+        if tuiStates[sessionID] == nil { macGrids[sessionID] = macGrid }
+        observeTerminalMode(sessionID: sessionID, isTUI: session.requiresSharedTUILayout)
+        sinks[connID] = Sink(sessionID: sessionID, pushOutput: pushOutput,
+                             pushViewport: pushViewport)
+        let state = tuiStates[sessionID]
+        let grid = state?.grid ?? macGrid
         return AttachResult(backlog: backlog, snapshot: snapshot,
-                            cols: terminal.cols, rows: terminal.rows)
+                            cols: grid.cols, rows: grid.rows,
+                            tuiMode: state != nil,
+                            screenSnapshot: state == nil ? nil : session.terminalScreenSnapshot())
     }
 
     func detach(connID: UUID) {
-        if let sessionID = sinks[connID]?.sessionID {
-            restoreSizeIfOverridden(sessionID: sessionID)
+        guard let sink = sinks.removeValue(forKey: connID) else { return }
+        if !sinks.values.contains(where: { $0.sessionID == sink.sessionID }) {
+            // TUI 状态仍要保留到进程退出 TUI，断开观察端不能改变 PTY。
+            if tuiStates[sink.sessionID] == nil { macGrids[sink.sessionID] = nil }
         }
-        sinks[connID] = nil
     }
 
-    func sendInput(sessionID: UUID, bytes: [UInt8]) {
-        guard active, !bytes.isEmpty else { return }
+    func sendInput(connID: UUID, sessionID: UUID, bytes: [UInt8]) {
+        guard active, !bytes.isEmpty,
+              sinks[connID]?.sessionID == sessionID else { return }
         findSession(sessionID)?.sendRawInput(bytes)
     }
 
-    /// 「适配手机宽度」:远端临时接管 PTY 尺寸(tmux 语义——谁在看谁说了算)。
-    /// 只打标记不存旧值:恢复时以 Mac 视图**当前**网格为准(期间 Mac 可能已 resize,
-    /// hostResize 只动 PTY 不动 Mac 视图模型,视图网格永远是 Mac 侧的真相)。
-    /// Mac 端任何一次自己的 resize 都会经视图层夺回主导权,无需协调。
-    private var overriddenSessions = Set<UUID>()
-
-    func overrideSize(connID: UUID, sessionID: UUID, cols: Int, rows: Int) {
-        guard active, sinks[connID]?.sessionID == sessionID,
-              let session = findSession(sessionID),
-              (10...500).contains(cols), (4...200).contains(rows) else { return }
-        overriddenSessions.insert(sessionID)
-        session.hostResize(cols: cols, rows: rows)
+    /// Mac 自然布局变化。普通 shell 同步 PTY；TUI 期间仅改变本地呈现。
+    func macViewportChanged(session: TerminalSession, cols: Int, rows: Int) {
+        let sessionID = session.id
+        let grid = Grid(cols: max(cols, 1), rows: max(rows, 1))
+        if active, tuiStates[sessionID] != nil { return }
+        let changed = macGrids[sessionID] != grid
+        macGrids[sessionID] = grid
+        guard active else {
+            session.resizePTY(cols: grid.cols, rows: grid.rows)
+            return
+        }
+        session.resizePTY(cols: grid.cols, rows: grid.rows)
+        if changed { broadcastViewport(sessionID: sessionID) }
     }
 
-    /// 解附时把 PTY 网格还给 Mac 视图(没被接管过则无事)
-    func restoreSizeIfOverridden(sessionID: UUID) {
-        guard overriddenSessions.remove(sessionID) != nil,
-              let session = findSession(sessionID) else { return }
-        let terminal = session.terminalView.getTerminal()
-        session.hostResize(cols: terminal.cols, rows: terminal.rows)
+    /// TerminalSession 每批输出解析后报告真实备用屏状态，状态变更才产生动作。
+    func observeTerminalMode(sessionID: UUID, isTUI: Bool) {
+        guard active, let session = findSession(sessionID) else { return }
+        if isTUI {
+            guard tuiStates[sessionID] == nil else { return }
+            let localGrid = session.terminalView.localViewportGrid
+            let macGrid = macGrids[sessionID] ?? Grid(cols: localGrid.cols, rows: localGrid.rows)
+            macGrids[sessionID] = macGrid
+            let state = TUIState(grid: macGrid)
+            tuiStates[sessionID] = state
+            applyTUIState(sessionID: sessionID, state: state)
+            broadcastViewport(sessionID: sessionID)
+        } else {
+            guard tuiStates.removeValue(forKey: sessionID) != nil else { return }
+            session.setSharedTUIRenderGrid(nil)
+            let local = session.terminalView.localViewportGrid
+            let macGrid = Grid(cols: local.cols, rows: local.rows)
+            macGrids[sessionID] = macGrid
+            session.resizePTY(cols: macGrid.cols, rows: macGrid.rows)
+            broadcastViewport(sessionID: sessionID)
+            if !sinks.values.contains(where: { $0.sessionID == sessionID }) {
+                macGrids[sessionID] = nil
+            }
+        }
     }
 
-    /// 连接层轮询用:尺寸跟随 + 死亡检测(会话被关/退出返回 nil)
-    func status(sessionID: UUID) -> (cols: Int, rows: Int, alive: Bool)? {
+    /// 每秒校验 Mac 自然网格、备用屏状态和进程存活，补足非输出时的布局变化。
+    func refreshStatus(sessionID: UUID) -> Bool? {
         guard let session = findSession(sessionID) else { return nil }
-        let terminal = session.terminalView.getTerminal()
+        if tuiStates[sessionID] == nil {
+            let localGrid = session.terminalView.localViewportGrid
+            let currentMacGrid = Grid(cols: localGrid.cols, rows: localGrid.rows)
+            if macGrids[sessionID] != currentMacGrid {
+                macViewportChanged(session: session, cols: currentMacGrid.cols, rows: currentMacGrid.rows)
+            }
+        }
+        observeTerminalMode(sessionID: sessionID, isTUI: session.requiresSharedTUILayout)
         let alive = if case .running = session.state { true } else { false }
-        return (terminal.cols, terminal.rows, alive)
+        return alive
+    }
+
+    private func canonicalGrid(sessionID: UUID) -> Grid? {
+        if let state = tuiStates[sessionID] { return state.grid }
+        if let grid = macGrids[sessionID] { return grid }
+        guard let session = findSession(sessionID) else { return nil }
+        let grid = session.terminalView.localViewportGrid
+        return Grid(cols: grid.cols, rows: grid.rows)
+    }
+
+    private func broadcastViewport(sessionID: UUID) {
+        let state = tuiStates[sessionID]
+        for sink in sinks.values where sink.sessionID == sessionID {
+            guard let grid = canonicalGrid(sessionID: sessionID) else { continue }
+            sink.pushViewport(grid.cols, grid.rows, state != nil)
+        }
+    }
+
+    private func applyTUIState(sessionID: UUID, state: TUIState) {
+        guard let session = findSession(sessionID) else { return }
+        session.setSharedTUIRenderGrid((state.grid.cols, state.grid.rows))
+        session.resizePTY(cols: state.grid.cols, rows: state.grid.rows)
     }
 
     /// 按「窗口 → 标签 → 分屏」的侧边栏顺序走一遍,带上项目/工作空间归属。
@@ -175,6 +285,41 @@ final class RemoteSessionHub {
         return result
     }
 
+    func sidebarCatalog() -> (spaces: [RemoteSidebarSpaceInfo], projects: [RemoteSidebarProjectInfo]) {
+        let spaceStore = SpaceStore.shared
+        let spaces = spaceStore.spaces.map {
+            RemoteSidebarSpaceInfo(id: $0.id, name: $0.name)
+        }
+        let projects = ProjectStore.shared.projects.map { project in
+            RemoteSidebarProjectInfo(
+                id: project.id,
+                name: project.name,
+                path: project.path,
+                accent: project.accentHex,
+                spaceID: spaceStore.effectiveSpaceID(of: project)
+            )
+        }
+        return (spaces, projects)
+    }
+
+    /// 从移动端打开空项目：沿用 Mac 侧边栏的项目复用/新建语义，并返回可立即附着的会话。
+    func openProject(id: UUID) -> RemoteSessionInfo? {
+        guard active,
+              let project = ProjectStore.shared.projects.first(where: { $0.id == id }) else {
+            return nil
+        }
+        let registry = SessionManagerRegistry.shared
+        guard !registry.managers.isEmpty else { return nil }
+        let spaceStore = SpaceStore.shared
+        if let spaceID = spaceStore.effectiveSpaceID(of: project) {
+            spaceStore.select(spaceID)
+        }
+        let manager = registry.active
+        manager.openProject(path: project.path)
+        guard let sessionID = manager.selected?.id else { return nil }
+        return list().first { $0.id == sessionID }
+    }
+
     private func info(_ session: TerminalSession, project: Project?, projectPath: String?,
                       space: String?, window: Int) -> RemoteSessionInfo {
         let terminal = session.terminalView.getTerminal()
@@ -202,6 +347,7 @@ final class RemoteSessionHub {
             projectPath: projectPath,
             projectColor: project?.accentHex,
             space: space,
+            spaceID: project.flatMap { SpaceStore.shared.effectiveSpaceID(of: $0) },
             window: window
         )
     }

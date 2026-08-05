@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// 终端画面:iPhone 栈式推入 / iPad 双栏详情通用。
-/// 默认「适配设备」:PTY 跟随本机网格,SwiftTerm 原生滚回滚动,无任何外层滚动视图;
-/// 「镜像 Mac」为切换项:按 Mac 网格整体缩放看全貌(Mac 端 resize 会自动切回镜像跟随)。
+/// 普通 shell 默认按本机网格显示；TUI 固定语义网格后在每台设备上独立缩放。
 /// chrome 同色:导航栏/按键条与终端主题同底,一块完整的「面」(与 Mac 端设计语言一致)。
 struct TerminalScreenView: View {
     let client: RemoteClient
@@ -21,9 +20,8 @@ struct TerminalScreenView: View {
     @State private var pinchBase: Double?
     /// true = 适配设备(默认);false = 镜像 Mac(整体缩放)
     @State private var fitMode = true
-    @State private var resizeDebounce: Task<Void, Never>?
-    /// 上次已请求的网格:布局多次落定会重复触发,同尺寸不再打扰 PTY(避免连发 SIGWINCH)
-    @State private var lastRequestedGrid: (cols: Int, rows: Int)?
+    /// TUI 默认优先可读性；完整画布仅是当前设备的总览开关。
+    @State private var tuiShowsFullCanvas = false
     @State private var keyboardVisible = false
     /// 滚回中(非底部)显示「回到底部」浮钮
     @State private var atBottom = true
@@ -47,6 +45,11 @@ struct TerminalScreenView: View {
 
     private var keyText: Color {
         client.theme.map { Color(UIColor(hex: $0.foreground)) } ?? .primary
+    }
+
+    /// TUI 必须完整呈现固定画布；普通 shell 尊重用户的本机适配选择。
+    private var shouldMirror: Bool {
+        !fitMode || client.tuiMode
     }
 
     var body: some View {
@@ -95,9 +98,11 @@ struct TerminalScreenView: View {
     private var terminalArea: some View {
         TerminalCanvas(
             bridge: bridge,
-            mirror: !fitMode,
+            mirror: shouldMirror,
             mirrorSize: bridge.mirrorContentSize(cols: client.gridCols, rows: client.gridRows,
-                                                 fontSize: CGFloat(fontSize))
+                                                 fontSize: CGFloat(fontSize)),
+            pinnedGrid: shouldMirror ? (client.gridCols, client.gridRows) : nil,
+            fitsEntireCanvas: !client.tuiMode || tuiShowsFullCanvas
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .top) {
@@ -137,14 +142,32 @@ struct TerminalScreenView: View {
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                tapHaptic()
-                fitMode.toggle()
-            } label: {
-                Image(systemName: fitMode ? "macwindow" : "iphone")
+        if client.tuiMode {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    tapHaptic()
+                    tuiShowsFullCanvas.toggle()
+                } label: {
+                    Image(systemName: tuiShowsFullCanvas
+                          ? "textformat.size"
+                          : "arrow.up.left.and.arrow.down.right")
+                }
+                .help(tuiShowsFullCanvas ? "保持文字可读" : "显示完整会话画布")
+                .accessibilityIdentifier("terminal.tui-viewport-mode")
+                .accessibilityLabel(tuiShowsFullCanvas ? "清晰视图" : "完整画布")
             }
-            .help(fitMode ? "镜像 Mac 尺寸(整体缩放看全貌)" : "适配本机宽度")
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    tapHaptic()
+                    fitMode.toggle()
+                } label: {
+                    Image(systemName: fitMode ? "macwindow" : "iphone")
+                }
+                .help(fitMode ? "显示完整会话画布" : "适配本机宽度")
+                .accessibilityIdentifier("terminal.viewport-mode")
+                .accessibilityLabel(fitMode ? "显示完整会话画布" : "适配本机")
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -166,7 +189,11 @@ struct TerminalScreenView: View {
     }
 
     private var gridLabel: String {
-        if fitMode {
+        if client.tuiMode {
+            let mode = tuiShowsFullCanvas ? String(localized: "完整画布") : String(localized: "清晰视图")
+            return "TUI \(client.gridCols)×\(client.gridRows) · \(mode)"
+        }
+        if !shouldMirror {
             let grid = bridge.currentGrid()
             return "\(grid.cols)×\(grid.rows) · \(Int(fontSize))pt"
         }
@@ -177,32 +204,20 @@ struct TerminalScreenView: View {
 
     private func applyFont() {
         bridge.setFont(size: CGFloat(fontSize))
-        // 适配模式:字号变 → 网格变 → sizeChanged 会走 syncPty;镜像模式只影响缩放比
+        syncPresentation()
     }
 
     private func applyMode() {
-        bridge.fitMode = fitMode
-        if fitMode {
-            bridge.setFont(size: CGFloat(fontSize))
-            schedulePtySync()
-        } else {
-            // 镜像:PTY 还给 Mac 网格,视图钉死同网格再整体缩放
-            bridge.pinGrid(cols: client.gridCols, rows: client.gridRows)
-            lastRequestedGrid = (client.gridCols, client.gridRows)
-            client.requestResize(cols: client.gridCols, rows: client.gridRows)
-        }
+        syncPresentation()
     }
 
-    /// 把 PTY 尺寸同步成视图当前网格(防抖:旋转/捏合/键盘弹收连环触发)
-    private func schedulePtySync() {
-        resizeDebounce?.cancel()
-        resizeDebounce = Task {
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled, fitMode else { return }
-            let grid = bridge.currentGrid()
-            guard lastRequestedGrid?.cols != grid.cols || lastRequestedGrid?.rows != grid.rows else { return }
-            lastRequestedGrid = grid
-            client.requestResize(cols: grid.cols, rows: grid.rows)
+    private func syncPresentation() {
+        bridge.reportsGridChanges = !shouldMirror
+        if !shouldMirror {
+            bridge.setFont(size: CGFloat(fontSize))
+        } else {
+            // 手动完整画布或 TUI：只改变本机呈现，不主动触碰共享 PTY。
+            bridge.pinGrid(cols: client.gridCols, rows: client.gridRows)
         }
     }
 
@@ -211,9 +226,7 @@ struct TerminalScreenView: View {
     private func activate() {
         bridge.client = client
         bridge.hapticsEnabled = bellHaptics
-        bridge.fitMode = true
         bridge.setFont(size: CGFloat(fontSize))
-        bridge.onGridChange = { _, _ in schedulePtySync() }
         bridge.onPinchScale = { scale, ended in
             if pinchBase == nil { pinchBase = fontSize }
             fontSize = ((pinchBase ?? fontSize) * scale).clamped(to: MobileSettingsKeys.fontSizeRange)
@@ -223,14 +236,14 @@ struct TerminalScreenView: View {
         client.onAttached = {
             bridge.reset()
             if let theme = client.theme { bridge.applyTheme(theme) }
-            fitMode = true
-            bridge.fitMode = true
-            schedulePtySync()
+            tuiShowsFullCanvas = false
+            syncPresentation()
         }
         client.onOutput = { bridge.feed($0) }
         client.onSessionEnded = { endedMessage = $0 }
-        // Mac 端主动 resize = 有人在 Mac 前:切回镜像跟随,不跟真人抢尺寸
-        client.onMacResize = { fitMode = false }
+        client.onViewportChange = {
+            syncPresentation()
+        }
         if let theme = client.theme { bridge.applyTheme(theme) }
         client.attach(session.id)
         if let mac = store.selected { store.rememberSession(session.id, of: mac) }
@@ -241,13 +254,12 @@ struct TerminalScreenView: View {
     /// 只有当自己仍是附着方时才解附/清回调,避免拆掉新会话的桥
     private func deactivate() {
         UIApplication.shared.isIdleTimerDisabled = false
-        resizeDebounce?.cancel()
         guard client.attachedID == session.id else { return }
         client.detach()
         client.onAttached = nil
         client.onOutput = nil
         client.onSessionEnded = nil
-        client.onMacResize = nil
+        client.onViewportChange = nil
     }
 
     // MARK: - 按键条(与终端同底,按键为主题上的浮层)

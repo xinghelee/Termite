@@ -12,6 +12,8 @@ final class HostServer {
     private var sessions: [UUID: HostSession] = [:]
     /// 当前客户端连接(fd + 读源 + 写缓冲 + 帧解析器)
     private var client: ClientConn?
+    /// 新连接先等 hello；仅 connect/close 的实例探活不能踢掉正式客户端。
+    private var candidates: [Int32: ClientConn] = [:]
     private var idleExitTimer: DispatchSourceTimer?
 
     private struct ClientConn {
@@ -63,13 +65,68 @@ final class HostServer {
         var one: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
 
-        dropClient()
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
-        client = ClientConn(fd: fd, readSource: source, writer: FDWriter(fd: fd, queue: queue))
-        source.setEventHandler { [weak self] in self?.readClient() }
+        candidates[fd] = ClientConn(fd: fd, readSource: source,
+                                    writer: FDWriter(fd: fd, queue: queue))
+        source.setEventHandler { [weak self] in self?.readConnection(fd) }
         source.resume()
+        log("候选客户端已连接")
+    }
+
+    private func readConnection(_ fd: Int32) {
+        if client?.fd == fd {
+            readClient(fd)
+        } else {
+            readCandidate(fd)
+        }
+    }
+
+    /// 候选连接的首个完整帧必须是 hello；探活连接关闭时只清理自己。
+    private func readCandidate(_ fd: Int32) {
+        guard var candidate = candidates[fd] else { return }
+        var buf = [UInt8](repeating: 0, count: 64 * 1024)
+        while true {
+            let n = read(fd, &buf, buf.count)
+            if n > 0 {
+                do {
+                    let frames = try candidate.parser.consume(Data(buf[0..<n]))
+                    candidates[fd] = candidate
+                    guard !frames.isEmpty else { continue }
+                    guard frames[0].type == .hello else {
+                        log("候选客户端首帧非 hello，拒绝")
+                        dropCandidate(fd)
+                        return
+                    }
+                    promoteCandidate(fd)
+                    frames.forEach(handle)
+                    return
+                } catch {
+                    log("候选客户端协议错乱:\(error)")
+                    dropCandidate(fd)
+                    return
+                }
+            } else if n == 0 {
+                dropCandidate(fd)
+                return
+            } else {
+                return // EAGAIN
+            }
+        }
+    }
+
+    private func promoteCandidate(_ fd: Int32) {
+        guard let candidate = candidates.removeValue(forKey: fd) else { return }
+        dropClient()
+        client = candidate
         cancelIdleExit()
-        log("客户端已连接")
+        log("客户端握手完成")
+    }
+
+    private func dropCandidate(_ fd: Int32) {
+        guard let candidate = candidates.removeValue(forKey: fd) else { return }
+        candidate.readSource.cancel()
+        candidate.writer.close()
+        close(candidate.fd)
     }
 
     private func dropClient() {
@@ -81,8 +138,8 @@ final class HostServer {
         scheduleIdleExitIfNeeded()
     }
 
-    private func readClient() {
-        guard let conn = client else { return }
+    private func readClient(_ fd: Int32) {
+        guard let conn = client, conn.fd == fd else { return }
         var buf = [UInt8](repeating: 0, count: 64 * 1024)
         while true {
             let n = read(conn.fd, &buf, buf.count)

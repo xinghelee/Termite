@@ -17,6 +17,8 @@ struct MainView: View {
     @State private var showSettings = false
     @State private var showPairing = false
     @State private var connectionPulse = false
+    @State private var launchingProjectID: UUID?
+    @State private var projectError: String?
 
     var body: some View {
         Group {
@@ -32,10 +34,28 @@ struct MainView: View {
         .sheet(isPresented: $showPairing) {
             PairingView(isSheet: true)
         }
+        .alert("无法启动项目", isPresented: Binding(
+            get: { projectError != nil },
+            set: { if !$0 { projectError = nil } }
+        )) {
+            Button("好", role: .cancel) { projectError = nil }
+        } message: {
+            Text(projectError ?? "")
+        }
+        .onAppear {
+            client.onProjectOpened = { session in
+                launchingProjectID = nil
+                open(session)
+            }
+            client.onProjectOpenFailed = { message in
+                launchingProjectID = nil
+                projectError = message
+            }
+        }
         .onChange(of: scenePhase) {
             if scenePhase == .active { client.kickReconnect() }
         }
-        .onChange(of: spaces) { _, newSpaces in
+        .onChange(of: spaceOptions.map(\.id)) { _, newSpaces in
             if let spaceFilter, !newSpaces.contains(spaceFilter) {
                 self.spaceFilter = nil
             }
@@ -91,7 +111,7 @@ struct MainView: View {
     private var listCore: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                if !spaces.isEmpty {
+                if !spaceOptions.isEmpty {
                     spaceSelector
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
@@ -103,6 +123,9 @@ struct MainView: View {
                         symbol: "bell.badge.fill",
                         color: .orange,
                         sessions: attentionSessions,
+                        count: attentionSessions.count,
+                        projectID: nil,
+                        projectPath: nil,
                         highlighted: true
                     )
                 }
@@ -111,6 +134,9 @@ struct MainView: View {
                         title: group.title,
                         color: group.color ?? Color(.systemGray3),
                         sessions: group.sessions,
+                        count: group.sessionCount,
+                        projectID: group.projectID,
+                        projectPath: group.projectPath,
                         highlighted: false
                     )
                 }
@@ -152,6 +178,9 @@ struct MainView: View {
         symbol: String? = nil,
         color: Color,
         sessions: [RemoteSessionSummary],
+        count: Int,
+        projectID: UUID?,
+        projectPath: String?,
         highlighted: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -171,7 +200,7 @@ struct MainView: View {
                     .foregroundStyle(highlighted ? color : .secondary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                Text("\(sessions.count)")
+                Text("\(count)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
             }
@@ -181,9 +210,65 @@ struct MainView: View {
                 row(session, highlighted: highlighted)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            if sessions.isEmpty, count == 0, let projectID, let projectPath {
+                defaultTerminalRow(projectID: projectID, title: title, projectPath: projectPath)
+            } else if sessions.isEmpty, !highlighted {
+                Text(count == 0 ? "暂无打开的会话" : "会话已置顶到等待你")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 16)
+                    .frame(minHeight: 24)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 18)
+    }
+
+    private func defaultTerminalRow(projectID: UUID, title: String, projectPath: String) -> some View {
+        let launching = launchingProjectID == projectID
+        return Button {
+            guard !launching else { return }
+            launchingProjectID = projectID
+            client.openProject(projectID)
+        } label: {
+            HStack(spacing: 11) {
+                ZStack {
+                    Circle()
+                        .fill(Color(.systemGray4).opacity(0.12))
+                    Circle()
+                        .fill(Color(.systemGray4))
+                        .frame(width: 8, height: 8)
+                }
+                    .frame(width: 28, height: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text((projectPath as NSString).abbreviatingWithTildeInPath)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if launching {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(minHeight: 58)
+            .background(sidebarSurface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SessionRowButtonStyle())
+        .disabled(launching)
+        .accessibilityLabel("启动 \(title)")
     }
 
     private func row(_ session: RemoteSessionSummary, highlighted: Bool) -> some View {
@@ -261,11 +346,11 @@ struct MainView: View {
 
     @ViewBuilder
     private var spaceSelector: some View {
-        if spaces.count <= 3 {
+        if spaceOptions.count <= 3 {
             HStack(spacing: 2) {
                 segmentButton(nil, title: String(localized: "全部"))
-                ForEach(spaces, id: \.self) { space in
-                    segmentButton(space, title: space)
+                ForEach(spaceOptions) { space in
+                    segmentButton(space.id, title: space.title)
                 }
             }
             .padding(2)
@@ -274,8 +359,8 @@ struct MainView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     filterButton(nil, title: String(localized: "全部"))
-                    ForEach(spaces, id: \.self) { space in
-                        filterButton(space, title: space)
+                    ForEach(spaceOptions) { space in
+                        filterButton(space.id, title: space.title)
                     }
                 }
             }
@@ -390,8 +475,8 @@ struct MainView: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 14, weight: .bold))
                 .frame(width: 32, height: 32)
-                .foregroundStyle(sidebarAccent)
-                .background(sidebarAccent.opacity(0.14), in: Circle())
+                .foregroundStyle(.primary)
+                .background(sidebarSurface, in: Circle())
         }
         .accessibilityLabel("更多")
     }
@@ -410,19 +495,39 @@ struct MainView: View {
 
     // MARK: - 数据切片
 
-    private var spaces: [String] {
+    private struct SpaceOption: Identifiable {
+        let id: String
+        let serverID: UUID?
+        let title: String
+    }
+
+    /// 新服务端下发完整目录；旧服务端仍从有会话的工作区名称回退生成。
+    private var spaceOptions: [SpaceOption] {
+        if !client.sidebarSpaces.isEmpty {
+            return client.sidebarSpaces.map {
+                SpaceOption(id: $0.id.uuidString, serverID: $0.id, title: $0.name)
+            }
+        }
         var seen = Set<String>()
         return client.sessions.compactMap { session in
             guard let space = session.space, !seen.contains(space) else { return nil }
             seen.insert(space)
-            return space
+            return SpaceOption(id: "legacy:\(space)", serverID: nil, title: space)
         }
     }
 
     /// 空间筛选:未分组会话全空间可见(对齐 Mac 侧边栏语义)
     private var visibleSessions: [RemoteSessionSummary] {
-        guard let spaceFilter else { return client.sessions }
-        return client.sessions.filter { $0.space == spaceFilter || $0.space == nil }
+        guard let spaceFilter,
+              let option = spaceOptions.first(where: { $0.id == spaceFilter }) else {
+            return client.sessions
+        }
+        if let serverID = option.serverID {
+            return client.sessions.filter {
+                $0.spaceID == serverID || $0.projectPath == nil
+            }
+        }
+        return client.sessions.filter { $0.space == option.title || $0.space == nil }
     }
 
     private var attentionSessions: [RemoteSessionSummary] {
@@ -437,14 +542,43 @@ struct MainView: View {
         let id: String
         let title: String
         let color: Color?
+        let projectID: UUID?
+        let projectPath: String?
         var sessions: [RemoteSessionSummary]
+        var sessionCount: Int
     }
 
-    /// 按项目分组,保持服务端(侧边栏)顺序;注意力会话已单列,不重复出现
+    /// 优先按 Mac 下发的完整项目目录建组，空项目也保留；旧服务端再从会话反推。
     private var groups: [SessionGroup] {
         var order: [String] = []
         var byKey: [String: SessionGroup] = [:]
+
+        let selectedSpaceID = spaceFilter.flatMap { key in
+            spaceOptions.first(where: { $0.id == key })?.serverID
+        }
+        let catalog = client.sidebarProjects.filter { project in
+            selectedSpaceID == nil || project.spaceID == selectedSpaceID
+        }
+        for project in catalog {
+            let projectSessions = visibleSessions.filter { $0.projectPath == project.path }
+            let rows = projectSessions.filter { $0.attention == nil || !$0.alive }
+            order.append(project.path)
+            byKey[project.path] = SessionGroup(
+                id: project.path,
+                title: project.name,
+                color: project.accent.map { Color(UIColor(hex: $0)) },
+                projectID: project.id,
+                projectPath: project.path,
+                sessions: rows,
+                sessionCount: projectSessions.count
+            )
+        }
+        let catalogPaths = Set(catalog.map(\.path))
+
         for session in visibleSessions where session.attention == nil || !session.alive {
+            if let projectPath = session.projectPath, catalogPaths.contains(projectPath) {
+                continue
+            }
             let key = session.projectPath ?? "•ungrouped•\(session.window ?? 0)"
             if byKey[key] == nil {
                 order.append(key)
@@ -453,10 +587,14 @@ struct MainView: View {
                     id: key,
                     title: session.project ?? String(localized: "未分组"),
                     color: color,
-                    sessions: []
+                    projectID: nil,
+                    projectPath: session.projectPath,
+                    sessions: [],
+                    sessionCount: 0
                 )
             }
             byKey[key]?.sessions.append(session)
+            byKey[key]?.sessionCount += 1
         }
         return order.compactMap { byKey[$0] }
     }
@@ -534,8 +672,7 @@ struct MainView: View {
 
     private func badgeColor(_ session: RemoteSessionSummary) -> Color {
         if !session.alive { return .red }
-        if session.running { return .green }
-        return Color(.systemGray4)
+        return .green
     }
 
     /// 「等待你」行副标题:等了多久(分钟粒度,刚进入不显示秒)

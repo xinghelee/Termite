@@ -13,6 +13,8 @@ final class PtyHostClient {
     struct Binding {
         var output: (UInt64, Data) -> Void
         var exited: (Int32?) -> Void
+        /// 下一段尚未消费的输出偏移；断线重附从这里续传。
+        var nextOffset: UInt64
     }
 
     private let ioQueue = DispatchQueue(label: "ptyhost.client")
@@ -21,6 +23,10 @@ final class PtyHostClient {
     private var writer: FDWriter?
     private var parser = PtyFrameParser()
     private var bindings: [UUID: Binding] = [:]
+    /// 连接瞬断期间的键入，重附成功后按会话补发。
+    private var pendingInputs: [UUID: Data] = [:]
+    private var recovering = false
+    private static let maxPendingInputBytes = 1 * 1024 * 1024
     /// 排队中的请求应答位:守护进程按序处理帧,应答按 FIFO 对号
     private var waiters: [(token: UUID, expect: Set<PtyFrameType>, cont: CheckedContinuation<(PtyFrameType, Data)?, Never>)] = []
 
@@ -134,9 +140,9 @@ final class PtyHostClient {
             let n = read(sock, &buf, buf.count)
             if n > 0 {
                 let data = Data(buf[0..<n])
-                Task { @MainActor in self.ingest(data) }
+                Task { @MainActor in self.ingest(data, from: sock) }
             } else if n == 0 {
-                Task { @MainActor in self.disconnect(notifySessions: true) }
+                Task { @MainActor in self.connectionLost(sock) }
                 return
             } else {
                 return // EAGAIN
@@ -144,16 +150,21 @@ final class PtyHostClient {
         }
     }
 
-    private func ingest(_ data: Data) {
+    private func ingest(_ data: Data, from sock: Int32) {
+        guard sock == fd else { return }
         guard let frames = try? parser.consume(data) else {
-            disconnect(notifySessions: true)
+            connectionLost(sock)
             return
         }
         for frame in frames {
             switch frame.type {
             case .output:
                 guard let (id, offset, bytes) = PtyFrameCodec.decodeOutput(frame.payload) else { continue }
-                bindings[id]?.output(offset, bytes)
+                if var binding = bindings[id] {
+                    binding.nextOffset = offset + UInt64(bytes.count)
+                    bindings[id] = binding
+                    binding.output(offset, bytes)
+                }
             case .exited:
                 guard let ex: PtyExited = PtyFrameCodec.decodeJSON(frame.payload) else { continue }
                 bindings[ex.id]?.exited(ex.exitCode)
@@ -181,15 +192,68 @@ final class PtyHostClient {
         if notifySessions {
             let dropped = bindings
             bindings = [:]
+            pendingInputs = [:]
             for (_, binding) in dropped { binding.exited(nil) }
         }
+    }
+
+    /// 正式连接意外断开时保留绑定，尝试按输出偏移接回仍存活的守护进程。
+    private func connectionLost(_ sock: Int32) {
+        guard sock == fd else { return }
+        disconnect(notifySessions: false)
+        startRecovery()
+    }
+
+    private func startRecovery() {
+        guard !recovering, !bindings.isEmpty else { return }
+        recovering = true
+        Task { @MainActor [weak self] in
+            await self?.recoverBindings()
+        }
+    }
+
+    private func recoverBindings() async {
+        var reconnected = false
+        for attempt in 0..<10 {
+            if await ensureReady(spawnIfNeeded: false) {
+                reconnected = true
+                break
+            }
+            if attempt < 9 { try? await Task.sleep(nanoseconds: 100_000_000) }
+        }
+        guard reconnected else {
+            recoveryFailed()
+            return
+        }
+
+        for id in Array(bindings.keys) {
+            guard let offset = bindings[id]?.nextOffset,
+                  await attach(id: id, since: offset) != nil else {
+                if let binding = bindings.removeValue(forKey: id) {
+                    pendingInputs[id] = nil
+                    binding.exited(nil)
+                }
+                continue
+            }
+            if let buffered = pendingInputs.removeValue(forKey: id), !buffered.isEmpty {
+                _ = send(PtyFrameCodec.encodeInput(id: id, bytes: buffered))
+            }
+        }
+        recovering = false
+    }
+
+    private func recoveryFailed() {
+        recovering = false
+        let dropped = bindings
+        bindings = [:]
+        pendingInputs = [:]
+        for (_, binding) in dropped { binding.exited(nil) }
     }
 
     // MARK: - 请求应答
 
     private func request(_ type: PtyFrameType, payload: Data, expect: Set<PtyFrameType>) async -> (PtyFrameType, Data)? {
-        guard isConnected else { return nil }
-        send(PtyFrameCodec.encode(type, payload: payload))
+        guard isConnected, send(PtyFrameCodec.encode(type, payload: payload)) else { return nil }
         let token = UUID()
         return await withCheckedContinuation { cont in
             waiters.append((token: token, expect: expect.union([.errorReply]), cont: cont))
@@ -203,19 +267,24 @@ final class PtyHostClient {
         }
     }
 
-    private func send(_ data: Data) {
-        guard let writer else { return }
+    @discardableResult
+    private func send(_ data: Data) -> Bool {
+        guard let writer else { return false }
         ioQueue.async { writer.write(data) }
+        return true
     }
 
     // MARK: - 会话操作
 
-    func bind(_ id: UUID, output: @escaping (UInt64, Data) -> Void, exited: @escaping (Int32?) -> Void) {
-        bindings[id] = Binding(output: output, exited: exited)
+    func bind(_ id: UUID, since offset: UInt64 = 0,
+              output: @escaping (UInt64, Data) -> Void,
+              exited: @escaping (Int32?) -> Void) {
+        bindings[id] = Binding(output: output, exited: exited, nextOffset: offset)
     }
 
     func unbind(_ id: UUID) {
         bindings[id] = nil
+        pendingInputs[id] = nil
     }
 
     func create(_ request: PtyCreateRequest) async -> PtyCreated? {
@@ -228,7 +297,12 @@ final class PtyHostClient {
         let req = PtyAttachRequest(id: id, sinceOffset: offset)
         guard let reply = await request(.attach, payload: encodeJSON(req), expect: [.attached]),
               reply.0 == .attached else { return nil }
-        return PtyFrameCodec.decodeJSON(reply.1)
+        guard let attached: PtyAttached = PtyFrameCodec.decodeJSON(reply.1) else { return nil }
+        if var binding = bindings[id] {
+            binding.nextOffset = max(binding.nextOffset, attached.fromOffset)
+            bindings[id] = binding
+        }
+        return attached
     }
 
     func list() async -> [PtySessionInfo]? {
@@ -238,7 +312,15 @@ final class PtyHostClient {
     }
 
     func input(id: UUID, _ bytes: [UInt8]) {
-        send(PtyFrameCodec.encodeInput(id: id, bytes: bytes))
+        guard !bytes.isEmpty else { return }
+        guard send(PtyFrameCodec.encodeInput(id: id, bytes: bytes)) else {
+            var pending = pendingInputs[id, default: Data()]
+            let remaining = max(0, Self.maxPendingInputBytes - pending.count)
+            pending.append(contentsOf: bytes.prefix(remaining))
+            pendingInputs[id] = pending
+            startRecovery()
+            return
+        }
     }
 
     func resize(id: UUID, cols: Int, rows: Int) {

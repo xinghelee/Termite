@@ -20,7 +20,21 @@ struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let projectPath: String?
     let projectColor: String?
     let space: String?
+    let spaceID: UUID?
     let window: Int?
+}
+
+struct RemoteSidebarSpaceSummary: Decodable, Identifiable, Hashable {
+    let id: UUID
+    let name: String
+}
+
+struct RemoteSidebarProjectSummary: Decodable, Identifiable, Hashable {
+    let id: UUID
+    let name: String
+    let path: String
+    let accent: String?
+    let spaceID: UUID?
 }
 
 /// Mac 主题色板(list / attached 下发,远端同款观感)
@@ -35,7 +49,7 @@ struct RemoteThemePayload: Decodable, Equatable {
 }
 
 /// Mac 端 WebSocket 协议客户端。
-/// 文本帧 = JSON 控制(list/attach/detach/resize/exited/error),二进制帧 = 终端字节流。
+/// 文本帧 = JSON 控制(list/attach/viewport/exited/error),二进制帧 = 终端字节流。
 /// 断线指数退避重连 + 网络路径变化立即重试;重连时自动重附,服务端回放镜像无缝接上。
 @MainActor
 @Observable
@@ -50,10 +64,14 @@ final class RemoteClient {
 
     private(set) var phase = Phase.idle
     private(set) var sessions: [RemoteSessionSummary] = []
-    /// 当前附着会话的 PTY 网格(Mac 端拥有尺寸,这边只跟随)
+    private(set) var sidebarSpaces: [RemoteSidebarSpaceSummary] = []
+    private(set) var sidebarProjects: [RemoteSidebarProjectSummary] = []
+    /// 普通 shell 时为 Mac 网格；TUI 时为进入瞬间冻结的 canonical grid。
     private(set) var gridCols = 80
     private(set) var gridRows = 24
     private(set) var attachedID: UUID?
+    /// TUI 共用固定语义网格；所有设备都可以输入，但都不能修改它的列行数。
+    private(set) var tuiMode = false
     /// Mac 当前主题(attached 到达时更新)
     private(set) var theme: RemoteThemePayload?
 
@@ -63,8 +81,10 @@ final class RemoteClient {
     var onOutput: ((Data) -> Void)?
     /// 会话结束/出错,附提示文案
     var onSessionEnded: ((String) -> Void)?
-    /// Mac 端主动 resize(夺回尺寸主导权;attach 初始网格不触发)
-    var onMacResize: (() -> Void)?
+    /// Mac 本地视口变化；只更新主动选择镜像模式的本地视图。
+    var onViewportChange: (() -> Void)?
+    var onProjectOpened: ((RemoteSessionSummary) -> Void)?
+    var onProjectOpenFailed: ((String) -> Void)?
 
     private var endpoint: Endpoint?
     private var task: URLSessionWebSocketTask?
@@ -72,6 +92,8 @@ final class RemoteClient {
     private var generation = 0
     private var retryDelay: TimeInterval = 0.5
     private var retryTask: Task<Void, Never>?
+    private var attachRetryTask: Task<Void, Never>?
+    private var attachRetryCount = 0
     private var pathMonitor: NWPathMonitor?
 
     // MARK: - 生命周期
@@ -86,13 +108,19 @@ final class RemoteClient {
         generation += 1
         retryTask?.cancel()
         retryTask = nil
+        attachRetryTask?.cancel()
+        attachRetryTask = nil
+        attachRetryCount = 0
         pathMonitor?.cancel()
         pathMonitor = nil
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         phase = .idle
         attachedID = nil
+        tuiMode = false
         sessions = []
+        sidebarSpaces = []
+        sidebarProjects = []
         theme = nil
     }
 
@@ -140,15 +168,26 @@ final class RemoteClient {
         sendControl(["type": "list"])
     }
 
+    func openProject(_ id: UUID) {
+        sendControl(["type": "openProject", "id": id.uuidString])
+    }
+
     func attach(_ id: UUID) {
+        attachRetryTask?.cancel()
+        attachRetryTask = nil
+        attachRetryCount = 0
         attachedID = id
         sendControl(["type": "attach", "id": id.uuidString])
     }
 
     func detach() {
         guard attachedID != nil else { return }
+        attachRetryTask?.cancel()
+        attachRetryTask = nil
+        attachRetryCount = 0
         attachedID = nil
         sendControl(["type": "detach"])
+        tuiMode = false
     }
 
     func sendInput(_ text: String) {
@@ -156,14 +195,8 @@ final class RemoteClient {
     }
 
     func sendInput(_ data: Data) {
-        guard attachedID != nil else { return }
-        task?.send(.data(data)) { _ in }
-    }
-
-    /// 「适配手机宽度」:请求接管 PTY 尺寸(服务端解附自动还给 Mac)
-    func requestResize(cols: Int, rows: Int) {
-        guard attachedID != nil else { return }
-        sendControl(["type": "resize", "cols": cols, "rows": rows])
+        guard attachedID != nil, let task else { return }
+        task.send(.data(data)) { _ in }
     }
 
     private func sendControl(_ dict: [String: Any]) {
@@ -204,9 +237,13 @@ final class RemoteClient {
     private struct ServerMsg: Decodable {
         let type: String
         let sessions: [RemoteSessionSummary]?
+        let session: RemoteSessionSummary?
+        let spaces: [RemoteSidebarSpaceSummary]?
+        let projects: [RemoteSidebarProjectSummary]?
         let id: UUID?
         let cols: Int?
         let rows: Int?
+        let tuiMode: Bool?
         let message: String?
         let theme: RemoteThemePayload?
     }
@@ -218,25 +255,60 @@ final class RemoteClient {
             retryDelay = 0.5
         case "list":
             sessions = msg.sessions ?? []
+            if let spaces = msg.spaces { sidebarSpaces = spaces }
+            if let projects = msg.projects { sidebarProjects = projects }
             if let theme = msg.theme { self.theme = theme }
+        case "projectOpened":
+            guard let session = msg.session else { return }
+            if let index = sessions.firstIndex(where: { $0.id == session.id }) {
+                sessions[index] = session
+            } else {
+                sessions.append(session)
+            }
+            onProjectOpened?(session)
+        case "projectOpenFailed":
+            onProjectOpenFailed?(msg.message ?? String(localized: "无法启动项目"))
         case "attached":
+            attachRetryTask?.cancel()
+            attachRetryTask = nil
+            attachRetryCount = 0
             gridCols = msg.cols ?? 80
             gridRows = msg.rows ?? 24
+            tuiMode = msg.tuiMode ?? false
             if let theme = msg.theme { self.theme = theme }
             onAttached?()
-        case "resize":
+        case "viewport", "resize":
             gridCols = msg.cols ?? gridCols
             gridRows = msg.rows ?? gridRows
-            onMacResize?()
+            tuiMode = msg.tuiMode ?? false
+            onViewportChange?()
         case "exited":
             attachedID = nil
+            tuiMode = false
             onSessionEnded?(String(localized: "会话已结束"))
         case "error":
+            if retryAttachAfterStartupRace() { return }
             attachedID = nil
+            tuiMode = false
             onSessionEnded?(msg.message ?? String(localized: "会话不存在或已关闭"))
         default:
             break
         }
+    }
+
+    /// Mac 冷启动时 WebSocket 可能先于会话目录恢复完成；短暂重试，真实关闭仍会正常报错。
+    private func retryAttachAfterStartupRace() -> Bool {
+        guard let sessionID = attachedID, attachRetryCount < 5 else { return false }
+        attachRetryCount += 1
+        attachRetryTask?.cancel()
+        let delay = attachRetryCount * 300
+        attachRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(delay))
+            guard !Task.isCancelled, let self,
+                  self.attachedID == sessionID, self.phase == .connected else { return }
+            self.sendControl(["type": "attach", "id": sessionID.uuidString])
+        }
+        return true
     }
 
     // MARK: - 重连

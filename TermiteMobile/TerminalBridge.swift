@@ -5,19 +5,19 @@ import UIKit
 /// SwiftTerm TerminalView 的持有者与代理。
 /// 关键事实:iOS 的 TerminalView 本身是 UIScrollView(自管滚回滚动),
 /// 外面绝不能再包滚动视图——手势必打架。两种布局模式:
-/// - 适配(默认):frame = 容器,SwiftTerm 自算网格,经 sizeChanged 上报给屏幕层去 resize PTY
-/// - 镜像:frame = Mac 网格实际尺寸,整体 transform 缩放到容器宽度(看全貌,无手势冲突)
+/// - 适配(默认):frame = 容器,SwiftTerm 自算本机网格，不改共享 PTY
+/// - 镜像:frame = 共享网格实际尺寸,整体 transform 缩放进容器(看全貌,无手势冲突)
 @MainActor
 final class TerminalBridge: NSObject {
     let terminalView: SwiftTerm.TerminalView
     weak var client: RemoteClient?
     /// 响铃触感开关(设置页)
     var hapticsEnabled = true
-    /// 适配模式:SwiftTerm 按 bounds 自算的网格变化时上报(屏幕层防抖后发 resize)
-    var fitMode = true
-    var onGridChange: ((Int, Int) -> Void)?
     /// 捏合调字号(UIKit 手势,SwiftUI 手势在 UIScrollView 上不可靠)
     var onPinchScale: ((CGFloat, Bool) -> Void)?
+    /// 只在终端铺满本机容器时报告自然网格；镜像 resize 不能反向污染偏好尺寸。
+    var reportsGridChanges = true
+    var onGridChange: ((Int, Int) -> Void)?
     /// 是否停在底部:驱动「回到底部」浮钮显隐。
     /// 注意不能用 TerminalViewDelegate.scrolled——用户手指滚动不走那条回调,
     /// 只能 KVO contentOffset(TerminalView 本身就是 UIScrollView)
@@ -67,6 +67,8 @@ final class TerminalBridge: NSObject {
 
     func feed(_ data: Data) {
         terminalView.feed(byteArray: ArraySlice([UInt8](data)))
+        // 清晰 TUI 视图会跟随光标裁切本地画布；输出后重新计算一次位置。
+        terminalView.superview?.setNeedsLayout()
     }
 
     /// RIS 全量重置:重连回放前清场,备用屏/滚回一起清
@@ -104,7 +106,7 @@ final class TerminalBridge: NSObject {
         }
     }
 
-    /// 适配模式:视图当前自算的网格(= 设备该有的 PTY 尺寸)
+    /// 适配模式下视图当前自算的本机网格。
     func currentGrid() -> (cols: Int, rows: Int) {
         let terminal = terminalView.getTerminal()
         return (terminal.cols, terminal.rows)
@@ -118,14 +120,13 @@ final class TerminalBridge: NSObject {
     }
 }
 
-extension TerminalBridge: TerminalViewDelegate {
+extension TerminalBridge: @preconcurrency TerminalViewDelegate {
     func send(source: SwiftTerm.TerminalView, data: ArraySlice<UInt8>) {
         client?.sendInput(Data(data))
     }
 
     func sizeChanged(source: SwiftTerm.TerminalView, newCols: Int, newRows: Int) {
-        // 适配模式:视图自算网格 = 设备该有的 PTY 尺寸,上报;镜像模式网格由 pinGrid 钉死
-        guard fitMode else { return }
+        guard reportsGridChanges else { return }
         onGridChange?(newCols, newRows)
     }
 
@@ -166,6 +167,9 @@ final class TerminalHostView: UIView {
     let terminalView: SwiftTerm.TerminalView
     var mirror = false
     var mirrorSize = CGSize.zero
+    var pinnedGrid: (cols: Int, rows: Int)?
+    /// true = 完整画布；false = 保持可读比例并在本机视口内跟随光标。
+    var fitsEntireCanvas = true
 
     init(terminalView: SwiftTerm.TerminalView) {
         self.terminalView = terminalView
@@ -180,16 +184,57 @@ final class TerminalHostView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         guard bounds.width > 10 else { return }
+        if let pinnedGrid {
+            let terminal = terminalView.getTerminal()
+            if terminal.cols != pinnedGrid.cols || terminal.rows != pinnedGrid.rows {
+                terminal.resize(cols: pinnedGrid.cols, rows: pinnedGrid.rows)
+            }
+        }
         if mirror, mirrorSize.width > 0 {
             terminalView.transform = .identity
             terminalView.frame = CGRect(origin: .zero, size: mirrorSize)
-            let scale = min(1, bounds.width / mirrorSize.width)
+            let fitScale = min(bounds.width / mirrorSize.width, bounds.height / mirrorSize.height)
+            // 完整画布适合总览；清晰视图设置本地最小缩放，避免 Mac 的宽网格在手机上
+            // 变成不可读的小字。只裁切当前 UIView，不修改 Terminal 或远端 PTY 网格。
+            let scale = min(1.6, fitsEntireCanvas ? fitScale : max(fitScale, 0.78))
             terminalView.transform = CGAffineTransform(scaleX: scale, y: scale)
-            terminalView.frame.origin = CGPoint(x: (bounds.width - terminalView.frame.width) / 2, y: 0)
+            if fitsEntireCanvas {
+                terminalView.frame.origin = CGPoint(
+                    x: (bounds.width - terminalView.frame.width) / 2,
+                    y: 0
+                )
+            } else {
+                positionReadableViewport()
+            }
         } else {
             terminalView.transform = .identity
             terminalView.frame = bounds
         }
+    }
+
+    /// 将活动光标保持在本机视口内。不同设备会得到不同 origin，但共享网格不变。
+    private func positionReadableViewport() {
+        let terminal = terminalView.getTerminal()
+        let contentSize = terminalView.frame.size
+        let cursorX = CGFloat(max(terminal.buffer.x, 0) + 1) / CGFloat(max(terminal.cols, 1))
+            * contentSize.width
+        let cursorY = CGFloat(max(terminal.buffer.y, 0) + 1) / CGFloat(max(terminal.rows, 1))
+            * contentSize.height
+
+        let x: CGFloat
+        if contentSize.width <= bounds.width {
+            x = (bounds.width - contentSize.width) / 2
+        } else {
+            x = min(0, max(bounds.width - contentSize.width, bounds.width * 0.65 - cursorX))
+        }
+
+        let y: CGFloat
+        if contentSize.height <= bounds.height {
+            y = 0
+        } else {
+            y = min(0, max(bounds.height - contentSize.height, bounds.height * 0.72 - cursorY))
+        }
+        terminalView.frame.origin = CGPoint(x: x, y: y)
     }
 }
 
@@ -198,6 +243,8 @@ struct TerminalCanvas: UIViewRepresentable {
     let bridge: TerminalBridge
     var mirror: Bool
     var mirrorSize: CGSize
+    var pinnedGrid: (cols: Int, rows: Int)?
+    var fitsEntireCanvas: Bool
 
     func makeUIView(context: Context) -> TerminalHostView {
         TerminalHostView(terminalView: bridge.terminalView)
@@ -206,6 +253,8 @@ struct TerminalCanvas: UIViewRepresentable {
     func updateUIView(_ host: TerminalHostView, context: Context) {
         host.mirror = mirror
         host.mirrorSize = mirrorSize
+        host.pinnedGrid = pinnedGrid
+        host.fitsEntireCanvas = fitsEntireCanvas
         host.setNeedsLayout()
     }
 }

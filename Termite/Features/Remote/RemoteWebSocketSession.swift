@@ -20,9 +20,6 @@ final class RemoteWebSocketSession: @unchecked Sendable {
 
     // 主线程上的桥接状态
     private var attachedSessionID: UUID?
-    /// 上次见到的 Mac 视图网格(变化 = Mac 端 resize 夺回尺寸主导权,推给远端)
-    private var lastCols = 0
-    private var lastRows = 0
     private var statusTimer: DispatchSourceTimer?
 
     private var pingTimer: DispatchSourceTimer?
@@ -168,20 +165,24 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             MainActor.assumeIsolated {
                 switch msg.type {
                 case "list":
-                    self.sendJSON(ListMsg(sessions: RemoteSessionHub.shared.list(),
-                                          theme: RemoteTheme.current()))
+                    self.sendList()
+                case "openProject":
+                    guard let id = msg.id,
+                          let session = RemoteSessionHub.shared.openProject(id: id) else {
+                        self.sendJSON(ProjectOpenFailedMsg(
+                            message: String(localized: "无法在 Mac 上启动这个项目")
+                        ))
+                        return
+                    }
+                    self.sendJSON(ProjectOpenedMsg(session: session))
+                    self.sendList()
                 case "attach":
                     if let id = msg.id { self.attach(id) }
                 case "detach":
                     self.detachCurrent()
-                case "resize":
-                    // 「适配手机宽度」:远端接管 PTY 尺寸,解附自动还给 Mac。
-                    // 不动 lastCols/lastRows——它们跟踪的是 Mac 视图网格(变化=Mac 夺回),
-                    // override 只改 PTY,Mac 视图不变,轮询自然不误报
-                    if let sid = self.attachedSessionID, let cols = msg.cols, let rows = msg.rows {
-                        RemoteSessionHub.shared.overrideSize(connID: self.connID, sessionID: sid,
-                                                             cols: cols, rows: rows)
-                    }
+                case "viewport", "resize", "claimResize", "releaseResize":
+                    // 兼容旧客户端，但设备视口永远不能再修改共享 PTY 网格。
+                    break
                 default:
                     break
                 }
@@ -193,7 +194,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 guard let sid = self.attachedSessionID else { return }
-                RemoteSessionHub.shared.sendInput(sessionID: sid, bytes: [UInt8](data))
+                RemoteSessionHub.shared.sendInput(connID: self.connID, sessionID: sid,
+                                                  bytes: [UInt8](data))
             }
         }
     }
@@ -202,24 +204,41 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private func attach(_ sessionID: UUID) {
         detachCurrent()
         let hub = RemoteSessionHub.shared
-        guard let result = hub.attach(connID: connID, sessionID: sessionID, push: { [weak self] data in
-            self?.sendFrame(opcode: 0x2, payload: data)
-        }) else {
+        guard let result = hub.attach(
+            connID: connID,
+            sessionID: sessionID,
+            pushOutput: { [weak self] data in
+                self?.sendFrame(opcode: 0x2, payload: data)
+            },
+            pushViewport: { [weak self] cols, rows, tuiMode in
+                self?.sendJSON(ViewportMsg(cols: cols, rows: rows, tuiMode: tuiMode))
+            }
+        ) else {
             sendJSON(ErrorMsg(message: String(localized: "会话不存在或已关闭")))
             return
         }
         attachedSessionID = sessionID
-        lastCols = result.cols
-        lastRows = result.rows
         sendJSON(AttachedMsg(id: sessionID, cols: result.cols, rows: result.rows,
+                             tuiMode: result.tuiMode,
                              theme: RemoteTheme.current()))
-        // 镜像缓冲为空时用屏幕快照垫底(灰字示意历史内容),否则回放缓冲
-        if let snapshot = result.snapshot {
-            let normalized = snapshot.replacingOccurrences(of: "\n", with: "\r\n")
-            sendFrame(opcode: 0x2, payload: Data(("\u{1b}[2m" + normalized + "\u{1b}[0m\r\n").utf8))
-        }
-        if !result.backlog.isEmpty {
-            sendFrame(opcode: 0x2, payload: result.backlog)
+        if result.tuiMode {
+            // 先回放近期控制序列，恢复鼠标/粘贴等终端模式；再用 Mac 当前终端模型的
+            // 完整 ANSI 快照校正画面。最后一个 synchronized frame 可能只是增量，不能单独恢复。
+            if !result.backlog.isEmpty {
+                sendFrame(opcode: 0x2, payload: result.backlog)
+            }
+            if let snapshot = result.screenSnapshot {
+                sendFrame(opcode: 0x2, payload: snapshot)
+            }
+        } else {
+            // 镜像缓冲为空时用屏幕快照垫底(灰字示意历史内容),否则回放缓冲
+            if let snapshot = result.snapshot {
+                let normalized = snapshot.replacingOccurrences(of: "\n", with: "\r\n")
+                sendFrame(opcode: 0x2, payload: Data(("\u{1b}[2m" + normalized + "\u{1b}[0m\r\n").utf8))
+            }
+            if !result.backlog.isEmpty {
+                sendFrame(opcode: 0x2, payload: result.backlog)
+            }
         }
         startStatusTimer()
     }
@@ -232,8 +251,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         stopStatusTimer()
     }
 
-    /// 每秒对照一次会话状态:Mac 端窗口调整 → 推 resize;会话退出/被关 → 推 exited。
-    /// 轮询换取与所有传输路径解耦(保活/本地/串口一视同仁)
+    /// 每秒对照一次 Mac 视图网格和会话状态。网格变化由 Hub 统一广播。
     @MainActor
     private func startStatusTimer() {
         stopStatusTimer()
@@ -243,15 +261,10 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         timer.setEventHandler { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, let sid = self.attachedSessionID else { return }
-                guard let status = RemoteSessionHub.shared.status(sessionID: sid), status.alive else {
+                guard RemoteSessionHub.shared.refreshStatus(sessionID: sid) == true else {
                     self.sendJSON(ExitedMsg())
                     self.detachCurrent()
                     return
-                }
-                if status.cols != self.lastCols || status.rows != self.lastRows {
-                    self.lastCols = status.cols
-                    self.lastRows = status.rows
-                    self.sendJSON(ResizeMsg(cols: status.cols, rows: status.rows))
                 }
             }
         }
@@ -274,7 +287,19 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private struct ListMsg: Encodable {
         var type = "list"
         var sessions: [RemoteSessionInfo]
+        var spaces: [RemoteSidebarSpaceInfo]
+        var projects: [RemoteSidebarProjectInfo]
         var theme: RemoteTheme
+    }
+
+    private struct ProjectOpenedMsg: Encodable {
+        var type = "projectOpened"
+        var session: RemoteSessionInfo
+    }
+
+    private struct ProjectOpenFailedMsg: Encodable {
+        var type = "projectOpenFailed"
+        var message: String
     }
 
     private struct AttachedMsg: Encodable {
@@ -282,14 +307,16 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var id: UUID
         var cols: Int
         var rows: Int
+        var tuiMode: Bool
         /// 当前 Mac 主题色板,远端终端同款观感
         var theme: RemoteTheme
     }
 
-    private struct ResizeMsg: Encodable {
-        var type = "resize"
+    private struct ViewportMsg: Encodable {
+        var type = "viewport"
         var cols: Int
         var rows: Int
+        var tuiMode: Bool
     }
 
     private struct ExitedMsg: Encodable {
@@ -299,6 +326,14 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private struct ErrorMsg: Encodable {
         var type = "error"
         var message: String
+    }
+
+    @MainActor
+    private func sendList() {
+        let hub = RemoteSessionHub.shared
+        let catalog = hub.sidebarCatalog()
+        sendJSON(ListMsg(sessions: hub.list(), spaces: catalog.spaces,
+                         projects: catalog.projects, theme: RemoteTheme.current()))
     }
 
     private func sendJSON(_ message: some Encodable) {

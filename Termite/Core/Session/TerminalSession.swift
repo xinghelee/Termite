@@ -21,7 +21,8 @@ final class TerminalSession: Identifiable {
         case exited(Int32?)
     }
 
-    let id = UUID()
+    /// 保活会话沿用 daemon PTY ID，Mac App 重启后远端书签和正在附着的设备仍指向同一会话。
+    let id: UUID
     let terminalView: TermiteTerminalView
 
     private(set) var state: State = .running
@@ -150,6 +151,12 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var siLower = 0
     @ObservationIgnored private var siUpper = 0
     @ObservationIgnored private var osc133 = OSC133Scanner()
+    @ObservationIgnored private var synchronizedOutputScanner = SynchronizedOutputScanner()
+    @ObservationIgnored private var inlineTUIActive = false
+    var requiresSharedTUILayout: Bool {
+        let terminal = terminalView.getTerminal()
+        return terminal.isCurrentBufferAlternate || inlineTUIActive || terminal.mouseMode != .off
+    }
     /// 本次会话「新内容」的起始 SI 行:恢复回灌的旧内容之前,不参与下次快照(防横幅叠罗汉)
     @ObservationIgnored private var snapshotFloor = 0
     @ObservationIgnored private var logHandle: FileHandle?
@@ -165,6 +172,7 @@ final class TerminalSession: Identifiable {
     /// 普通会话(可保活)与下拉终端(始终本地直连)
     init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil,
          reattach: PtyReattach? = nil, spawnDelay: TimeInterval = 0, manager: SessionManager? = nil) {
+        id = reattach?.id ?? UUID()
         shellPath = ShellResolver.loginShell()
         isSerial = false
         self.spawnDelay = spawnDelay
@@ -190,6 +198,7 @@ final class TerminalSession: Identifiable {
     /// 无 shell、无保活、不进会话快照;断开保留画面示错,由用户 ⌘W 关闭
     init?(serialDevice: String, baud: Int, localEcho: Bool = false, manager: SessionManager?) {
         guard let fd = SerialPort.open(path: serialDevice, baud: baud) else { return nil }
+        id = UUID()
         shellPath = serialDevice // shellName / 标签标题借此显示设备名
         isSerial = true
         serialLocalEcho = localEcho
@@ -348,21 +357,25 @@ final class TerminalSession: Identifiable {
             client.kill(id: reattach.id) // 死会话:清掉守护进程里的记录,走全新启动
             return false
         }
-        bindHostCallbacks(reattach.id, client: client)
-        guard let attached = await client.attach(id: reattach.id, since: reattach.offset) else {
+        // 新 Terminal 解析器没有旧屏幕状态，单纯从已消费 offset 续传会在空闲 TUI 上得到 0B。
+        // 新守护进程从缓冲中最早的完整同步帧连续回放；旧守护进程回落到完整环形历史。
+        let replayOffset = info.screenReplayOffset ?? info.headOffset
+        bindHostCallbacks(reattach.id, since: replayOffset, client: client)
+        guard let attached = await client.attach(id: reattach.id, since: replayOffset) else {
             client.unbind(reattach.id)
             return false
         }
         hostPtyID = reattach.id
-        consumedHostOffset = max(attached.fromOffset, reattach.offset)
+        consumedHostOffset = max(consumedHostOffset, max(attached.fromOffset, reattach.offset))
         markTransportReady()
         kickRedraw()
         manager?.layoutChangedSoon()
         return true
     }
 
-    private func bindHostCallbacks(_ ptyID: UUID, client: PtyHostClient) {
-        client.bind(ptyID) { [weak self] offset, data in
+    private func bindHostCallbacks(_ ptyID: UUID, since offset: UInt64 = 0,
+                                   client: PtyHostClient) {
+        client.bind(ptyID, since: offset) { [weak self] offset, data in
             guard let self else { return }
             consumedHostOffset = offset + UInt64(data.count)
             processOutput(ArraySlice(data))
@@ -379,16 +392,23 @@ final class TerminalSession: Identifiable {
     /// 巡视/最大化整屏重排后也用它兜底(动画期间 SIGWINCH 连发,部分 TUI 漏掉末次重绘)
     func kickRedraw() {
         guard let hostPtyID else { return }
+        // 共享 TUI 的语义网格已经冻结。Mac 重附或切换本地布局时只重画本机，
+        // 不能再用 rows-1/rows 的 SIGWINCH 让 iPhone、iPad 同步抖动一次。
+        guard !terminalView.usesSharedTUIRenderGrid else {
+            terminalView.needsDisplay = true
+            return
+        }
         let terminal = terminalView.getTerminal()
-        // 只对备用屏(vim/claude/grok 这类全屏 TUI)做「行数减一再复原」的双
-        // SIGWINCH 唤醒——它们才会漏末次重绘;普通 shell 收最终尺寸自己会画,
+        // 只对备用屏或同步输出 TUI 做「行数减一再复原」的双 SIGWINCH 唤醒——
+        // 它们才需要整块重绘;普通 shell 收最终尺寸自己会画,
         // 白挨这两下反而内容上移一行再弹回,肉眼可见地抖(巡视切换反馈)
-        guard terminal.isCurrentBufferAlternate else { return }
+        guard requiresSharedTUILayout else { return }
         PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: max(terminal.rows - 1, 1))
         // 两步必须隔开:ssh 会话里 SIGWINCH 会合并,紧挨着发 ssh 只读到复原后的尺寸,
         // 与远端一致就不转发,远端 TUI(grok/deepseek cli 等)收不到任何变化、不重画
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            guard let self, let hostPtyID = self.hostPtyID else { return }
+            guard let self, self.requiresSharedTUILayout,
+                  let hostPtyID = self.hostPtyID else { return }
             let terminal = self.terminalView.getTerminal()
             PtyHostClient.shared.resize(id: hostPtyID, cols: terminal.cols, rows: terminal.rows)
         }
@@ -396,8 +416,23 @@ final class TerminalSession: Identifiable {
 
     /// 视图网格尺寸变化(保活模式经协议转发,替代 LocalProcess 的 ioctl)
     func hostResize(cols: Int, rows: Int) {
-        guard let hostPtyID else { return }
-        PtyHostClient.shared.resize(id: hostPtyID, cols: cols, rows: rows)
+        RemoteSessionHub.shared.macViewportChanged(session: self, cols: cols, rows: rows)
+    }
+
+    /// Hub 决定好语义网格后的 PTY resize 出口，不能再回到 hostResize 形成递归。
+    func resizePTY(cols: Int, rows: Int) {
+        if let hostPtyID {
+            PtyHostClient.shared.resize(id: hostPtyID, cols: cols, rows: rows)
+        } else if !isSerial, case .running = state {
+            let terminal = terminalView.getTerminal()
+            terminal.resize(cols: cols, rows: rows)
+            terminalView.sizeChanged(source: terminalView, newCols: cols, newRows: rows)
+        }
+    }
+
+    /// TUI 期间 Mac 解析器使用固定语义网格，像移动端一样只在本地适配画布。
+    func setSharedTUIRenderGrid(_ grid: (Int, Int)?) {
+        terminalView.setSharedTUIRenderGrid(grid)
     }
 
     /// 关闭 pane 时终止 shell 子进程。
@@ -600,6 +635,13 @@ final class TerminalSession: Identifiable {
 
     /// 处理原始 PTY 输出:录制、扫描 OSC 133 事件,分段喂给终端,使标记与光标状态对齐
     func processOutput(_ bytes: ArraySlice<UInt8>) {
+        let synchronizedOutputOffset = synchronizedOutputScanner.scan(bytes)
+        defer {
+            RemoteSessionHub.shared.observeTerminalMode(
+                sessionID: id,
+                isTUI: requiresSharedTUILayout
+            )
+        }
         // 下拉终端会话(manager nil)不参与活动提示
         if !hasUnseenActivity, hasReceivedUserInput, let manager, !manager.isSessionVisible(id) {
             hasUnseenActivity = true
@@ -612,6 +654,7 @@ final class TerminalSession: Identifiable {
         let events = osc133.scan(bytes)
         if events.isEmpty {
             terminalView.feed(byteArray: bytes)
+            if synchronizedOutputOffset != nil { inlineTUIActive = true }
             return
         }
         var fed = bytes.startIndex
@@ -626,11 +669,22 @@ final class TerminalSession: Identifiable {
         if fed < bytes.endIndex {
             terminalView.feed(byteArray: bytes[fed...])
         }
+        if let synchronizedOutputOffset {
+            let resetAfterSynchronizedOutput = events.contains { event, offset in
+                guard offset > synchronizedOutputOffset else { return false }
+                switch event {
+                case .promptStart, .commandEnd: return true
+                case .commandStart, .outputStart: return false
+                }
+            }
+            if !resetAfterSynchronizedOutput { inlineTUIActive = true }
+        }
     }
 
     private func handle(_ event: OSC133Scanner.Event) {
         switch event {
         case .promptStart:
+            inlineTUIActive = false
             runningCommand = false
             recordCommandMark()
         case .commandStart:
@@ -650,6 +704,7 @@ final class TerminalSession: Identifiable {
             let textStart = pendingPromptRow ?? max(outputRow - 1, siLower)
             pendingCommandText = extractText(from: textStart, to: outputRow)
         case .commandEnd(let code):
+            inlineTUIActive = false
             let duration = commandStartedAt.map { Date().timeIntervalSince($0) }
             commandStartedAt = nil
             commandRunningSince = nil
@@ -1057,6 +1112,73 @@ final class TerminalSession: Identifiable {
         }
         guard meaningfulLines.count >= 3 else { return nil }
         return text
+    }
+
+    /// 从 Mac 当前终端模型生成可独立解析的 ANSI 画面。synchronized-output 只是原子更新，
+    /// 单个 frame 可能是增量；远端重附必须拿到完整屏幕和正确光标位置。
+    func terminalScreenSnapshot() -> Data {
+        let terminal = terminalView.getTerminal()
+        let firstRetainedRow = terminal.buffer.totalLinesTrimmed
+        var viewportEnd = firstRetainedRow
+        while terminal.getScrollInvariantLine(row: viewportEnd) != nil { viewportEnd += 1 }
+        let viewportTop = max(firstRetainedRow, viewportEnd - terminal.rows)
+        var output = "\u{1b}[?2026h"
+        output += terminal.isCurrentBufferAlternate ? "\u{1b}[?1049h" : "\u{1b}[?1049l"
+        output += terminal.applicationCursor ? "\u{1b}[?1h" : "\u{1b}[?1l"
+        output += "\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[H"
+
+        var activeAttribute: Attribute?
+        for row in 0..<terminal.rows {
+            guard let line = terminal.getScrollInvariantLine(row: viewportTop + row) else { continue }
+            let cells = line.getData()
+            let limit = min(line.getTrimmedLength(), cells.count)
+            guard limit > 0 else { continue }
+            output += "\u{1b}[\(row + 1);1H"
+            var column = 0
+            while column < limit {
+                let cell = cells[column]
+                if activeAttribute != cell.attribute {
+                    output += Self.sgr(for: cell.attribute)
+                    activeAttribute = cell.attribute
+                }
+                output.append(terminal.getCharacter(for: cell))
+                column += max(Int(cell.width), 1)
+            }
+        }
+
+        let cursorRow = min(max(terminal.buffer.y, 0), max(terminal.rows - 1, 0)) + 1
+        let cursorColumn = min(max(terminal.buffer.x, 0), max(terminal.cols - 1, 0)) + 1
+        output += "\u{1b}[0m\u{1b}[\(cursorRow);\(cursorColumn)H\u{1b}[?25h\u{1b}[?2026l"
+        return Data(output.utf8)
+    }
+
+    private static func sgr(for attribute: Attribute) -> String {
+        var codes = ["0"]
+        let style = attribute.style
+        if style.contains(.bold) { codes.append("1") }
+        if style.contains(.dim) { codes.append("2") }
+        if style.contains(.italic) { codes.append("3") }
+        if style.contains(.underline) { codes.append("4") }
+        if style.contains(.blink) { codes.append("5") }
+        if style.contains(.inverse) { codes.append("7") }
+        if style.contains(.invisible) { codes.append("8") }
+        if style.contains(.crossedOut) { codes.append("9") }
+        codes.append(contentsOf: colorCodes(attribute.fg, foreground: true))
+        codes.append(contentsOf: colorCodes(attribute.bg, foreground: false))
+        return "\u{1b}[" + codes.joined(separator: ";") + "m"
+    }
+
+    private static func colorCodes(_ color: Attribute.Color, foreground: Bool) -> [String] {
+        switch color {
+        case .defaultColor, .defaultInvertedColor:
+            return [foreground ? "39" : "49"]
+        case .ansi256(let code):
+            if code < 8 { return [String((foreground ? 30 : 40) + Int(code))] }
+            if code < 16 { return [String((foreground ? 90 : 100) + Int(code - 8))] }
+            return [foreground ? "38" : "48", "5", String(code)]
+        case .trueColor(let red, let green, let blue):
+            return [foreground ? "38" : "48", "2", String(red), String(green), String(blue)]
+        }
     }
 
     // MARK: - 本机服务 URL 检测(dev server 输出里的 localhost 链接)

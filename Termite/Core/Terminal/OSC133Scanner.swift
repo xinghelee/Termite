@@ -65,3 +65,27 @@ struct OSC133Scanner {
         }
     }
 }
+
+/// 检测 VT synchronized output 的开启序列 `CSI ? 2026 h`。
+/// Ratatui/Codex 这类内联 TUI 不进入备用屏，但会用同步输出包住每次整块重绘。
+struct SynchronizedOutputScanner {
+    private static let enable: [UInt8] = [0x1b, 0x5b, 0x3f, 0x32, 0x30, 0x32, 0x36, 0x68]
+    private var matched = 0
+
+    /// 返回本批数据中最后一个开启序列的结束偏移；跨 chunk 匹配时偏移落在当前批。
+    mutating func scan(_ bytes: ArraySlice<UInt8>) -> Int? {
+        var lastOffset: Int?
+        for (index, byte) in bytes.enumerated() {
+            if byte == Self.enable[matched] {
+                matched += 1
+                if matched == Self.enable.count {
+                    lastOffset = index + 1
+                    matched = 0
+                }
+            } else {
+                matched = byte == Self.enable[0] ? 1 : 0
+            }
+        }
+        return lastOffset
+    }
+}

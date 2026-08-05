@@ -59,4 +59,39 @@ final class OSC133ScannerTests: XCTestCase {
         guard case .commandEnd(let code) = events[0].event else { return XCTFail() }
         XCTAssertNil(code)
     }
+
+    func testSynchronizedOutputEnable() {
+        var scanner = SynchronizedOutputScanner()
+        XCTAssertEqual(scanner.scan(bytes("\u{1b}[?2026hpaint\u{1b}[?2026l")[...]), 8)
+    }
+
+    func testSynchronizedOutputSplitAcrossChunks() {
+        var scanner = SynchronizedOutputScanner()
+        XCTAssertNil(scanner.scan(bytes("text\u{1b}[?20")[...]))
+        XCTAssertEqual(scanner.scan(bytes("26hpaint")[...]), 3)
+    }
+
+    func testSynchronizedOutputIgnoresDisableAndPlainCSI() {
+        var scanner = SynchronizedOutputScanner()
+        XCTAssertNil(scanner.scan(bytes("\u{1b}[?2026l\u{1b}[2J\u{1b}[H")[...]))
+    }
+
+    func testSynchronizedFrameLocatorReturnsAbsoluteFrameStart() {
+        var locator = SynchronizedFrameLocator()
+        let data = Data(bytes("before\u{1b}[?2026hpaint\u{1b}[?2026lafter"))
+        XCTAssertEqual(locator.ingest(data, startingAt: 100), [106])
+    }
+
+    func testSynchronizedFrameLocatorHandlesChunkedDelimiters() {
+        var locator = SynchronizedFrameLocator()
+        XCTAssertTrue(locator.ingest(Data(bytes("x\u{1b}[?20")), startingAt: 40).isEmpty)
+        XCTAssertTrue(locator.ingest(Data(bytes("26hpaint\u{1b}[?2")), startingAt: 46).isEmpty)
+        XCTAssertEqual(locator.ingest(Data(bytes("026l")), startingAt: 58), [41])
+    }
+
+    func testSynchronizedFrameLocatorReturnsEveryCompletedFrame() {
+        var locator = SynchronizedFrameLocator()
+        let data = Data(bytes("\u{1b}[?2026hone\u{1b}[?2026lxx\u{1b}[?2026htwo\u{1b}[?2026l"))
+        XCTAssertEqual(locator.ingest(data, startingAt: 20), [20, 41])
+    }
 }

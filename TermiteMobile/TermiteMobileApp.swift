@@ -1,11 +1,32 @@
 import SwiftUI
 
+#if DEBUG
+import SandboxServer
+#endif
+
 /// Termite iOS:Mac 端 Termite 的远程终端(LAN/Tailscale 内网直连)。
 /// 未配对显示扫码引导;配好即连,进会话仪表盘。
 @main
 struct TermiteMobileApp: App {
     @State private var store = ConnectionStore()
     @State private var client = RemoteClient()
+
+    init() {
+        #if DEBUG
+        Task {
+            let config = SandboxConfig(
+                bindingPolicy: .localNetwork,
+                auth: .none,
+                builtInPlugins: [.screen, .hierarchy, .device, .logs],
+                serviceName: "Termite Mobile"
+            )
+            let result = await SandboxServer.shared.start(config)
+            if case .started(let info) = result {
+                print("SandboxServer: \(info.consoleURL)")
+            }
+        }
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {
