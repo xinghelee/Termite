@@ -1140,7 +1140,9 @@ final class TerminalSession: Identifiable {
 
 // MARK: - LocalProcessTerminalViewDelegate
 
-extension TerminalSession: LocalProcessTerminalViewDelegate {
+// @preconcurrency:协议是 nonisolated 的,回调实际全部来自主线程(SwiftTerm 在
+// 主线程驱动),用动态隔离断言替代编译期告警(Swift 6 预备)
+extension TerminalSession: @preconcurrency LocalProcessTerminalViewDelegate {
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
