@@ -80,6 +80,8 @@ targets:
         ENABLE_HARDENED_RUNTIME: false
         DEAD_CODE_STRIPPING: true
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # 私有 API 胶水层用 ObjC 写(SimulatorBridge),Swift 只管编码与推流
+        SWIFT_OBJC_BRIDGING_HEADER: Termite/Termite-Bridging-Header.h
 
   TermiteMobile:
     type: application

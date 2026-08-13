@@ -20,6 +20,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
 
     // 主线程上的桥接状态
     private var attachedSessionID: UUID?
+    /// 这条连接是否正在推模拟器画面(镜像与终端互不影响,可以同时开)
+    private var mirroring = false
     private var statusTimer: DispatchSourceTimer?
 
     private var pingTimer: DispatchSourceTimer?
@@ -53,6 +55,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 self.stopStatusTimer()
+                self.stopMirror()
                 RemoteSessionHub.shared.detach(connID: self.connID)
             }
         }
@@ -159,6 +162,10 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         let rows: Int?
         /// 接管时上报的设备名,显示在 Mac 的遮罩上(「iPhone 正在操作」)
         let device: String?
+        /// 模拟器镜像:目标 UDID 与画质参数
+        let udid: String?
+        let quality: Double?
+        let fps: Double?
     }
 
     private func handleText(_ data: Data) {
@@ -182,6 +189,16 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     if let id = msg.id { self.attach(id) }
                 case "detach":
                     self.detachCurrent()
+                case "simList":
+                    let available = SimulatorMirror.shared.available
+                    SimulatorMirror.shared.bootedDevices { devices in
+                        self.sendJSON(SimListMsg(devices: devices, available: available))
+                    }
+                case "simAttach":
+                    self.startMirror(udid: msg.udid, maxWidth: msg.cols, quality: msg.quality,
+                                     fps: msg.fps)
+                case "simDetach":
+                    self.stopMirror()
                 case "claim", "claimResize":
                     // 接管:PTY 网格改归这台设备,Mac 与其它端转只读。
                     // claimResize 是旧客户端的同义词(它本来就是「我要自己的网格」)
@@ -251,6 +268,48 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             }
         }
         startStatusTimer()
+    }
+
+    // MARK: - 模拟器镜像
+    //
+    // 帧走这条连接的二进制帧,但前面加一个 4 字节魔数 "SIMG" 区分 ——
+    // 终端输出同样是二进制帧,不打标记会串台。
+    // 客户端约定:二进制帧以 SIMG 开头即镜像帧,其余按终端输出处理。
+
+    @MainActor
+    private func startMirror(udid: String?, maxWidth: Int?, quality: Double?, fps: Double?) {
+        guard let udid else { return }
+        mirroring = true
+        SimulatorMirror.shared.start(
+            udid: udid,
+            maxWidth: maxWidth ?? 720,
+            quality: quality ?? 0.6,
+            maxFPS: fps ?? 20,
+            onFrame: { [weak self] jpeg, width, height in
+                guard let self else { return }
+                var payload = Data("SIMG".utf8)
+                // 宽高各 2 字节大端:客户端不用解 JPEG 头就知道画布尺寸
+                payload.append(UInt8(width >> 8)); payload.append(UInt8(width & 0xFF))
+                payload.append(UInt8(height >> 8)); payload.append(UInt8(height & 0xFF))
+                payload.append(jpeg)
+                self.sendFrame(opcode: 0x2, payload: payload)
+            },
+            completion: { [weak self] ok in
+                guard let self else { return }
+                if !ok { self.mirroring = false }
+                self.sendJSON(SimStateMsg(
+                    udid: ok ? udid : nil,
+                    message: ok ? nil : String(localized: "这台模拟器没在运行,或 Xcode 私有接口不可用")))
+            }
+        )
+    }
+
+    @MainActor
+    private func stopMirror() {
+        guard mirroring else { return }
+        SimulatorMirror.shared.stop()
+        mirroring = false
+        sendJSON(SimStateMsg(udid: nil, message: nil))
     }
 
     /// 接管请求。被别的端占着会被拒,回执当前控制权状态,客户端据此显示遮挡。
@@ -352,6 +411,20 @@ final class RemoteWebSocketSession: @unchecked Sendable {
 
     private struct ExitedMsg: Encodable {
         var type = "exited"
+    }
+
+    private struct SimListMsg: Encodable {
+        var type = "simList"
+        var devices: [SimulatorMirror.Device]
+        /// Xcode 私有接口不可用时为 false,客户端整块隐藏
+        var available: Bool
+    }
+
+    private struct SimStateMsg: Encodable {
+        var type = "simState"
+        /// 正在镜像的 UDID;nil = 已停
+        var udid: String?
+        var message: String?
     }
 
     private struct ErrorMsg: Encodable {

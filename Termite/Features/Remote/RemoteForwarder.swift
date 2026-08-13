@@ -233,7 +233,60 @@ final class RemoteProxyConnection: @unchecked Sendable {
             send(response)
             return
         }
-        connectUpstream(head: head, leftover: leftover)
+        connectUpstream(head: Self.sanitized(lines: lines, targetPort: targetPort),
+                        leftover: leftover)
+    }
+
+    /// 往上游转发前的两件事:
+    ///
+    /// 1. 摘掉 Termite 自己的凭据。被代理的可能是任意第三方本地服务(dev server、
+    ///    别人的调试 console),不能让它拿到访问密钥 —— 有了它就能连远程访问的
+    ///    WebSocket,等于交出整台 Mac 的终端。
+    /// 2. 把 Host / Origin 改写成回环地址。本地开发工具普遍只信任 loopback 的
+    ///    Host(baguette、Vite 都是),透传浏览器原始 Host(192.168.x.x:19280)会被拒。
+    ///    改写之后它们看到的就是「有人从本机访问」,与直连无异。
+    private static func sanitized(lines: [String], targetPort: UInt16) -> Data {
+        let loopback = "127.0.0.1:\(targetPort)"
+        var out: [String] = []
+        for (index, line) in lines.enumerated() {
+            if index == 0 {
+                // 请求行里的 ?t=token 一并去掉(正常流程已 302 过,这里是兜底)
+                let parts = line.components(separatedBy: " ")
+                if parts.count >= 2 {
+                    out.append(([parts[0], stripToken(from: parts[1])] + parts.dropFirst(2))
+                        .joined(separator: " "))
+                } else {
+                    out.append(line)
+                }
+                continue
+            }
+            let lower = line.lowercased()
+            if lower.hasPrefix("host:") {
+                out.append("Host: \(loopback)")
+                continue
+            }
+            if lower.hasPrefix("origin:") {
+                out.append("Origin: http://\(loopback)")
+                continue
+            }
+            // Referer 同理:带着对外地址会让做同源校验的工具判成跨站
+            if lower.hasPrefix("referer:") {
+                continue
+            }
+            guard lower.hasPrefix("cookie:") else {
+                out.append(line)
+                continue
+            }
+            let kept = line.dropFirst("cookie:".count)
+                .components(separatedBy: ";")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.hasPrefix("\(cookieName)=") && !$0.isEmpty }
+            // 只有我们这一条 cookie 时整行删掉,别留个空 Cookie 头
+            if !kept.isEmpty {
+                out.append("Cookie: " + kept.joined(separator: "; "))
+            }
+        }
+        return Data(out.joined(separator: "\r\n").utf8)
     }
 
     private func send(_ response: String) {
