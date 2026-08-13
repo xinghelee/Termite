@@ -13,6 +13,9 @@ struct RemoteSettingsPage: View {
     @State private var copiedIP: String?
     @State private var pairingCode: String?
     @State private var remaining = 0
+    @State private var forwarder = RemoteForwarder.shared
+    @State private var newPort = ""
+    @State private var newLabel = ""
 
     var body: some View {
         SettingsPage {
@@ -38,6 +41,11 @@ struct RemoteSettingsPage: View {
                     pairingContent
                 }
                 SettingsFootnote("iOS 端 Termite 扫码即连;手机浏览器扫同一个码走网页版。二维码即访问链接,重新生成密钥后旧码作废。")
+
+                SettingsPanel("本机端口转发") {
+                    forwardContent
+                }
+                SettingsFootnote("把只监听 127.0.0.1 的本机服务给手机用:模拟器与 Mac 共用网络栈,跑在模拟器里的调试 console(SandboxServer 之类)在这里就是一个本机端口,转发出去手机上就能看画面、点按、滑动;dev server 同理。每条转发独占一个对外端口,首次带密钥打开后种 cookie,页面里的绝对路径和 WebSocket 都照常。")
 
                 SettingsPanel("配对码") {
                     pairingCodeContent
@@ -90,6 +98,70 @@ struct RemoteSettingsPage: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    // MARK: - 本机端口转发
+
+    @ViewBuilder private var forwardContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(forwarder.forwards) { forward in
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(forward.label)
+                            .font(.system(size: 12))
+                        // verbatim:端口号插 Int 会被格式化成「19,280」
+                        Text(verbatim: "127.0.0.1:\(forward.target) → \(forward.listen)")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 6)
+                    Button {
+                        let host = (selectedIP ?? addresses.first?.ip) ?? "127.0.0.1"
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(
+                            forwarder.url(for: forward, host: host, token: server.token),
+                            forType: .string)
+                    } label: {
+                        Image(systemName: "doc.on.doc").font(.system(size: 11))
+                    }
+                    .buttonStyle(.plain)
+                    .help("拷贝转发链接")
+                    Button {
+                        forwarder.remove(forward)
+                    } label: {
+                        Image(systemName: "trash").font(.system(size: 11))
+                    }
+                    .buttonStyle(.plain)
+                    .help("删除这条转发")
+                }
+            }
+            if forwarder.forwards.isEmpty {
+                Text("还没有转发。填本机服务的端口,比如模拟器里调试 console 的端口")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            Divider()
+            HStack(spacing: 8) {
+                TextField("端口", text: $newPort)
+                    .frame(width: 70)
+                TextField("名字(可选)", text: $newLabel)
+                    .frame(maxWidth: 180)
+                Button("添加") {
+                    guard let port = UInt16(newPort.trimmingCharacters(in: .whitespaces)) else { return }
+                    forwarder.add(target: port, label: newLabel.trimmingCharacters(in: .whitespaces))
+                    newPort = ""
+                    newLabel = ""
+                }
+                .disabled(UInt16(newPort.trimmingCharacters(in: .whitespaces)) == nil)
+                if let error = forwarder.lastError {
+                    Text(error).font(.system(size: 11)).foregroundStyle(.orange)
+                }
+            }
+            .font(.system(size: 12))
         }
     }
 

@@ -29,6 +29,16 @@ struct RemoteSessionInfo: Codable {
     var controller: String?
 }
 
+/// 本机端口转发条目:手机端列出来一点就能在内置浏览器里打开
+struct RemoteForwardInfo: Codable {
+    var id: UUID
+    var label: String
+    /// 本机服务端口(展示用)
+    var target: Int
+    /// 对外端口,手机按 http://<连接用的 host>:<port>/?t=<token> 打开
+    var port: Int
+}
+
 /// 控制权状态,随 attached / viewport 逐连接下发(增量字段,旧客户端忽略)。
 /// 控制权永远有主人:没有远端接管时归 Mac,所以远端默认就是遮挡的监视器。
 struct RemoteControlInfo: Codable {

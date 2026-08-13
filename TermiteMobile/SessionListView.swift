@@ -16,6 +16,7 @@ struct MainView: View {
     @State private var spaceFilter: String?
     /// 会话搜索:20 来个会话 + 同名项目(xc-sport-ios 就三个),手机屏上翻找最费劲
     @State private var query = ""
+    @State private var openedForward: RemoteForwardSummary?
     @State private var showSettings = false
     @State private var showPairing = false
     @State private var connectionPulse = false
@@ -119,6 +120,11 @@ struct MainView: View {
                         .padding(.top, 12)
                         .padding(.bottom, 4)
                 }
+                if !client.forwards.isEmpty, query.isEmpty {
+                    forwardsSection
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                }
                 if !attentionSessions.isEmpty {
                     sessionSection(
                         title: String(localized: "等待你"),
@@ -181,6 +187,49 @@ struct MainView: View {
         .environment(\.colorScheme, sidebarColorScheme)
         .overlay {
             if client.phase == .denied { deniedView }
+        }
+        .sheet(item: $openedForward) { forward in
+            if let mac = store.selected, let endpoint = store.endpoint(for: mac) {
+                ForwardWebView(forward: forward, host: endpoint.host, token: endpoint.token)
+            }
+        }
+    }
+
+    /// Mac 转发出来的本机服务:模拟器里的调试 console、dev server 之类,
+    /// 点进去是内置浏览器 —— 手机上看 App 界面并操作就靠这条
+    private var forwardsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("本机服务")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            ForEach(client.forwards) { forward in
+                Button {
+                    openedForward = forward
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 13))
+                            .foregroundStyle(sidebarAccent)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(forward.label)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.primary)
+                            // verbatim:端口号插 Int 会被格式化成「8,099」
+                            Text(verbatim: "localhost:\(forward.target)")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(sidebarSurface))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

@@ -318,6 +318,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var spaces: [RemoteSidebarSpaceInfo]
         var projects: [RemoteSidebarProjectInfo]
         var theme: RemoteTheme
+        var forwards: [RemoteForwardInfo]
     }
 
     private struct ProjectOpenedMsg: Encodable {
@@ -362,8 +363,13 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private func sendList() {
         let hub = RemoteSessionHub.shared
         let catalog = hub.sidebarCatalog()
+        let forwards = RemoteForwarder.shared.forwards.map {
+            RemoteForwardInfo(id: $0.id, label: $0.label,
+                              target: Int($0.target), port: Int($0.listen))
+        }
         sendJSON(ListMsg(sessions: hub.list(), spaces: catalog.spaces,
-                         projects: catalog.projects, theme: RemoteTheme.current()))
+                         projects: catalog.projects, theme: RemoteTheme.current(),
+                         forwards: forwards))
     }
 
     private func sendJSON(_ message: some Encodable) {

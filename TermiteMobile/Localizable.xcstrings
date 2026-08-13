@@ -291,6 +291,16 @@
         }
       }
     },
+    "地址无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid address"
+          }
+        }
+      }
+    },
     "好": {
       "localizations": {
         "en": {
@@ -557,6 +567,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ungrouped"
+          }
+        }
+      }
+    },
+    "本机服务": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local services"
           }
         }
       }

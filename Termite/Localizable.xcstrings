@@ -1413,6 +1413,16 @@
         }
       }
     },
+    "删除这条转发": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this forward"
+          }
+        }
+      }
+    },
     "刷新": {
       "localizations": {
         "en": {
@@ -1622,6 +1632,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "On the same network the iOS app finds this Mac automatically — type these 6 digits to pair, no QR needed. Valid 5 minutes, single use, and voided after 5 wrong tries; the broadcast carries only the machine name and port, so the key must be exchanged through this code."
+          }
+        }
+      }
+    },
+    "名字(可选)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name (optional)"
           }
         }
       }
@@ -2707,12 +2727,32 @@
         }
       }
     },
+    "把只监听 127.0.0.1 的本机服务给手机用:模拟器与 Mac 共用网络栈,跑在模拟器里的调试 console(SandboxServer 之类)在这里就是一个本机端口,转发出去手机上就能看画面、点按、滑动;dev server 同理。每条转发独占一个对外端口,首次带密钥打开后种 cookie,页面里的绝对路径和 WebSocket 都照常。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expose a service bound to 127.0.0.1 to your phone. The simulator shares the Mac's network stack, so a debug console running inside it (SandboxServer and friends) is just a local port here — forward it and you can watch and drive the UI from your phone; dev servers work the same way. Each forward gets its own exposed port, and the first request with the key sets a cookie, so absolute paths and WebSockets inside the page keep working."
+          }
+        }
+      }
+    },
     "把当前「标签 + 分屏」整套布局存成模板,一键恢复。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Save the whole tabs-and-splits layout as a template you can restore in one click."
+          }
+        }
+      }
+    },
+    "拷贝转发链接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy forward link"
           }
         }
       }
@@ -3279,6 +3319,26 @@
         }
       }
     },
+    "本机 %@ 端口上没有服务在跑": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing is listening on local port %@"
+          }
+        }
+      }
+    },
+    "本机端口转发": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local port forwarding"
+          }
+        }
+      }
+    },
     "松烟墨 Sumi PRO": {
       "localizations": {
         "en": {
@@ -3440,6 +3500,16 @@
         }
       }
     },
+    "没有可用的对外端口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No free port available"
+          }
+        }
+      }
+    },
     "没有可用的网络接口(Wi-Fi / 网线 / Tailscale 都没连)": {
       "localizations": {
         "en": {
@@ -3476,6 +3546,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No commits touch this file"
+          }
+        }
+      }
+    },
+    "添加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
           }
         }
       }
@@ -3911,12 +3991,22 @@
         }
       }
     },
-    "端口 %lld 监听失败": {
+    "端口": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Failed to listen on port %lld"
+            "value": "Port"
+          }
+        }
+      }
+    },
+    "端口 %@ 监听失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not listen on port %@"
           }
         }
       }
@@ -4577,6 +4667,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No commands recorded yet"
+          }
+        }
+      }
+    },
+    "还没有转发。填本机服务的端口,比如模拟器里调试 console 的端口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No forwards yet — enter the port of a local service, such as a debug console running in the simulator"
           }
         }
       }

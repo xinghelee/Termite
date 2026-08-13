@@ -176,6 +176,7 @@ final class RemoteAccessServer {
         let expectedToken = token
         let broker = pairing
         RemoteSessionHub.shared.start()
+        RemoteForwarder.shared.startAll()
 
         listener.stateUpdateHandler = { [weak self] state in
             DispatchQueue.main.async {
@@ -211,6 +212,7 @@ final class RemoteAccessServer {
         listener = nil
         isRunning = false
         pairing.cancel()
+        RemoteForwarder.shared.stopAll()
         RemoteSessionHub.shared.stop()
         connectionBag.cancelAll()
     }

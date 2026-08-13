@@ -40,7 +40,14 @@ struct RemoteSidebarProjectSummary: Decodable, Identifiable, Hashable {
     let spaceID: UUID?
 }
 
-/// Mac 主题色板(list / attached 下发,远端同款观感)
+/// Mac 上转发出来的本机服务(模拟器调试 console、dev server 之类)
+struct RemoteForwardSummary: Decodable, Identifiable, Hashable {
+    let id: UUID
+    let label: String
+    let target: Int
+    let port: Int
+}
+
 /// 会话控制权(Mac 随 attached / viewport 下发;旧服务端不发,按「自由」处理)
 struct RemoteControlPayload: Decodable, Equatable {
     var mine: Bool
@@ -53,6 +60,7 @@ struct RemoteControlPayload: Decodable, Equatable {
                                            claimable: nil)
 }
 
+/// Mac 主题色板(list / attached 下发,远端同款观感)
 struct RemoteThemePayload: Decodable, Equatable {
     let background: String
     let foreground: String
@@ -81,6 +89,8 @@ final class RemoteClient {
     private(set) var sessions: [RemoteSessionSummary] = []
     private(set) var sidebarSpaces: [RemoteSidebarSpaceSummary] = []
     private(set) var sidebarProjects: [RemoteSidebarProjectSummary] = []
+    /// Mac 转发出来的本机服务(手机端「本机服务」入口)
+    private(set) var forwards: [RemoteForwardSummary] = []
     /// 普通 shell 时为 Mac 网格；TUI 时为进入瞬间冻结的 canonical grid。
     private(set) var gridCols = 80
     private(set) var gridRows = 24
@@ -139,6 +149,7 @@ final class RemoteClient {
         sessions = []
         sidebarSpaces = []
         sidebarProjects = []
+        forwards = []
         theme = nil
     }
 
@@ -279,6 +290,7 @@ final class RemoteClient {
         let message: String?
         let theme: RemoteThemePayload?
         let control: RemoteControlPayload?
+        let forwards: [RemoteForwardSummary]?
     }
 
     private func handleControl(_ msg: ServerMsg) {
@@ -290,6 +302,7 @@ final class RemoteClient {
             sessions = msg.sessions ?? []
             if let spaces = msg.spaces { sidebarSpaces = spaces }
             if let projects = msg.projects { sidebarProjects = projects }
+            if let forwards = msg.forwards { self.forwards = forwards }
             if let theme = msg.theme { self.theme = theme }
         case "projectOpened":
             guard let session = msg.session else { return }
