@@ -22,6 +22,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private var attachedSessionID: UUID?
     /// 这条连接是否正在推模拟器画面(镜像与终端互不影响,可以同时开)
     private var mirroring = false
+    /// 这条连接是否正在订阅某个 agent 会话的转录
+    private var chatting = false
     private var statusTimer: DispatchSourceTimer?
 
     private var pingTimer: DispatchSourceTimer?
@@ -56,6 +58,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             MainActor.assumeIsolated {
                 self.stopStatusTimer()
                 self.stopMirror()
+                AgentTranscriptHub.shared.detach(connID: self.connID)
                 RemoteSessionHub.shared.detach(connID: self.connID)
             }
         }
@@ -172,6 +175,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         let phase: Int?
         let touchID: UInt32?
         let bottomEdge: Bool?
+        /// 对话模式:发给 agent 的文字、历史条数上限
+        let text: String?
+        let limit: Int?
     }
 
     private func handleText(_ data: Data) {
@@ -205,6 +211,29 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                                      fps: msg.fps)
                 case "simDetach":
                     self.stopMirror()
+                case "chatList":
+                    self.sendJSON(ChatListMsg(sessions: AgentTranscriptHub.shared.chatSessions()))
+                case "chatAttach":
+                    guard let id = msg.id else { break }
+                    let ok = AgentTranscriptHub.shared.attach(
+                        connID: self.connID, sessionID: id, maxHistory: msg.limit ?? 200
+                    ) { [weak self] messages, isHistory in
+                        self?.sendJSON(ChatMessagesMsg(messages: messages, history: isHistory))
+                    }
+                    self.chatting = ok
+                    if !ok {
+                        self.sendJSON(ChatMessagesMsg(messages: [], history: true, unavailable: true))
+                    }
+                case "chatDetach":
+                    AgentTranscriptHub.shared.detach(connID: self.connID)
+                    self.chatting = false
+                case "chatSend":
+                    // 发消息 = 把文字注入回那个 pane 的 PTY(agent 自己会读)。
+                    // 这是高层动作,不走接管的按键闸门 —— 对话模式的心智就是「跟 agent 说话」
+                    guard let id = msg.id, let text = msg.text, !text.isEmpty,
+                          let session = SessionManagerRegistry.shared.allSessions
+                              .first(where: { $0.id == id }) else { break }
+                    session.sendText(text + "\r")
                 case "simTouch":
                     // 远端手指:归一化坐标 + 阶段。只有正在镜像的连接能发,
                     // 免得别的连接对着一台没在看的模拟器乱点
@@ -432,6 +461,20 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var devices: [SimulatorMirror.Device]
         /// Xcode 私有接口不可用时为 false,客户端整块隐藏
         var available: Bool
+    }
+
+    private struct ChatListMsg: Encodable {
+        var type = "chatList"
+        var sessions: [ChatSessionInfo]
+    }
+
+    private struct ChatMessagesMsg: Encodable {
+        var type = "chatMessages"
+        var messages: [ChatMessage]
+        /// true = 首次回放的历史,客户端应整体替换而不是追加
+        var history: Bool
+        /// 这个会话没有可读的转录(不是 agent 会话,或格式不认识)
+        var unavailable = false
     }
 
     private struct SimStateMsg: Encodable {

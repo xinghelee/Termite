@@ -211,6 +211,16 @@
         }
       }
     },
+    "切到终端视图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to the terminal"
+          }
+        }
+      }
+    },
     "刷新": {
       "localizations": {
         "en": {
@@ -291,6 +301,16 @@
         }
       }
     },
+    "在 Mac 上用 Claude Code 开一个会话就会出现在这里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a Claude Code session on your Mac and it shows up here"
+          }
+        }
+      }
+    },
     "在 Mac 的 设置 → 远程 里点「生成配对码」,把 6 位数字输进来": {
       "localizations": {
         "en": {
@@ -361,6 +381,16 @@
         }
       }
     },
+    "对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat"
+          }
+        }
+      }
+    },
     "局域网 / Tailscale 直连": {
       "localizations": {
         "en": {
@@ -417,6 +447,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connected"
+          }
+        }
+      }
+    },
+    "思考": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking"
           }
         }
       }
@@ -611,6 +651,16 @@
         }
       }
     },
+    "没有 AI 会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No AI sessions"
+          }
+        }
+      }
+    },
     "没有打开的会话": {
       "localizations": {
         "en": {
@@ -751,12 +801,42 @@
         }
       }
     },
+    "读不到这个会话的转录,去终端看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't read this session's transcript — use the terminal view"
+          }
+        }
+      }
+    },
+    "跟 Claude 说…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message Claude…"
+          }
+        }
+      }
+    },
     "输入配对码": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Enter pairing code"
+          }
+        }
+      }
+    },
+    "返回对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to chat"
           }
         }
       }

@@ -3,7 +3,25 @@ import SwiftUI
 /// 主界面:iPhone 栈式 / iPad 双栏。
 /// 列表即仪表盘:「等待输入」置顶高亮(手机端的核心时刻),
 /// 其余按项目分组(对齐 Mac 侧边栏),工作空间做芯片筛选。
+/// 底部 TabBar:终端 / 对话。两个 tab 各有自己的会话列表 ——
+/// 对话 tab 只列有 agent 转录的会话,普通 shell 归终端 tab。
+/// TabBar 只活在列表层:push 进会话页时自动隐藏,把底部让给按键条/输入框
 struct MainView: View {
+    let client: RemoteClient
+    @State private var chatClient = ChatClient()
+
+    var body: some View {
+        // 用经典 .tabItem 而不是 iOS 18 的 Tab —— target 是 iOS 17
+        TabView {
+            TerminalTab(client: client)
+                .tabItem { Label("终端", systemImage: "terminal") }
+            ChatSessionListView(client: chatClient)
+                .tabItem { Label("对话", systemImage: "bubble.left.and.bubble.right") }
+        }
+    }
+}
+
+private struct TerminalTab: View {
     @Environment(ConnectionStore.self) private var store
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.scenePhase) private var scenePhase
