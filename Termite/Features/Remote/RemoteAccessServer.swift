@@ -4,6 +4,13 @@ import Foundation
 import Network
 import Observation
 
+private extension Int {
+    /// 设置里存的端口可能是 0(没设过)或越界值,回落到默认端口
+    var clampedPort: Int {
+        (1024...65535).contains(self) ? self : Int(RemoteAccessServer.defaultPort)
+    }
+}
+
 /// 远程访问服务:app 内置 HTTP + WebSocket 服务器,手机/iPad 浏览器访问。
 /// 定位是 LAN / Tailscale 内网使用:token 鉴权,不做公网穿透;
 /// 会话数据面走 RemoteSessionHub(app 是守护进程唯一客户端,远端全部经 app 中转)。
@@ -23,6 +30,69 @@ final class RemoteAccessServer {
     private var listener: NWListener?
     /// 打开中的连接(netQueue 专属,强引用防释放)
     private let connectionBag = ConnectionBag()
+
+    /// Bonjour 广播:手机在同一局域网里自动发现这台 Mac(不含 token,广播是明文的)
+    nonisolated static let serviceType = "_termite._tcp"
+    nonisolated static var serviceName: String { Host.current().localizedName ?? "Termite" }
+
+    /// 一次性配对码的仲裁者。跨线程(HTTP 在 netQueue,设置页在主线程),用锁保。
+    let pairing = PairingBroker()
+
+    /// 配对码:6 位数字、5 分钟有效、验一次即作废、错 5 次直接废掉。
+    /// 广播只带主机名和端口,token 必须靠这道码换 —— 同网段谁都收得到广播
+    final class PairingBroker: @unchecked Sendable {
+        private let lock = NSLock()
+        private var code: String?
+        private var token: String?
+        private var expiresAt = Date.distantPast
+        private var attempts = 0
+
+        static let ttl: TimeInterval = 300
+        private static let maxAttempts = 5
+
+        /// 当前有效的码(设置页展示用)
+        var current: (code: String, expiresAt: Date)? {
+            lock.lock(); defer { lock.unlock() }
+            guard let code, expiresAt > Date() else { return nil }
+            return (code, expiresAt)
+        }
+
+        func issue(token: String) -> String {
+            var bytes = [UInt8](repeating: 0, count: 6)
+            _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+            let fresh = String(bytes.map { Character(String($0 % 10)) })
+            lock.lock()
+            code = fresh
+            self.token = token
+            expiresAt = Date().addingTimeInterval(Self.ttl)
+            attempts = 0
+            lock.unlock()
+            return fresh
+        }
+
+        func cancel() {
+            lock.lock()
+            code = nil; token = nil; attempts = 0; expiresAt = .distantPast
+            lock.unlock()
+        }
+
+        /// 验码换 token。成功即作废(一码一次),错够次数也作废
+        func redeem(_ input: String) -> String? {
+            lock.lock(); defer { lock.unlock() }
+            guard let code, let token, expiresAt > Date() else { return nil }
+            guard RemoteAccessServer.tokensMatch(input, code) else {
+                attempts += 1
+                if attempts >= Self.maxAttempts {
+                    self.code = nil; self.token = nil; expiresAt = .distantPast
+                }
+                return nil
+            }
+            self.code = nil
+            self.token = nil
+            expiresAt = .distantPast
+            return token
+        }
+    }
 
     /// netQueue 上维护的连接注册表
     final class ConnectionBag: @unchecked Sendable {
@@ -65,6 +135,14 @@ final class RemoteAccessServer {
 
     func regenerateToken() {
         UserDefaults.standard.set(Self.makeToken(), forKey: SettingsKeys.remoteAccessToken)
+        // 在途的配对码换的是旧 token,一起作废
+        pairing.cancel()
+    }
+
+    /// 设置页点「生成配对码」:手机发现这台 Mac 后输这 6 位就能拿到 token
+    @discardableResult
+    func issuePairingCode() -> String {
+        pairing.issue(token: token)
     }
 
     private static func makeToken() -> String {
@@ -93,7 +171,10 @@ final class RemoteAccessServer {
             return
         }
         self.listener = listener
+        // 广播只暴露「这台 Mac 上有 Termite」和端口,不含 token
+        listener.service = NWListener.Service(name: Self.serviceName, type: Self.serviceType)
         let expectedToken = token
+        let broker = pairing
         RemoteSessionHub.shared.start()
 
         listener.stateUpdateHandler = { [weak self] state in
@@ -115,7 +196,8 @@ final class RemoteAccessServer {
         listener.newConnectionHandler = { [weak self] connection in
             guard let self else { return }
             let bag = self.connectionBag
-            let http = RemoteHTTPConnection(connection: connection, token: expectedToken) { conn in
+            let http = RemoteHTTPConnection(connection: connection, token: expectedToken,
+                                            pairing: broker) { conn in
                 bag.remove(conn)
             }
             bag.add(http)
@@ -128,6 +210,7 @@ final class RemoteAccessServer {
         listener?.cancel()
         listener = nil
         isRunning = false
+        pairing.cancel()
         RemoteSessionHub.shared.stop()
         connectionBag.cancelAll()
     }
@@ -213,9 +296,14 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         "/vendor/xterm.min.css": ("vendor/xterm.min.css", "text/css; charset=utf-8"),
     ]
 
-    init(connection: NWConnection, token: String, onClosed: @escaping (RemoteHTTPConnection) -> Void) {
+    private let pairing: RemoteAccessServer.PairingBroker
+
+    init(connection: NWConnection, token: String,
+         pairing: RemoteAccessServer.PairingBroker,
+         onClosed: @escaping (RemoteHTTPConnection) -> Void) {
         self.connection = connection
         self.token = token
+        self.pairing = pairing
         self.onClosed = onClosed
     }
 
@@ -280,7 +368,9 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         let path = target.components(separatedBy: "?")[0]
         let query = queryItems(of: target)
 
-        if path == "/ws" {
+        if path == "/pair" {
+            servePairing(code: query["code"])
+        } else if path == "/ws" {
             upgradeToWebSocket(headers: headers, query: query, leftover: leftover)
         } else if let file = Self.staticFiles[path] {
             serveStatic(file)
@@ -298,6 +388,37 @@ final class RemoteHTTPConnection: @unchecked Sendable {
             items[kv[0]] = kv[1].removingPercentEncoding ?? kv[1]
         }
         return items
+    }
+
+    // MARK: - 配对(唯一不带 token 的端点)
+
+    /// GET /pair?code=123456 → {"token":..,"name":..,"port":..}
+    /// 码是一次性且限次的,所以这里不需要额外限流;错码一律 403、不区分「码不对」和「没有码」
+    private func servePairing(code: String?) {
+        guard let code, let granted = pairing.redeem(code) else {
+            sendSimple(status: "403 Forbidden")
+            return
+        }
+        let payload: [String: Any] = [
+            "token": granted,
+            "name": RemoteAccessServer.serviceName,
+            "port": Int(UserDefaults.standard.integer(forKey: SettingsKeys.remoteAccessPort)
+                        .clampedPort),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else {
+            sendSimple(status: "500 Internal Server Error")
+            return
+        }
+        var response = "HTTP/1.1 200 OK\r\n"
+        response += "Content-Type: application/json; charset=utf-8\r\n"
+        response += "Content-Length: \(data.count)\r\n"
+        response += "Cache-Control: no-store\r\n"
+        response += "Connection: close\r\n\r\n"
+        var out = Data(response.utf8)
+        out.append(data)
+        connection.send(content: out, completion: .contentProcessed { [weak self] _ in
+            self?.cancel()
+        })
     }
 
     // MARK: - 静态文件

@@ -113,6 +113,7 @@ targets:
         NSCameraUsageDescription: 扫描 Mac 上 Termite 设置页的配对二维码
         NSLocalNetworkUsageDescription: 连接局域网内 Mac 上的 Termite
         NSBonjourServices:
+          - _termite._tcp
           - _sandboxserver._tcp
         # 数据面是 LAN/Tailscale 内网 ws://(IP 字面量直连,ATS 本就豁免 IP 地址),
         # 不开全局明文放行(NSAllowsArbitraryLoads 是审核红旗);仅声明本地网络场景

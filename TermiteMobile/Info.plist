@@ -38,6 +38,7 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
+		<string>_termite._tcp</string>
 		<string>_sandboxserver._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>

@@ -11,6 +11,8 @@ struct RemoteSettingsPage: View {
     @State private var addresses: [RemoteAccessServer.AccessAddress] = []
     @State private var selectedIP: String?
     @State private var copiedIP: String?
+    @State private var pairingCode: String?
+    @State private var remaining = 0
 
     var body: some View {
         SettingsPage {
@@ -36,10 +38,16 @@ struct RemoteSettingsPage: View {
                     pairingContent
                 }
                 SettingsFootnote("iOS 端 Termite 扫码即连;手机浏览器扫同一个码走网页版。二维码即访问链接,重新生成密钥后旧码作废。")
+
+                SettingsPanel("配对码") {
+                    pairingCodeContent
+                }
+                SettingsFootnote("同一局域网里,iOS 端会自动发现这台 Mac,输入这 6 位即可配对(不用扫码)。5 分钟有效、用一次作废、错 5 次直接废掉;广播只含机器名和端口,密钥必须靠这道码换。")
             }
         }
         .onAppear {
             refreshAddresses()
+            syncPairingCode()
         }
         .onChange(of: enabled) {
             if enabled {
@@ -83,6 +91,46 @@ struct RemoteSettingsPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    // MARK: - 配对码(局域网自动发现用)
+
+    @ViewBuilder private var pairingCodeContent: some View {
+        HStack(spacing: 14) {
+            if let code = pairingCode {
+                Text(code.spacedDigits)
+                    .font(.system(size: 26, weight: .semibold, design: .monospaced))
+                    .textSelection(.enabled)
+                Text(remaining > 0 ? "\(remaining) 秒后失效" : "已失效")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("作废") {
+                    server.pairing.cancel()
+                    syncPairingCode()
+                }
+                .font(.system(size: 12))
+            } else {
+                Text("需要时再生成,不用一直挂着")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("生成配对码") {
+                    server.issuePairingCode()
+                    syncPairingCode()
+                }
+                .font(.system(size: 12))
+            }
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            syncPairingCode()
+        }
+    }
+
+    private func syncPairingCode() {
+        let current = server.pairing.current
+        pairingCode = current?.code
+        remaining = current.map { max(0, Int($0.expiresAt.timeIntervalSinceNow)) } ?? 0
     }
 
     @ViewBuilder private var qrCode: some View {
@@ -166,5 +214,12 @@ struct RemoteSettingsPage: View {
         let image = NSImage(size: rep.size)
         image.addRepresentation(rep)
         return image
+    }
+}
+
+private extension String {
+    /// 6 位码分成两组三位,念给自己听或输进手机都不容易串行
+    var spacedDigits: String {
+        count == 6 ? "\(prefix(3)) \(suffix(3))" : self
     }
 }

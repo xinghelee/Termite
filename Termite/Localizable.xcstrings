@@ -100,6 +100,16 @@
         }
       }
     },
+    "%lld 秒后失效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expires in %lld s"
+          }
+        }
+      }
+    },
     "%lld/%lld": {
       "localizations": {
         "zh-Hans": {
@@ -967,6 +977,16 @@
         }
       }
     },
+    "作废": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoke"
+          }
+        }
+      }
+    },
     "作用域": {
       "localizations": {
         "en": {
@@ -1592,6 +1612,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Applies to new tabs. Started as a login shell (argv[0] prefixed with -)."
+          }
+        }
+      }
+    },
+    "同一局域网里,iOS 端会自动发现这台 Mac,输入这 6 位即可配对(不用扫码)。5 分钟有效、用一次作废、错 5 次直接废掉;广播只含机器名和端口,密钥必须靠这道码换。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the same network the iOS app finds this Mac automatically — type these 6 digits to pair, no QR needed. Valid 5 minutes, single use, and voided after 5 wrong tries; the broadcast carries only the machine name and port, so the key must be exchanged through this code."
           }
         }
       }
@@ -2382,6 +2412,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copied"
+          }
+        }
+      }
+    },
+    "已失效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
           }
         }
       }
@@ -3606,6 +3646,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Generate Today’s Report…"
+          }
+        }
+      }
+    },
+    "生成配对码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate pairing code"
           }
         }
       }
@@ -4843,6 +4893,16 @@
         }
       }
     },
+    "配对码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing code"
+          }
+        }
+      }
+    },
     "配色对所有已打开的终端即时生效,窗口 chrome 一并跟随。": {
       "localizations": {
         "en": {
@@ -4959,6 +5019,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Integration powers ⌘↑/⌘↓ command jumps, ⌘⇧C copy output, exit code and duration in the status bar, and directory inheritance. Full support on zsh; bash is degraded (no timing); fish 3.6+ works natively."
+          }
+        }
+      }
+    },
+    "需要时再生成,不用一直挂着": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate one when you need it"
           }
         }
       }

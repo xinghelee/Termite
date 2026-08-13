@@ -13,14 +13,21 @@ struct PairingView: View {
     @State private var manualText = ""
     @State private var showError = false
     @State private var cameraDenied = false
+    @State private var discovery = LanDiscovery()
+    @State private var pendingMac: LanDiscovery.Found?
+    @State private var codeInput = ""
+    @State private var redeeming = false
+    @State private var codeError: String?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                steps
-                scanner
-                form
-                Spacer(minLength: 0)
+            ScrollView {
+                VStack(spacing: 0) {
+                    nearbyMacs
+                    steps
+                    scanner
+                    form
+                }
             }
             .navigationTitle(isSheet ? String(localized: "添加 Mac") : String(localized: "连接 Mac"))
             .navigationBarTitleDisplayMode(.inline)
@@ -37,6 +44,90 @@ struct PairingView: View {
             Button("好", role: .cancel) {}
         } message: {
             Text("需要形如 http://192.168.x.x:9280/?t=xxxx 的链接,在 Mac 端 Termite 设置 → 远程 里获取")
+        }
+        .onAppear { discovery.start() }
+        .onDisappear { discovery.stop() }
+        .alert("输入配对码", isPresented: Binding(
+            get: { pendingMac != nil },
+            set: { if !$0 { pendingMac = nil } }
+        )) {
+            TextField("6 位数字", text: $codeInput)
+                .keyboardType(.numberPad)
+            Button("连接") { redeemCode() }
+                .disabled(codeInput.count != 6 || redeeming)
+            Button("取消", role: .cancel) { pendingMac = nil }
+        } message: {
+            Text("在 \(pendingMac?.name ?? "Mac") 的 设置 → 远程 → 配对码 里生成")
+        }
+        .alert("配对失败", isPresented: Binding(
+            get: { codeError != nil },
+            set: { if !$0 { codeError = nil } }
+        )) {
+            Button("好", role: .cancel) { codeError = nil }
+        } message: {
+            Text(codeError ?? "")
+        }
+    }
+
+    private func redeemCode() {
+        guard let mac = pendingMac else { return }
+        let code = codeInput
+        pendingMac = nil
+        redeeming = true
+        Task {
+            defer { redeeming = false }
+            do {
+                let granted = try await RemotePairing.redeem(code: code, at: mac.endpoint)
+                let saved = store.adopt(Endpoint(host: granted.host, port: granted.port,
+                                                 token: granted.token))
+                // Mac 报的机器名比 IP 好认,配对成功顺手改过来
+                store.rename(saved, to: granted.name)
+                if isSheet { dismiss() }
+            } catch RemotePairing.Failure.rejected {
+                codeError = String(localized: "配对码不对或已失效,在 Mac 上重新生成一个")
+            } catch {
+                codeError = String(localized: "连不上这台 Mac,确认两边在同一个局域网")
+            }
+        }
+    }
+
+    // MARK: - 附近的 Mac(Bonjour 发现 + 6 位配对码)
+
+    @ViewBuilder private var nearbyMacs: some View {
+        if !discovery.macs.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("附近的 Mac")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                ForEach(discovery.macs) { mac in
+                    Button {
+                        pendingMac = mac
+                        codeInput = ""
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "desktopcomputer")
+                                .foregroundStyle(.tint)
+                            Text(mac.name)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.secondarySystemGroupedBackground)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text("在 Mac 的 设置 → 远程 里点「生成配对码」,把 6 位数字输进来")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
         }
     }
 

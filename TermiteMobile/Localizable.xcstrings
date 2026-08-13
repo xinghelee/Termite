@@ -21,6 +21,16 @@
         }
       }
     },
+    "6 位数字": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6 digits"
+          }
+        }
+      }
+    },
     "End": {
       "localizations": {
         "en": {
@@ -251,12 +261,32 @@
         }
       }
     },
+    "在 %@ 的 设置 → 远程 → 配对码 里生成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate it on %@ under Settings → Remote → Pairing code"
+          }
+        }
+      }
+    },
     "在 Mac 上开个终端标签就会出现在这里": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Open a terminal tab on your Mac and it will show up here"
+          }
+        }
+      }
+    },
+    "在 Mac 的 设置 → 远程 里点「生成配对码」,把 6 位数字输进来": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the Mac, open Settings → Remote and tap Generate pairing code, then type the 6 digits here"
           }
         }
       }
@@ -491,6 +521,16 @@
         }
       }
     },
+    "搜索会话、项目、路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search sessions, projects, paths"
+          }
+        }
+      }
+    },
     "改名": {
       "localizations": {
         "en": {
@@ -551,12 +591,12 @@
         }
       }
     },
-    "点一下即可接管": {
+    "点一下接管控制": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap anywhere to take over"
+            "value": "Tap to take control"
           }
         }
       }
@@ -661,6 +701,26 @@
         }
       }
     },
+    "输入配对码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter pairing code"
+          }
+        }
+      }
+    },
+    "连不上这台 Mac,确认两边在同一个局域网": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach this Mac — check that both are on the same network"
+          }
+        }
+      }
+    },
     "连接": {
       "localizations": {
         "en": {
@@ -731,12 +791,32 @@
         }
       }
     },
+    "配对失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing failed"
+          }
+        }
+      }
+    },
     "配对已失效": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Pairing expired"
+          }
+        }
+      }
+    },
+    "配对码不对或已失效,在 Mac 上重新生成一个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wrong or expired code — generate a fresh one on the Mac"
           }
         }
       }
@@ -797,6 +877,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mirror Mac size (scaled to fit)"
+          }
+        }
+      }
+    },
+    "附近的 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Macs nearby"
           }
         }
       }
