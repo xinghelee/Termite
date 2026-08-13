@@ -37,6 +37,7 @@ private struct TerminalTab: View {
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.termiteTheme) private var theme
     let client: RemoteClient
 
     @AppStorage(MobileSettingsKeys.bellHaptics) private var bellHaptics = true
@@ -433,70 +434,13 @@ private struct TerminalTab: View {
         .accessibilityHint(session.alive ? Text("打开终端") : Text("会话已结束"))
     }
 
-    @ViewBuilder
+    /// 筛选条本体在 SpaceFilterBar(和对话 tab 共用同一个组件)
     private var spaceSelector: some View {
-        if spaceOptions.count <= 3 {
-            HStack(spacing: 2) {
-                segmentButton(nil, title: String(localized: "全部"))
-                ForEach(spaceOptions) { space in
-                    segmentButton(space.id, title: space.title)
-                }
-            }
-            .padding(2)
-            .background(sidebarSurface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    filterButton(nil, title: String(localized: "全部"))
-                    ForEach(spaceOptions) { space in
-                        filterButton(space.id, title: space.title)
-                    }
-                }
-            }
-        }
-    }
-
-    private func segmentButton(_ value: String?, title: String) -> some View {
-        let selected = spaceFilter == value
-        return Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-                spaceFilter = value
-            }
-        } label: {
-            Text(title)
-                .font(.caption.weight(selected ? .semibold : .regular))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity)
-                .frame(height: 28)
-                .background(
-                    selected ? sidebarAccent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-                )
-                .foregroundStyle(selected ? sidebarAccentForeground : Color.primary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    private func filterButton(_ value: String?, title: String) -> some View {
-        let selected = spaceFilter == value
-        return Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-                spaceFilter = value
-            }
-        } label: {
-            Text(title)
-                .font(.caption.weight(selected ? .semibold : .regular))
-                .padding(.horizontal, 11)
-                .frame(height: 32)
-                .background(
-                    selected ? sidebarAccent : sidebarSurface,
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                )
-                .foregroundStyle(selected ? sidebarAccentForeground : .primary)
-        }
-        .buttonStyle(.plain)
+        SpaceFilterBar(
+            options: spaceOptions.map { .init(id: $0.id, title: $0.title) },
+            selection: $spaceFilter,
+            theme: theme
+        )
     }
 
     private var machineTitle: some View {
@@ -743,17 +687,6 @@ private struct TerminalTab: View {
             return Color(red: 0.91, green: 0.64, blue: 0.24)
         }
         return Color(UIColor(hex: theme.accent))
-    }
-
-    private var sidebarAccentForeground: Color {
-        guard usesTerminalTheme, let hex = client.theme?.accent else { return .black }
-        let color = UIColor(hex: hex)
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        color.getRed(&red, green: &green, blue: &blue, alpha: nil)
-        let luminance = red * 0.299 + green * 0.587 + blue * 0.114
-        return luminance > 0.58 ? .black : .white
     }
 
     private var phaseTitle: String {

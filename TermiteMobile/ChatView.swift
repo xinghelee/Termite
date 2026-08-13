@@ -7,33 +7,35 @@ struct ChatSessionListView: View {
 
     @Environment(ConnectionStore.self) private var store
     @Environment(\.termiteTheme) private var theme
-    /// 工作空间筛选:和终端 tab 同一套语义 —— 未分组的会话在所有空间都可见
-    @State private var spaceFilter: UUID?
+    /// 工作空间筛选:和终端 tab 同一套语义 —— 未分组的会话在所有空间都可见。
+    /// 存 uuidString 而不是 UUID,是为了和终端共用 SpaceFilterBar
+    @State private var spaceFilter: String?
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                if !client.spaces.isEmpty {
+                    SpaceFilterBar(
+                        options: client.spaces.map { .init(id: $0.id.uuidString, title: $0.name) },
+                        selection: $spaceFilter,
+                        theme: theme
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+                }
                 if client.sessions.isEmpty {
                     ContentUnavailableView {
                         Label("没有 AI 会话", systemImage: "bubble.left.and.text.bubble.right")
                     } description: {
                         Text("在 Mac 上用 Claude Code 开一个会话就会出现在这里")
                     }
+                    .frame(maxHeight: .infinity)
                 } else {
                     List {
-                        if !client.spaces.isEmpty {
-                            Section {
-                                spaceSelector
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 12,
-                                                              bottom: 6, trailing: 12))
-                                    .listRowBackground(Color.clear)
-                            }
-                        }
-                        Section {
-                            ForEach(visibleSessions) { session in
-                                NavigationLink(value: session) { row(session) }
-                                    .termiteRow(theme)
-                            }
+                        ForEach(visibleSessions) { session in
+                            NavigationLink(value: session) { row(session) }
+                                .termiteRow(theme)
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -41,7 +43,8 @@ struct ChatSessionListView: View {
             }
             .termiteScreen(theme)
             .navigationTitle("对话")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .refreshable { client.refresh() }
             .navigationDestination(for: ChatClient.SessionInfo.self) { session in
                 ChatView(client: client, session: session)
@@ -59,33 +62,9 @@ struct ChatSessionListView: View {
     /// 未分组会话在所有空间可见(对齐 Mac 侧边栏与终端 tab)
     private var visibleSessions: [ChatClient.SessionInfo] {
         guard let spaceFilter else { return client.sessions }
-        return client.sessions.filter { $0.spaceID == spaceFilter || $0.spaceID == nil }
-    }
-
-    private var spaceSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                chip(title: String(localized: "全部"), value: nil)
-                ForEach(client.spaces) { space in
-                    chip(title: space.name, value: space.id)
-                }
-            }
+        return client.sessions.filter {
+            $0.spaceID?.uuidString == spaceFilter || $0.spaceID == nil
         }
-    }
-
-    private func chip(title: String, value: UUID?) -> some View {
-        let selected = spaceFilter == value
-        return Button {
-            spaceFilter = value
-        } label: {
-            Text(title)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? theme.accent.opacity(0.22) : theme.surface))
-                .foregroundStyle(selected ? theme.accent : theme.secondaryText)
-        }
-        .buttonStyle(.plain)
     }
 
     private func row(_ session: ChatClient.SessionInfo) -> some View {
