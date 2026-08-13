@@ -17,6 +17,8 @@ final class SimulatorMirror {
         var runtime: String
         var width: Int
         var height: Int
+        /// "Booted" / "Shutdown" —— 手机端据此决定是「启动」还是「查看」
+        var state: String
     }
 
     /// 私有框架加载失败(Xcode 缺失或版本对不上)时为 false,客户端整块隐藏
@@ -35,6 +37,29 @@ final class SimulatorMirror {
 
     private init() {}
 
+    /// 全部设备(含未启动的):模拟器 tab 要能列出来并一键启动
+    nonisolated func allDevices(completion: @escaping ([Device]) -> Void) {
+        bridgeQueue.async {
+            let devices = SimulatorBridge.allDevices().compactMap { info -> Device? in
+                guard let udid = info["udid"] as? String else { return nil }
+                return Device(id: udid,
+                              name: info["name"] as? String ?? udid,
+                              runtime: info["runtime"] as? String ?? "",
+                              width: 0, height: 0,
+                              state: info["state"] as? String ?? "Unknown")
+            }
+            completion(devices)
+        }
+    }
+
+    nonisolated func boot(udid: String, completion: @escaping (Bool, String?) -> Void) {
+        SimulatorBridge.bootDevice(udid, completion: completion)
+    }
+
+    nonisolated func shutdown(udid: String, completion: @escaping (Bool, String?) -> Void) {
+        SimulatorBridge.shutdownDevice(udid, completion: completion)
+    }
+
     nonisolated func bootedDevices(completion: @escaping ([Device]) -> Void) {
         bridgeQueue.async {
             let devices = SimulatorBridge.bootedDevices().compactMap { info -> Device? in
@@ -43,7 +68,8 @@ final class SimulatorMirror {
                               name: info["name"] as? String ?? udid,
                               runtime: info["runtime"] as? String ?? "",
                               width: info["width"] as? Int ?? 0,
-                              height: info["height"] as? Int ?? 0)
+                              height: info["height"] as? Int ?? 0,
+                              state: info["state"] as? String ?? "Booted")
             }
             completion(devices)
         }

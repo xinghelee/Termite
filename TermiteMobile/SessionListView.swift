@@ -9,6 +9,8 @@ import SwiftUI
 struct MainView: View {
     let client: RemoteClient
     @State private var chatClient = ChatClient()
+    /// 模拟器 tab 和终端页里的浮窗共用一个客户端:同一时刻只该有一条镜像流
+    @State private var mirrorClient = MirrorClient()
 
     var body: some View {
         // 用经典 .tabItem 而不是 iOS 18 的 Tab —— target 是 iOS 17
@@ -17,6 +19,8 @@ struct MainView: View {
                 .tabItem { Label("终端", systemImage: "terminal") }
             ChatSessionListView(client: chatClient)
                 .tabItem { Label("对话", systemImage: "bubble.left.and.bubble.right") }
+            SimulatorTabView(client: mirrorClient)
+                .tabItem { Label("模拟器", systemImage: "iphone.gen3") }
         }
     }
 }

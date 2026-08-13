@@ -134,6 +134,27 @@ struct SimulatorFullScreen: View {
     let client: MirrorClient
     @Environment(\.dismiss) private var dismiss
 
+    var body: some View {
+        NavigationStack {
+            SimulatorFullScreenContent(client: client)
+                .navigationTitle(client.devices.first { $0.id == client.attachedID }?.name ?? "")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("完成") { dismiss() }
+                    }
+                }
+                .toolbarBackground(.black, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+}
+
+/// 画面 + 触控。浮窗展开和模拟器 tab 共用这一份,手势语义只有一处
+struct SimulatorFullScreenContent: View {
+    let client: MirrorClient
+
     /// 当前这根手指的编号;nil = 没有手指按着
     @State private var activeTouch: UInt32?
     @State private var bottomEdge = false
@@ -155,7 +176,6 @@ struct SimulatorFullScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
                 if let frame = client.frame {
@@ -208,16 +228,5 @@ struct SimulatorFullScreen: View {
                     .background(Capsule().fill(.black.opacity(0.4)))
                     .padding(12)
             }
-            .navigationTitle(client.devices.first { $0.id == client.attachedID }?.name ?? "")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("完成") { dismiss() }
-                }
-            }
-            .toolbarBackground(.black, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-        }
     }
 }

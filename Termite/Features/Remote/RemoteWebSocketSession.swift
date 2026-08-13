@@ -206,6 +206,26 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     SimulatorMirror.shared.bootedDevices { devices in
                         self.sendJSON(SimListMsg(devices: devices, available: available))
                     }
+                case "simDevices":
+                    let available = SimulatorMirror.shared.available
+                    SimulatorMirror.shared.allDevices { devices in
+                        self.sendJSON(SimListMsg(devices: devices, available: available))
+                    }
+                case "simBoot", "simShutdown":
+                    guard let udid = msg.udid else { break }
+                    let boot = msg.type == "simBoot"
+                    let action: (String, @escaping (Bool, String?) -> Void) -> Void =
+                        boot ? SimulatorMirror.shared.boot : SimulatorMirror.shared.shutdown
+                    action(udid) { ok, error in
+                        // 启停要花几秒,完成后回一份新列表让手机刷新状态
+                        SimulatorMirror.shared.allDevices { devices in
+                            self.sendJSON(SimListMsg(devices: devices,
+                                                     available: SimulatorMirror.shared.available))
+                            if !ok, let error {
+                                self.sendJSON(SimStateMsg(udid: nil, message: error))
+                            }
+                        }
+                    }
                 case "simAttach":
                     self.startMirror(udid: msg.udid, maxWidth: msg.cols, quality: msg.quality,
                                      fps: msg.fps)

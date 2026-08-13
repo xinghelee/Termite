@@ -61,6 +61,16 @@
         }
       }
     },
+    "Mac 上找不到 Xcode 的模拟器接口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode's simulator interface isn't available on the Mac"
+          }
+        }
+      }
+    },
     "Mac 端重新生成过密钥,请重新扫码配对": {
       "localizations": {
         "en": {
@@ -161,6 +171,26 @@
         }
       }
     },
+    "下拉刷新,或在 Mac 的 Xcode 里先建一个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pull to refresh, or create one in Xcode on your Mac"
+          }
+        }
+      }
+    },
+    "不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
     "交还": {
       "localizations": {
         "en": {
@@ -211,12 +241,32 @@
         }
       }
     },
+    "关闭模拟器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shut down"
+          }
+        }
+      }
+    },
     "关闭模拟器浮窗": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Close the simulator window"
+          }
+        }
+      }
+    },
+    "其它": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
           }
         }
       }
@@ -267,6 +317,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Name"
+          }
+        }
+      }
+    },
+    "启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boot"
           }
         }
       }
@@ -437,6 +497,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Swipe left to rename or remove. Removing also deletes the stored access key on this device."
+          }
+        }
+      }
+    },
+    "已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shut down"
           }
         }
       }
@@ -661,6 +731,26 @@
         }
       }
     },
+    "查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
+          }
+        }
+      }
+    },
+    "模拟器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulators"
+          }
+        }
+      }
+    },
     "正在等你确认 · 去终端": {
       "localizations": {
         "en": {
@@ -697,6 +787,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No open sessions"
+          }
+        }
+      }
+    },
+    "没有模拟器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No simulators"
           }
         }
       }
@@ -857,6 +957,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enter pairing code"
+          }
+        }
+      }
+    },
+    "运行中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
           }
         }
       }

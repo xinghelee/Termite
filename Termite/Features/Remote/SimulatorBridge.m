@@ -186,6 +186,58 @@
     return result;
 }
 
++ (NSArray<NSDictionary *> *)allDevices {
+    NSMutableArray *result = [NSMutableArray array];
+    id set = [self deviceSet];
+    for (id device in [set devices]) {
+        NSUUID *udid = [device UDID];
+        if (!udid) continue;
+        id runtime = [device respondsToSelector:@selector(runtime)] ? [device runtime] : nil;
+        NSString *runtimeName = (runtime && [runtime respondsToSelector:@selector(name)]
+                                 ? [runtime name] : nil) ?: @"";
+        [result addObject:@{
+            @"udid": udid.UUIDString,
+            @"name": [device name] ?: udid.UUIDString,
+            @"runtime": runtimeName,
+            @"state": [device stateString] ?: @"Unknown",
+        }];
+    }
+    return result;
+}
+
+/// 启停走 simctl:私有 API 的启动路径要处理一堆状态机,而这类低频操作
+/// 用官方 CLI 又稳又省事,崩了也只是子进程
++ (void)runSimctl:(NSArray<NSString *> *)args completion:(void (^)(BOOL, NSString *))completion {
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSTask *task = [NSTask new];
+        task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/xcrun"];
+        task.arguments = [@[@"simctl"] arrayByAddingObjectsFromArray:args];
+        NSPipe *pipe = [NSPipe pipe];
+        task.standardError = pipe;
+        task.standardOutput = pipe;
+        NSError *error = nil;
+        if (![task launchAndReturnError:&error]) {
+            completion(NO, error.localizedDescription ?: @"launch failed");
+            return;
+        }
+        [task waitUntilExit];
+        NSData *out = [pipe.fileHandleForReading readDataToEndOfFile];
+        NSString *text = [[NSString alloc] initWithData:out encoding:NSUTF8StringEncoding];
+        BOOL ok = task.terminationStatus == 0;
+        completion(ok, ok ? nil : (text.length ? text : @"simctl failed"));
+    });
+}
+
++ (void)bootDevice:(NSString *)udid completion:(void (^)(BOOL, NSString *))completion {
+    [self runSimctl:@[@"boot", udid] completion:completion];
+}
+
++ (void)shutdownDevice:(NSString *)udid completion:(void (^)(BOOL, NSString *))completion {
+    // 关掉时把缓存的屏也丢掉,否则下次启动会拿着失效的 XPC 代理
+    @synchronized (self.screenCache) { [self.screenCache removeObjectForKey:udid]; }
+    [self runSimctl:@[@"shutdown", udid] completion:completion];
+}
+
 + (CGSize)screenSize:(NSString *)udid {
     id device = [self bootedDeviceWithUDID:udid];
     id screen = device ? [self cachedScreenForDevice:device udid:udid] : nil;

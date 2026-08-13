@@ -23,6 +23,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)stopCapture:(id)token;
 
+/// 全部模拟器(含未启动的):@[@{@"udid",@"name",@"runtime",@"state"}],
+/// 手机端据此列出可启动的设备
++ (NSArray<NSDictionary *> *)allDevices;
+
+/// 启动 / 关闭模拟器。走 simctl 而不是私有 API —— 生命周期操作不值得冒崩的风险
++ (void)bootDevice:(NSString *)udid completion:(void (^)(BOOL ok, NSString *_Nullable error))completion;
++ (void)shutdownDevice:(NSString *)udid completion:(void (^)(BOOL ok, NSString *_Nullable error))completion;
+
 /// 屏幕像素尺寸,拿不到返回 CGSizeZero
 + (CGSize)screenSize:(NSString *)udid;
 

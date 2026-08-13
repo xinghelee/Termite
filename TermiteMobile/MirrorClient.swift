@@ -16,9 +16,12 @@ final class MirrorClient {
         let runtime: String
         let width: Int
         let height: Int
+        let state: String?
+
+        var isBooted: Bool { state == "Booted" }
 
         private enum CodingKeys: String, CodingKey {
-            case id, name, runtime, width, height
+            case id, name, runtime, width, height, state
         }
     }
 
@@ -68,6 +71,19 @@ final class MirrorClient {
 
     func requestList() {
         send(["type": "simList"])
+    }
+
+    /// 全部设备(含未启动的):模拟器 tab 用
+    func requestDevices() {
+        send(["type": "simDevices"])
+    }
+
+    func boot(_ udid: String) {
+        send(["type": "simBoot", "udid": udid])
+    }
+
+    func shutdown(_ udid: String) {
+        send(["type": "simShutdown", "udid": udid])
     }
 
     /// maxWidth 给的是画面宽度上限:浮窗小的时候没必要传大图,省流量也省解码
