@@ -46,6 +46,9 @@ struct ChatSessionInfo: Codable, Identifiable {
     /// 绑定的 pane 是否真在跑 agent(备用屏 TUI)。false 时禁止发消息 ——
     /// 同一目录下常有普通 shell,往它注入文字等于在 bash 里执行了一句你没打算执行的话
     var canSend: Bool
+    /// 工作空间归属:对话列表和终端列表用同一套筛选语义
+    var space: String?
+    var spaceID: UUID?
 }
 
 /// 各家 agent 的适配器接口。加一家就实现一个,上层与客户端都不用改
@@ -232,7 +235,25 @@ final class AgentTranscriptHub {
 
     /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
     /// 否则 3 个 pane 就是 3 条一模一样的对话,点进去内容还相同
+    /// 会话 → 工作空间。归属挂在标签上,得走一遍 窗口→标签→分屏(和侧边栏同一套语义)
+    private func spaceBinding() -> [UUID: (name: String?, id: UUID?)] {
+        var result: [UUID: (String?, UUID?)] = [:]
+        for manager in SessionManagerRegistry.shared.managers {
+            for tab in manager.tabs {
+                let spaceID = manager.spaceID(of: tab)
+                let name = spaceID.flatMap { id in
+                    SpaceStore.shared.spaces.first { $0.id == id }?.name
+                }
+                for sessionID in tab.root.leafIDs() {
+                    result[sessionID] = (name, spaceID)
+                }
+            }
+        }
+        return result
+    }
+
     func chatSessions() -> [ChatSessionInfo] {
+        let spaces = spaceBinding()
         var byTranscript: [URL: ChatSessionInfo] = [:]
         for session in SessionManagerRegistry.shared.allSessions {
             guard let cwd = session.workingDirectory else { continue }
@@ -256,7 +277,8 @@ final class AgentTranscriptHub {
                     id: session.id, title: session.displayTitle, cwd: cwd,
                     agent: adapter.agentName, lastActivity: modified.timeIntervalSince1970,
                     attention: attention,
-                    canSend: session.requiresSharedTUILayout && (looksLikeAgent || fresh))
+                    canSend: session.requiresSharedTUILayout && (looksLikeAgent || fresh),
+                    space: spaces[session.id]?.name, spaceID: spaces[session.id]?.id)
                 // 同一份转录挑「真在跑 agent」的那个 pane —— 同目录下常混着普通 shell。
                 // 其次才看谁在等你输入
                 if let existing = byTranscript[url] {

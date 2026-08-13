@@ -16,6 +16,13 @@ final class ChatClient {
         let attention: String?
         /// 绑定的 pane 是否真在跑 agent;false 时输入框禁用
         let canSend: Bool?
+        let space: String?
+        let spaceID: UUID?
+    }
+
+    struct SpaceInfo: Decodable, Identifiable, Hashable {
+        let id: UUID
+        let name: String
     }
 
     struct Message: Decodable, Identifiable, Equatable {
@@ -34,6 +41,7 @@ final class ChatClient {
     }
 
     private(set) var sessions: [SessionInfo] = []
+    private(set) var spaces: [SpaceInfo] = []
     private(set) var messages: [Message] = []
     private(set) var attachedID: UUID?
     private(set) var connected = false
@@ -142,6 +150,11 @@ final class ChatClient {
                let payload = try? JSONSerialization.data(withJSONObject: raw),
                let list = try? JSONDecoder().decode([SessionInfo].self, from: payload) {
                 sessions = list
+            }
+            if let raw = obj["spaces"],
+               let payload = try? JSONSerialization.data(withJSONObject: raw),
+               let list = try? JSONDecoder().decode([SpaceInfo].self, from: payload) {
+                spaces = list
             }
         case "chatError":
             lastError = obj["message"] as? String

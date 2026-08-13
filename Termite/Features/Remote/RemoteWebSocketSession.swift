@@ -232,7 +232,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                 case "simDetach":
                     self.stopMirror()
                 case "chatList":
-                    self.sendJSON(ChatListMsg(sessions: AgentTranscriptHub.shared.chatSessions()))
+                    self.sendJSON(ChatListMsg(
+                        sessions: AgentTranscriptHub.shared.chatSessions(),
+                        spaces: RemoteSessionHub.shared.sidebarCatalog().spaces))
                 case "chatAttach":
                     guard let id = msg.id else { break }
                     let ok = AgentTranscriptHub.shared.attach(
@@ -492,6 +494,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     private struct ChatListMsg: Encodable {
         var type = "chatList"
         var sessions: [ChatSessionInfo]
+        /// 工作空间目录:对话列表的筛选条和终端列表用同一套
+        var spaces: [RemoteSidebarSpaceInfo]
     }
 
     private struct ChatMessagesMsg: Encodable {

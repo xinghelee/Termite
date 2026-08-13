@@ -6,6 +6,8 @@ struct ChatSessionListView: View {
     let client: ChatClient
 
     @Environment(ConnectionStore.self) private var store
+    /// 工作空间筛选:和终端 tab 同一套语义 —— 未分组的会话在所有空间都可见
+    @State private var spaceFilter: UUID?
 
     var body: some View {
         NavigationStack {
@@ -17,8 +19,20 @@ struct ChatSessionListView: View {
                         Text("在 Mac 上用 Claude Code 开一个会话就会出现在这里")
                     }
                 } else {
-                    List(client.sessions) { session in
-                        NavigationLink(value: session) { row(session) }
+                    List {
+                        if !client.spaces.isEmpty {
+                            Section {
+                                spaceSelector
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 12,
+                                                              bottom: 6, trailing: 12))
+                                    .listRowBackground(Color.clear)
+                            }
+                        }
+                        Section {
+                            ForEach(visibleSessions) { session in
+                                NavigationLink(value: session) { row(session) }
+                            }
+                        }
                     }
                     .listStyle(.insetGrouped)
                 }
@@ -37,6 +51,39 @@ struct ChatSessionListView: View {
             }
             client.refresh()
         }
+    }
+
+    /// 未分组会话在所有空间可见(对齐 Mac 侧边栏与终端 tab)
+    private var visibleSessions: [ChatClient.SessionInfo] {
+        guard let spaceFilter else { return client.sessions }
+        return client.sessions.filter { $0.spaceID == spaceFilter || $0.spaceID == nil }
+    }
+
+    private var spaceSelector: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(title: String(localized: "全部"), value: nil)
+                ForEach(client.spaces) { space in
+                    chip(title: space.name, value: space.id)
+                }
+            }
+        }
+    }
+
+    private func chip(title: String, value: UUID?) -> some View {
+        let selected = spaceFilter == value
+        return Button {
+            spaceFilter = value
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(selected ? Color.accentColor.opacity(0.22)
+                                                    : Color(.secondarySystemBackground)))
+                .foregroundStyle(selected ? Color.accentColor : .secondary)
+        }
+        .buttonStyle(.plain)
     }
 
     private func row(_ session: ChatClient.SessionInfo) -> some View {
