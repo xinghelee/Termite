@@ -31,6 +31,11 @@ enum ShellResolver {
         for key in env.keys where key.hasPrefix("DYLD_") || key.hasPrefix("XPC_") {
             env.removeValue(forKey: key)
         }
+        // 从 Claude Code 会话里启动 app 时会继承其会话标记(CLAUDE_CODE_CHILD_SESSION 等),
+        // 传给 shell 会让其中的 claude 被判成嵌套子会话、不保存转录
+        for key in env.keys where key.hasPrefix("CLAUDE_") || key == "CLAUDECODE" || key == "AI_AGENT" {
+            env.removeValue(forKey: key)
+        }
         return env
     }
 
