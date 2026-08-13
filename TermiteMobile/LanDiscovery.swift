@@ -104,8 +104,13 @@ enum RemotePairing {
         }
         let name = json["name"] as? String ?? ""
         let port = UInt16(json["port"] as? Int ?? 9280)
-        // 连接实际落在哪个 IP,以后就存哪个;拿不到就没法直连,不如直说
-        guard let host = connection.resolvedHost else { throw Failure.malformed }
+        // 优先用 Mac 自报的 IPv4:Bonjour 解析到的多半是链路本地 IPv6(fe80::…),
+        // 少了 %en0 区域标识不可路由、带着又随网络变化失效 —— 存进去就是永远「连接中」。
+        // 局域网地址排在 Tailscale 前面(lanAddresses 已按此排序),都没有才回落到解析地址
+        let advertised = (json["addresses"] as? [[String: Any]] ?? [])
+            .compactMap { $0["ip"] as? String }
+            .first { $0.contains(".") }
+        guard let host = advertised ?? connection.resolvedHost else { throw Failure.malformed }
         return Granted(host: host, port: port, token: token,
                        name: name.isEmpty ? host : name)
     }

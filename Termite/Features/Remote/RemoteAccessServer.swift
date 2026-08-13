@@ -401,11 +401,18 @@ final class RemoteHTTPConnection: @unchecked Sendable {
             sendSimple(status: "403 Forbidden")
             return
         }
+        // 带上本机 IPv4 地址:Bonjour 解析出来的往往是链路本地 IPv6(fe80::…),
+        // 它离了 %en0 区域标识就不可路由,带着又会随网络变化失效。
+        // 让手机存这里给的 IPv4 才稳
+        let addresses = RemoteAccessServer.lanAddresses().map {
+            ["label": $0.label, "ip": $0.ip]
+        }
         let payload: [String: Any] = [
             "token": granted,
             "name": RemoteAccessServer.serviceName,
             "port": Int(UserDefaults.standard.integer(forKey: SettingsKeys.remoteAccessPort)
                         .clampedPort),
+            "addresses": addresses,
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else {
             sendSimple(status: "500 Internal Server Error")

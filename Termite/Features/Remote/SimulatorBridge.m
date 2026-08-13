@@ -219,6 +219,9 @@
     } else {
         return nil;
     }
+    // 立刻送一帧当前画面:模拟器静止时根本不推帧,不补这一下,
+    // 打开浮窗看到的就是永远的「等待画面」
+    dispatch_async(token.queue, deliver);
     return token;
 }
 
