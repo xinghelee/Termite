@@ -112,6 +112,20 @@ final class TerminalBridge: NSObject {
         return (terminal.cols, terminal.rows)
     }
 
+    /// 接管时上报的网格:当前字号下这块画布装得下多少列行。
+    /// 不能直接用 currentGrid ——镜像模式里它被 pin 成 Mac 的网格,
+    /// 拿去 claim 等于把 Mac 的宽度又要了一遍,接管就白接了
+    func deviceGrid(fontSize: CGFloat) -> (cols: Int, rows: Int) {
+        let font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        let cellWidth = ("W" as NSString).size(withAttributes: [.font: font]).width
+        // 镜像模式下 terminalView.frame 是放大的画布,容器 bounds 才是真实可视区
+        let box = terminalView.superview?.bounds ?? terminalView.bounds
+        guard cellWidth > 1, font.lineHeight > 1, box.width > 1, box.height > 1 else {
+            return currentGrid()
+        }
+        return (max(Int(box.width / cellWidth), 20), max(Int(box.height / font.lineHeight), 5))
+    }
+
     /// 翻旧账后一键回到实时输出(TerminalView 是 UIScrollView,直接滚到底)
     func scrollToBottom() {
         let bottom = max(0, terminalView.contentSize.height - terminalView.bounds.height

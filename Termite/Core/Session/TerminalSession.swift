@@ -55,6 +55,9 @@ final class TerminalSession: Identifiable {
     private(set) var hasCommandOutput = false
     /// 后台标签活动:非可见会话有新输出时点亮,聚焦后由 SessionManager 清除
     var hasUnseenActivity = false
+    /// 远端设备接管中(独占 PTY 网格与输入)的设备名;nil = Mac 自己控制。
+    /// 驱动 pane 遮罩:接管期间 Mac 只按对方网格渲染,点一下或敲一下即夺回
+    private(set) var remoteController: String?
     /// pane 注意力(等待输入 / 命令完成):驱动 pane 徽标与呼吸边框、标签橙点、侧边栏提醒点
     private(set) var attention: PaneAttention = .none
     /// 进入注意力态的时间(⌘J 按等待最久优先跳转)
@@ -480,8 +483,17 @@ final class TerminalSession: Identifiable {
         terminalView.window?.makeFirstResponder(terminalView)
     }
 
+    /// Mac 侧的一切主动输入(键入以外的目录跳转、历史命令、文件浏览器等)都走这里:
+    /// 远端接管中先夺回控制权,不然文字打进去了、网格还归着对方
     func sendText(_ text: String) {
+        if remoteController != nil { RemoteSessionHub.shared.reclaimControl(sessionID: id) }
         sendRawInput(Array(text.utf8))
+    }
+
+    /// Hub 在接管开始/结束时调用,驱动 pane 遮罩
+    func setRemoteController(_ device: String?) {
+        guard remoteController != device else { return }
+        remoteController = device
     }
 
     func sendRawInput(_ bytes: [UInt8]) {

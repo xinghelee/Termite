@@ -362,6 +362,13 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     /// 仅普通缓冲区且无鼠标上报时生效(vim/TUI 不受影响);折行命令按列数折算,
     /// 点过命令边界的多余方向键由 zle 自行截停
     override func mouseDown(with event: NSEvent) {
+        // 远端接管中:点击是明确的夺回意图(遮罩没吃到这一下时的兜底路径)。
+        // 只夺回,不把这一下当终端点击传下去
+        if let session, inputEnabled, session.remoteController != nil {
+            RemoteSessionHub.shared.reclaimControl(sessionID: session.id)
+            session.manager?.focusPane(session.id)
+            return
+        }
         // 点 pane 聚焦在 AppKit 层自己做:macOS 15 上 SwiftUI 的 onTapGesture
         // 收不到被 NSView 消费的点击(标签拖动同款事件路径差异),
         // 模型焦点(focusedID)与键盘焦点(firstResponder)在这里一起接管
@@ -440,6 +447,16 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard inputEnabled else { return }
+        // 远端接管中一律不入 PTY(手机正输的命令里不能插进 Mac 的半截输入)。
+        // 夺回只认「真敲了键」:TUI 开着鼠标上报时,鼠标划过 pane 也会走到这条路,
+        // 按输入算就成了「挪个鼠标就自己 take over」。keyDown 在 SwiftTerm 里非 open
+        // 不能覆写,改看此刻正在派发的事件是不是按键
+        if let session, session.remoteController != nil {
+            if NSApp.currentEvent?.type == .keyDown {
+                RemoteSessionHub.shared.reclaimControl(sessionID: session.id)
+            }
+            return
+        }
         pauseCursorBlinkForInput()
         if let session {
             // 输入统一交给会话路由:保活走协议、本地走 LocalProcess,

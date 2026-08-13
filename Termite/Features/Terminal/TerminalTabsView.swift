@@ -1603,6 +1603,15 @@ struct TerminalPaneView: View {
                 }
             }
         }
+        .overlay {
+            if let device = session.remoteController {
+                RemoteControlOverlay(device: device) {
+                    RemoteSessionHub.shared.reclaimControl(sessionID: session.id)
+                    session.focusTerminal()
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: session.remoteController)
         .overlay(alignment: .bottom) {
             if copyToastVisible {
                 Label("已复制", systemImage: "doc.on.doc")
@@ -1632,5 +1641,51 @@ struct TerminalPaneView: View {
             searchModel.activate()
             isSearchActive = true
         }
+    }
+}
+
+/// 远端接管中的 pane 遮罩:压暗 + 一句解释,点一下夺回。
+/// 不做「请求 / 同意」握手 —— Mac 是主人,拿回来不需要对方点头;
+/// 直接敲键盘也会夺回(那一击只夺权、不入 PTY,见 TermiteTerminalView.send)
+private struct RemoteControlOverlay: View {
+    let device: String
+    let reclaim: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.black.opacity(0.42))
+            VStack(spacing: 8) {
+                Image(systemName: "iphone.gen3.radiowaves.left.and.right")
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundStyle(.secondary)
+                Text("\(device) 正在操作")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("点一下夺回控制")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 18)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08))
+            )
+            .shadow(color: .black.opacity(0.28), radius: hovering ? 18 : 12, y: hovering ? 6 : 4)
+            .scaleEffect(hovering ? 1.02 : 1)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: reclaim)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.16), value: hovering)
+        .transition(.opacity)
+        .accessibilityIdentifier("pane.remote-control-overlay")
+        .accessibilityLabel(Text("\(device) 正在操作,点一下夺回控制"))
     }
 }

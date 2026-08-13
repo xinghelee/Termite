@@ -157,6 +157,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         let id: UUID?
         let cols: Int?
         let rows: Int?
+        /// 接管时上报的设备名,显示在 Mac 的遮罩上(「iPhone 正在操作」)
+        let device: String?
     }
 
     private func handleText(_ data: Data) {
@@ -180,8 +182,14 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     if let id = msg.id { self.attach(id) }
                 case "detach":
                     self.detachCurrent()
-                case "viewport", "resize", "claimResize", "releaseResize":
-                    // 兼容旧客户端，但设备视口永远不能再修改共享 PTY 网格。
+                case "claim", "claimResize":
+                    // 接管:PTY 网格改归这台设备,Mac 与其它端转只读。
+                    // claimResize 是旧客户端的同义词(它本来就是「我要自己的网格」)
+                    self.claim(cols: msg.cols, rows: msg.rows, device: msg.device)
+                case "release", "releaseResize":
+                    self.release()
+                case "viewport", "resize":
+                    // 无接管时设备视口不能改共享 PTY 网格,要自己的宽度得先 claim
                     break
                 default:
                     break
@@ -210,8 +218,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             pushOutput: { [weak self] data in
                 self?.sendFrame(opcode: 0x2, payload: data)
             },
-            pushViewport: { [weak self] cols, rows, tuiMode in
-                self?.sendJSON(ViewportMsg(cols: cols, rows: rows, tuiMode: tuiMode))
+            pushViewport: { [weak self] cols, rows, tuiMode, control in
+                self?.sendJSON(ViewportMsg(cols: cols, rows: rows, tuiMode: tuiMode,
+                                           control: control))
             }
         ) else {
             sendJSON(ErrorMsg(message: String(localized: "会话不存在或已关闭")))
@@ -220,7 +229,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         attachedSessionID = sessionID
         sendJSON(AttachedMsg(id: sessionID, cols: result.cols, rows: result.rows,
                              tuiMode: result.tuiMode,
-                             theme: RemoteTheme.current()))
+                             theme: RemoteTheme.current(),
+                             control: result.control))
         if result.tuiMode {
             // 先回放近期控制序列，恢复鼠标/粘贴等终端模式；再用 Mac 当前终端模型的
             // 完整 ANSI 快照校正画面。最后一个 synchronized frame 可能只是增量，不能单独恢复。
@@ -241,6 +251,24 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             }
         }
         startStatusTimer()
+    }
+
+    /// 接管请求。被别的端占着会被拒,回执当前控制权状态,客户端据此显示遮挡。
+    @MainActor
+    private func claim(cols: Int?, rows: Int?, device: String?) {
+        guard let sid = attachedSessionID, let cols, let rows else { return }
+        let name = device.map { String($0.prefix(40)) } ?? String(localized: "远程设备")
+        let ok = RemoteSessionHub.shared.claimControl(connID: connID, sessionID: sid,
+                                                     cols: cols, rows: rows, device: name)
+        guard !ok, let info = RemoteSessionHub.shared.viewportInfo(sessionID: sid, connID: connID) else { return }
+        sendJSON(ViewportMsg(cols: info.cols, rows: info.rows, tuiMode: info.tuiMode,
+                             control: info.control))
+    }
+
+    @MainActor
+    private func release() {
+        guard let sid = attachedSessionID else { return }
+        RemoteSessionHub.shared.releaseControl(sessionID: sid, from: connID)
     }
 
     @MainActor
@@ -310,6 +338,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var tuiMode: Bool
         /// 当前 Mac 主题色板,远端终端同款观感
         var theme: RemoteTheme
+        var control: RemoteControlInfo
     }
 
     private struct ViewportMsg: Encodable {
@@ -317,6 +346,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var cols: Int
         var rows: Int
         var tuiMode: Bool
+        var control: RemoteControlInfo
     }
 
     private struct ExitedMsg: Encodable {

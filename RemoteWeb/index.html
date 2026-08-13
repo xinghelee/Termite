@@ -25,9 +25,13 @@
   <header class="bar">
     <button id="back-btn" class="key" data-i18n="back"></button>
     <div id="term-title"></div>
+    <button id="control-btn" class="key"></button>
     <div id="term-size"></div>
   </header>
-  <div id="term-holder"></div>
+  <div id="term-wrap">
+    <div id="term-holder"></div>
+    <div id="lock-scrim" hidden><span id="lock-text"></span></div>
+  </div>
   <div id="key-bar">
     <button class="key" data-send="&#x1b;">esc</button>
     <button class="key" data-send="&#x9;">tab</button>

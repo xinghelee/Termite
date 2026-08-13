@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "%@ 正在操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is driving this session"
+          }
+        }
+      }
+    },
     "%lld 个会话": {
       "localizations": {
         "en": {
@@ -131,6 +141,16 @@
         }
       }
     },
+    "交还": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hand back"
+          }
+        }
+      }
+    },
     "会话不存在或已关闭": {
       "localizations": {
         "en": {
@@ -187,6 +207,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cancel"
+          }
+        }
+      }
+    },
+    "另一台设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another device"
           }
         }
       }
@@ -371,16 +401,6 @@
         }
       }
     },
-    "更多": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "More"
-          }
-        }
-      }
-    },
     "或粘贴访问链接": {
       "localizations": {
         "en": {
@@ -431,12 +451,62 @@
         }
       }
     },
+    "把控制权交还 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hand control back to the Mac"
+          }
+        }
+      }
+    },
+    "按本机宽度接管这个会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take over at this device's width"
+          }
+        }
+      }
+    },
+    "接管": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take over"
+          }
+        }
+      }
+    },
+    "接管中 %lld×%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In control · %lld×%lld"
+          }
+        }
+      }
+    },
     "改名": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Rename"
+          }
+        }
+      }
+    },
+    "更多": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
           }
         }
       }
@@ -481,6 +551,16 @@
         }
       }
     },
+    "点一下即可接管": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap anywhere to take over"
+          }
+        }
+      }
+    },
     "版本": {
       "localizations": {
         "en": {
@@ -511,6 +591,26 @@
         }
       }
     },
+    "空间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space"
+          }
+        }
+      }
+    },
+    "等对方交还后才能输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can watch until they hand it back"
+          }
+        }
+      }
+    },
     "等待你": {
       "localizations": {
         "en": {
@@ -527,16 +627,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Waiting for input"
-          }
-        }
-      }
-    },
-    "空间": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Space"
           }
         }
       }

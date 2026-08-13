@@ -13,6 +13,26 @@
         }
       }
     },
+    "%@ 正在操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is driving this session"
+          }
+        }
+      }
+    },
+    "%@ 正在操作,点一下夺回控制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is driving this session — tap to take back control"
+          }
+        }
+      }
+    },
     "%lld": {},
     "%lld 个分屏": {
       "localizations": {
@@ -3480,6 +3500,16 @@
         }
       }
     },
+    "点一下夺回控制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to take back control"
+          }
+        }
+      }
+    },
     "点击 / 触控板横扫 / ⌃⌥←→ 切换工作区": {
       "localizations": {
         "en": {
@@ -4521,6 +4551,16 @@
         }
       }
     },
+    "这台 Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac"
+          }
+        }
+      }
+    },
     "这次 %@": {
       "localizations": {
         "en": {
@@ -4547,6 +4587,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remote"
+          }
+        }
+      }
+    },
+    "远程设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote device"
           }
         }
       }

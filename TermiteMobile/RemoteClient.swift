@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Observation
+import UIKit
 
 /// 会话摘要(与 Mac 端 RemoteSessionInfo 的 JSON 对应;分组字段为增量,老服务端缺省容错)
 struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
@@ -22,6 +23,8 @@ struct RemoteSessionSummary: Decodable, Identifiable, Hashable {
     let space: String?
     let spaceID: UUID?
     let window: Int?
+    /// 正在接管这个会话的设备名(列表里标一笔「谁在操作」);nil = Mac 自己
+    let controller: String?
 }
 
 struct RemoteSidebarSpaceSummary: Decodable, Identifiable, Hashable {
@@ -38,6 +41,18 @@ struct RemoteSidebarProjectSummary: Decodable, Identifiable, Hashable {
 }
 
 /// Mac 主题色板(list / attached 下发,远端同款观感)
+/// 会话控制权(Mac 随 attached / viewport 下发;旧服务端不发,按「自由」处理)
+struct RemoteControlPayload: Decodable, Equatable {
+    var mine: Bool
+    var locked: Bool
+    var controller: String?
+    /// Mac 持有时为 true(可以直接接管);别的远端持有时为 false(不许抢)
+    var claimable: Bool?
+
+    static let free = RemoteControlPayload(mine: false, locked: false, controller: nil,
+                                           claimable: nil)
+}
+
 struct RemoteThemePayload: Decodable, Equatable {
     let background: String
     let foreground: String
@@ -72,6 +87,8 @@ final class RemoteClient {
     private(set) var attachedID: UUID?
     /// TUI 共用固定语义网格；所有设备都可以输入，但都不能修改它的列行数。
     private(set) var tuiMode = false
+    /// 控制权:mine = PTY 网格归本机(接管中);locked = 被别的设备接管,本机只读
+    private(set) var control = RemoteControlPayload.free
     /// Mac 当前主题(attached 到达时更新)
     private(set) var theme: RemoteThemePayload?
 
@@ -118,6 +135,7 @@ final class RemoteClient {
         phase = .idle
         attachedID = nil
         tuiMode = false
+        control = .free
         sessions = []
         sidebarSpaces = []
         sidebarProjects = []
@@ -188,6 +206,20 @@ final class RemoteClient {
         attachedID = nil
         sendControl(["type": "detach"])
         tuiMode = false
+        control = .free
+    }
+
+    /// 接管:把本机网格声明成共享 PTY 网格,Mac 与其它设备转只读遮挡。
+    /// 被别的设备占着会被拒(远端之间不互相踢),服务端回执当前控制权。
+    func claimControl(cols: Int, rows: Int) {
+        guard let id = attachedID else { return }
+        sendControl(["type": "claim", "id": id.uuidString, "cols": cols, "rows": rows,
+                     "device": UIDevice.current.name])
+    }
+
+    func releaseControl() {
+        guard let id = attachedID else { return }
+        sendControl(["type": "release", "id": id.uuidString])
     }
 
     func sendInput(_ text: String) {
@@ -246,6 +278,7 @@ final class RemoteClient {
         let tuiMode: Bool?
         let message: String?
         let theme: RemoteThemePayload?
+        let control: RemoteControlPayload?
     }
 
     private func handleControl(_ msg: ServerMsg) {
@@ -275,21 +308,26 @@ final class RemoteClient {
             gridCols = msg.cols ?? 80
             gridRows = msg.rows ?? 24
             tuiMode = msg.tuiMode ?? false
+            // 旧服务端不下发 control:按「无人接管」处理,行为退回从前
+            control = msg.control ?? .free
             if let theme = msg.theme { self.theme = theme }
             onAttached?()
         case "viewport", "resize":
             gridCols = msg.cols ?? gridCols
             gridRows = msg.rows ?? gridRows
             tuiMode = msg.tuiMode ?? false
+            control = msg.control ?? .free
             onViewportChange?()
         case "exited":
             attachedID = nil
             tuiMode = false
+            control = .free
             onSessionEnded?(String(localized: "会话已结束"))
         case "error":
             if retryAttachAfterStartupRace() { return }
             attachedID = nil
             tuiMode = false
+            control = .free
             onSessionEnded?(msg.message ?? String(localized: "会话不存在或已关闭"))
         default:
             break

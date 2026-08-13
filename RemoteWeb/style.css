@@ -122,12 +122,38 @@ html, body {
 
 #term-size { font-size: 11px; color: var(--dim); font-family: ui-monospace, Menlo, monospace; }
 
+/* 遮罩要罩住终端区又不能跟着内容滚,所以外面套一层不滚动的 wrap */
+#term-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+
 #term-holder {
   flex: 1;
   overflow: auto;
   background: #14161a;
   padding: 4px 0 0 4px;
   -webkit-overflow-scrolling: touch;
+}
+
+/* 别的设备接管中:压暗并挡住输入。应急入口只做到「看得见、动不了」,
+   要按自己的宽度操作请用 iOS App 的接管 */
+#lock-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fg);
+  background: rgba(10, 10, 12, 0.55);
+  backdrop-filter: blur(1px);
+  z-index: 30;
 }
 
 /* ── 按键条 ── */

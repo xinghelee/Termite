@@ -15,6 +15,11 @@ const T = {
   exited: zh ? "会话已结束" : "Session ended",
   connected: zh ? "已连接" : "Connected",
   gone: zh ? "会话不存在或已关闭" : "Session gone",
+  lockedBy: zh ? "%@ 正在操作这个会话" : "%@ is driving this session",
+  lockedHint: zh ? "等对方交还后才能输入" : "You can watch until they hand it back",
+  claimHint: zh ? "点上方「接管」即可操作" : "Hit Take over above to drive it",
+  takeOver: zh ? "接管" : "Take over",
+  handBack: zh ? "交还" : "Hand back",
 };
 
 document.querySelectorAll("[data-i18n]").forEach((el) => {
@@ -43,6 +48,8 @@ let ptyCols = 80;
 let ptyRows = 24;
 let listTimer = null;
 let ctrlArmed = false;
+let controlLocked = false;  // 不是本端在操作:只看不动
+let controlState = null;    // 最近一次下发的控制权(接管按钮据此决定动作)
 
 /* ── WebSocket ── */
 
@@ -96,8 +103,40 @@ function send(obj) {
 }
 
 function sendInput(text) {
+  if (controlLocked) return;
   if (wsReady && attachedID) ws.send(encoder.encode(text));
 }
+
+/* 控制权:服务端逐连接下发。旧服务端不带 control 字段 → 视为无人接管(老行为) */
+function applyControl(control) {
+  controlState = control || null;
+  controlLocked = !!(control && control.locked);
+  const scrim = $("lock-scrim");
+  const btn = $("control-btn");
+  if (controlLocked) {
+    const who = (control && control.controller) || (zh ? "另一台设备" : "Another device");
+    const hint = control && control.claimable ? T.claimHint : T.lockedHint;
+    $("lock-text").textContent = T.lockedBy.replace("%@", who) + "\n" + hint;
+    scrim.style.whiteSpace = "pre-line";
+  }
+  scrim.hidden = !controlLocked;
+  // 没有 control 字段(老服务端)就别显示这个按钮,免得点了没反应
+  btn.hidden = !control;
+  btn.textContent = control && control.mine ? T.handBack : T.takeOver;
+  btn.disabled = !!(control && control.locked && !control.claimable);
+}
+
+$("control-btn").addEventListener("click", () => {
+  if (!attachedID) return;
+  if (controlState && controlState.mine) {
+    send({ type: "release", id: attachedID });
+  } else if (controlState && controlState.claimable) {
+    // 网页端不改网格,原样接管:发当前网格 = 只拿控制权,PTY 尺寸不动
+    send({ type: "claim", id: attachedID, cols: ptyCols, rows: ptyRows,
+           device: navigator.userAgent.includes("iPhone") ? "iPhone (Web)"
+                 : navigator.userAgent.includes("iPad") ? "iPad (Web)" : "Web" });
+  }
+});
 
 /* ── 控制消息 ── */
 
@@ -109,11 +148,15 @@ function handleControl(msg) {
     case "attached":
       ptyCols = msg.cols;
       ptyRows = msg.rows;
+      applyControl(msg.control);
       openTerminal();
       break;
+    // 服务端发的是 viewport;resize 是旧名,一起认
+    case "viewport":
     case "resize":
       ptyCols = msg.cols;
       ptyRows = msg.rows;
+      applyControl(msg.control);
       if (term) {
         term.resize(ptyCols, ptyRows);
         fitFont();
@@ -229,6 +272,7 @@ function backToList() {
   if (attachedID) send({ type: "detach" });
   attachedID = null;
   currentSession = null;
+  applyControl(null);
   termScreen.hidden = true;
   listScreen.hidden = false;
   startListPolling();

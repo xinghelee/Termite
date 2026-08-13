@@ -639,9 +639,14 @@ final class SessionManager {
         guard let tab = tabs.first(where: { $0.root.leafIDs().contains(sessionID) }),
               tab.isBroadcasting else { return }
         for id in tab.root.leafIDs() where id != sessionID {
-            session(id)?.sendRawInput(bytes)
+            guard let target = session(id) else { continue }
+            // 广播是 Mac 在操作:被远端接管的 pane 先夺回,不然广播进去了、网格还归着对方
+            if target.remoteController != nil {
+                RemoteSessionHub.shared.reclaimControl(sessionID: id)
+            }
+            target.sendRawInput(bytes)
             // 广播键入也是在回应它,注意力视为已处理
-            session(id)?.clearAttention()
+            target.clearAttention()
         }
     }
 

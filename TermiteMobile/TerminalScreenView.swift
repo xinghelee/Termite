@@ -49,7 +49,11 @@ struct TerminalScreenView: View {
 
     /// TUI 必须完整呈现固定画布；普通 shell 尊重用户的本机适配选择。
     private var shouldMirror: Bool {
-        !fitMode || client.tuiMode
+        // 接管中:PTY 网格就是本机网格,直接铺满自己渲染,不需要缩放看别人的画布
+        if client.control.mine { return false }
+        // 被别的设备接管:如实呈现对方在驱动的画布,本地重排只会看到错位的画面
+        if client.control.locked { return true }
+        return !fitMode || client.tuiMode
     }
 
     var body: some View {
@@ -121,6 +125,38 @@ struct TerminalScreenView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .overlay {
+            // 别的设备接管中:如实显示对方画布,但本机不接受操作
+            if client.control.locked {
+                let claimable = client.control.claimable == true
+                ZStack {
+                    // 压暗只是视觉:放行触摸,被遮挡时照样能滚回去看输出
+                    // (手机上滑动不产生输入,allowMouseReporting 是关的)
+                    Rectangle()
+                        .fill(Color.black.opacity(0.5))
+                        .allowsHitTesting(false)
+                    VStack(spacing: 8) {
+                        Image(systemName: "hand.raised.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.secondary)
+                        Text("\(client.control.controller ?? String(localized: "另一台设备")) 正在操作")
+                            .font(.system(size: 14, weight: .semibold))
+                        // Mac 持有 → 点卡片直接拿过来;别的远端持有 → 只能等
+                        Text(claimable ? "点一下即可接管" : "等对方交还后才能输入")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 16)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.ultraThinMaterial))
+                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .onTapGesture { if claimable { toggleControl() } }
+                }
+                .transition(.opacity)
+                .accessibilityIdentifier("terminal.locked-overlay")
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             if !atBottom {
                 Button {
@@ -139,9 +175,22 @@ struct TerminalScreenView: View {
         }
         .animation(.easeOut(duration: 0.18), value: client.phase)
         .animation(.easeOut(duration: 0.18), value: atBottom)
+        .animation(.easeOut(duration: 0.18), value: client.control)
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                toggleControl()
+            } label: {
+                Text(client.control.mine ? "交还" : "接管")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            // 只有「别的远端正握着」时才不给按;Mac 持有时随时可以接管过来
+            .disabled(client.control.locked && client.control.claimable != true)
+            .accessibilityIdentifier("terminal.control-toggle")
+            .help(client.control.mine ? "把控制权交还 Mac" : "按本机宽度接管这个会话")
+        }
         if client.tuiMode {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -189,6 +238,9 @@ struct TerminalScreenView: View {
     }
 
     private var gridLabel: String {
+        if client.control.mine {
+            return String(localized: "接管中 \(client.gridCols)×\(client.gridRows)")
+        }
         if client.tuiMode {
             let mode = tuiShowsFullCanvas ? String(localized: "完整画布") : String(localized: "清晰视图")
             return "TUI \(client.gridCols)×\(client.gridRows) · \(mode)"
@@ -211,12 +263,24 @@ struct TerminalScreenView: View {
         syncPresentation()
     }
 
+    /// 接管 / 交还。接管先按估算网格 claim,视图真正排完版后 onGridChange 再报一次精确值,
+    /// 一个来回就收敛;旋转和改字号也走同一条路。
+    private func toggleControl() {
+        tapHaptic()
+        if client.control.mine {
+            client.releaseControl()
+        } else {
+            let grid = bridge.deviceGrid(fontSize: CGFloat(fontSize))
+            client.claimControl(cols: grid.cols, rows: grid.rows)
+        }
+    }
+
     private func syncPresentation() {
         bridge.reportsGridChanges = !shouldMirror
         if !shouldMirror {
             bridge.setFont(size: CGFloat(fontSize))
         } else {
-            // 手动完整画布或 TUI：只改变本机呈现，不主动触碰共享 PTY。
+            // 手动完整画布 / TUI / 被别端接管：只改变本机呈现，不主动触碰共享 PTY。
             bridge.pinGrid(cols: client.gridCols, rows: client.gridRows)
         }
     }
@@ -233,6 +297,12 @@ struct TerminalScreenView: View {
             if ended { pinchBase = nil }
         }
         bridge.onAtBottomChange = { atBottom = $0 }
+        // 接管中本机网格就是 PTY 网格:视图自算出的列行变了(排版落定/旋转/改字号)
+        // 就报一次,把 PTY 拉齐到眼前这块画布
+        bridge.onGridChange = { cols, rows in
+            guard client.control.mine else { return }
+            client.claimControl(cols: cols, rows: rows)
+        }
         client.onAttached = {
             bridge.reset()
             if let theme = client.theme { bridge.applyTheme(theme) }
@@ -260,6 +330,7 @@ struct TerminalScreenView: View {
         client.onOutput = nil
         client.onSessionEnded = nil
         client.onViewportChange = nil
+        bridge.onGridChange = nil
     }
 
     // MARK: - 按键条(与终端同底,按键为主题上的浮层)
@@ -280,6 +351,9 @@ struct TerminalScreenView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
+        // 被别端接管:按键条整体失效,免得按了没反应还以为是断线
+        .disabled(client.control.locked)
+        .opacity(client.control.locked ? 0.35 : 1)
     }
 
     private var ctrlButton: some View {
