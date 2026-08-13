@@ -1,6 +1,8 @@
 #import "SimulatorBridge.h"
 
 #import <dlfcn.h>
+#import <mach/mach_time.h>
+#import <malloc/malloc.h>
 #import <objc/runtime.h>
 
 // 私有接口只在这里声明,别处一律走 SimulatorBridge
@@ -100,7 +102,7 @@
 + (nullable id)cachedScreenForDevice:(id)device udid:(NSString *)udid {
     @synchronized (self.screenCache) {
         id cached = self.screenCache[udid];
-        // 缓存的屏还能出画面就直接用
+        // 缓存的屏还能出画面就直接用 —— 重连一次就多一次搞崩 backboardd 的机会
         if (cached && [cached framebufferSurface]) return cached;
         id screen = [self activeScreenOfDevice:device];
         if (screen) {
@@ -161,10 +163,15 @@
         if (![[device stateString] isEqualToString:@"Booted"]) continue;
         NSUUID *udid = [device UDID];
         if (!udid) continue;
+        // 列设备绝不碰帧缓冲:connectToDeviceIO: + 上电是有代价的操作,
+        // 对每台设备反复做会把 backboardd 的 SimFramebuffer 连接搞崩
+        // (崩在 __SFBConnectionConnect,表现为模拟器一闪黑屏就没了)。
+        // 尺寸只从已缓存的屏读,没缓存就报 0 —— 真实尺寸随首帧头一起到客户端
         CGSize size = CGSizeZero;
-        id screen = [self cachedScreenForDevice:device udid:udid.UUIDString];
-        if (screen) {
-            id props = [screen screenProperties];
+        id cachedScreen = nil;
+        @synchronized (self.screenCache) { cachedScreen = self.screenCache[udid.UUIDString]; }
+        if (cachedScreen) {
+            id props = [cachedScreen screenProperties];
             if (props) size = [props pixelSize];
         }
         id runtime = [device respondsToSelector:@selector(runtime)] ? [device runtime] : nil;
@@ -236,6 +243,180 @@
         [t.screen unregisterIOSurfacesChangeCallbackWithUUID:t.uuid];
     }
     t.screen = nil;
+}
+
+@end
+
+// MARK: - 输入注入
+//
+// 私有 API 的调用序列参考了 baguette(github.com/tddworks/baguette,Apache-2.0)
+// 逆向出来的配方,以下实现为本项目自行编写。三处关键认知都来自那份研究:
+//
+// 1. 别自己拼 mach 消息 —— SimDeviceLegacyHIDClient 会填 mach 头。它是 Swift 类,
+//    ObjC 运行时里的名字被 mangle 成 _TtC12SimulatorKit24SimDeviceLegacyHIDClient
+// 2. 发任何事件前要先建 pointer / mouse 服务(预热),否则 guest 收到就崩
+// 3. iOS 26 上点击不能走 IndigoHIDMessageForMouseNSEvent(会被误判成 Home 手势或
+//    静默丢弃),要自己造 IOHIDEvent 数字化仪父+子事件,经 Trackpad wrapper 包装后
+//    再补两处 wrapper 没初始化的字节槽(target 与 edge)
+
+typedef void *(*IndigoServiceFn)(void);
+typedef CFTypeRef (*IOHIDCreateDigitizerFn)(CFAllocatorRef, uint64_t, uint32_t,
+                                            uint32_t, uint32_t, uint32_t, uint32_t,
+                                            double, double, double, double, double,
+                                            bool, bool, uint32_t);
+typedef CFTypeRef (*IOHIDCreateFingerFn)(CFAllocatorRef, uint64_t,
+                                         uint32_t, uint32_t, uint32_t,
+                                         double, double, double, double, double,
+                                         bool, bool, uint32_t);
+typedef void (*IOHIDAppendFn)(CFTypeRef, CFTypeRef, uint32_t);
+typedef void *(*IndigoTrackpadWrapFn)(const void *);
+typedef id (*HIDClientInitFn)(id, SEL, id, NSError **);
+typedef void (*HIDSendFn)(id, SEL, void *, BOOL, id, id);
+
+/// 触摸路由标签,iOS 靠它把事件送进数字化仪子系统
+static const uint32_t kTouchTarget = 0x32;
+
+/// IOHID* 在 dyld 共享缓存里(RTLD_DEFAULT 够),Indigo* 要显式 dlopen SimulatorKit
+static void *TermiteSimSymbol(const char *name, BOOL inKit) {
+    static void *kit;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        kit = dlopen("/Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks/"
+                     "SimulatorKit.framework/Versions/A/SimulatorKit", RTLD_NOW);
+    });
+    return dlsym(inKit ? kit : RTLD_DEFAULT, name);
+}
+
+static void TermiteSimSend(void *message, id client) {
+    SEL sel = NSSelectorFromString(@"sendWithMessage:freeWhenDone:completionQueue:completion:");
+    IMP imp = class_getMethodImplementation(object_getClass(client), sel);
+    if (imp) ((HIDSendFn)imp)(client, sel, message, YES, nil, nil);
+}
+
+/// 造一次数字化仪事件(父 + 手指子事件),包装成 Indigo 消息并补齐字节槽。
+/// phase: 0=按下 1=移动 2=抬起;坐标已归一化
+static BOOL TermiteSimSendTouch(id client, double x, double y, int phase,
+                                uint32_t identifier, BOOL bottomEdge) {
+    IOHIDCreateDigitizerFn createParent =
+        (IOHIDCreateDigitizerFn)TermiteSimSymbol("IOHIDEventCreateDigitizerEvent", NO);
+    IOHIDCreateFingerFn createFinger =
+        (IOHIDCreateFingerFn)TermiteSimSymbol("IOHIDEventCreateDigitizerFingerEvent", NO);
+    IOHIDAppendFn append = (IOHIDAppendFn)TermiteSimSymbol("IOHIDEventAppendEvent", NO);
+    IndigoTrackpadWrapFn wrap = (IndigoTrackpadWrapFn)
+        TermiteSimSymbol("IndigoHIDMessageForTrackpadEventFromHIDEventRef", YES);
+    if (!createParent || !createFinger || !append || !wrap) return NO;
+
+    // 按下/移动 = Range|Touch|Position;抬起 = Touch|Position(让 iOS 看到状态变化)
+    uint32_t mask = (phase == 2) ? 0x06 : 0x07;
+    bool range = (phase != 2), touch = (phase != 2);
+    uint64_t now = mach_absolute_time();
+    const uint32_t transducerFinger = 2;
+
+    CFTypeRef parent = createParent(NULL, now, transducerFinger, 0, identifier, mask, 0,
+                                    x, y, 0.0, 0.0, 0.0, range, touch, 0);
+    if (!parent) return NO;
+    // 真实触摸永远是父+子成对到达;缺了子事件,wrapper 产出的是 iOS 会忽略的残包
+    CFTypeRef finger = createFinger(NULL, now, 0, identifier, mask,
+                                    x, y, 0.0, 0.0, 0.0, range, touch, 0);
+    if (finger) { append(parent, finger, 0); CFRelease(finger); }
+
+    void *message = wrap(parent);
+    CFRelease(parent);
+    if (!message) return NO;
+
+    // 补 wrapper 留空的两处:target 路由标签与边缘位掩码,两条记录都要写
+    uint32_t target = kTouchTarget;
+    size_t size = malloc_size(message);
+    memcpy((uint8_t *)message + 0x6c, &target, sizeof(target));
+    if (size >= 0x110) memcpy((uint8_t *)message + 0x10c, &target, sizeof(target));
+    uint8_t edgeBit = bottomEdge ? 0x01 : 0x00;
+    uint8_t edgePresent = bottomEdge ? 0x04 : 0x00;
+    *((uint8_t *)message + 0x3a) = edgePresent;
+    *((uint8_t *)message + 0x3b) = edgeBit;
+    if (size >= 0xdc) {
+        *((uint8_t *)message + 0xda) = edgePresent;
+        *((uint8_t *)message + 0xdb) = edgeBit;
+    }
+    TermiteSimSend(message, client);
+    return YES;
+}
+
+@implementation SimulatorBridge (Input)
+
+/// 每台设备一个 HID 客户端,建好即预热;缓存复用
++ (id)hidClientForUDID:(NSString *)udid {
+    static NSMutableDictionary *clients;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ clients = [NSMutableDictionary dictionary]; });
+    @synchronized (clients) {
+        id existing = clients[udid];
+        if (existing) return existing;
+
+        id device = [self bootedDeviceWithUDID:udid];
+        if (!device) return nil;
+        // 先摸一个符号,顺带把 SimulatorKit 载进来 —— 不然下面按名字找类必然是 nil
+        (void)TermiteSimSymbol("IndigoHIDMessageToCreatePointerService", YES);
+        // Swift 类,ObjC 运行时里的名字是 mangle 过的
+        Class cls = NSClassFromString(@"_TtC12SimulatorKit24SimDeviceLegacyHIDClient");
+        if (!cls) { NSLog(@"[sim] 找不到 SimDeviceLegacyHIDClient"); return nil; }
+        SEL initSel = NSSelectorFromString(@"initWithDevice:error:");
+        IMP imp = class_getMethodImplementation(cls, initSel);
+        if (!imp) return nil;
+        NSError *error = nil;
+        id client = ((HIDClientInitFn)imp)([cls alloc], initSel, device, &error);
+        if (!client) return nil;
+
+        // 预热:先建 pointer / mouse 服务,不然第一条事件就会让 guest 崩
+        const char *services[] = {"IndigoHIDMessageToCreatePointerService",
+                                  "IndigoHIDMessageToCreateMouseService"};
+        for (int i = 0; i < 2; i++) {
+            IndigoServiceFn fn = (IndigoServiceFn)TermiteSimSymbol(services[i], YES);
+            if (!fn) continue;
+            void *msg = fn();
+            if (msg) { TermiteSimSend(msg, client); usleep(20 * 1000); }
+        }
+        clients[udid] = client;
+        return client;
+    }
+}
+
++ (uint32_t)nextTouchIdentifier {
+    static uint32_t counter = 1;
+    @synchronized (self) { return ++counter; }
+}
+
++ (BOOL)touch:(NSString *)udid phase:(int)phase x:(double)x y:(double)y
+   identifier:(uint32_t)identifier bottomEdge:(BOOL)bottomEdge {
+    id client = [self hidClientForUDID:udid];
+    if (!client) return NO;
+    return TermiteSimSendTouch(client, x, y, phase, identifier, bottomEdge);
+}
+
++ (BOOL)tap:(NSString *)udid x:(double)x y:(double)y hold:(double)seconds {
+    id client = [self hidClientForUDID:udid];
+    if (!client) return NO;
+    uint32_t identifier = [self nextTouchIdentifier];
+    if (!TermiteSimSendTouch(client, x, y, 0, identifier, NO)) return NO;
+    usleep((useconds_t)(MAX(seconds, 0.02) * 1000000));
+    return TermiteSimSendTouch(client, x, y, 2, identifier, NO);
+}
+
++ (BOOL)swipe:(NSString *)udid fromX:(double)x1 y:(double)y1 toX:(double)x2 y:(double)y2
+     duration:(double)seconds fromBottomEdge:(BOOL)bottomEdge {
+    id client = [self hidClientForUDID:udid];
+    if (!client) return NO;
+    uint32_t identifier = [self nextTouchIdentifier];
+    if (!TermiteSimSendTouch(client, x1, y1, 0, identifier, bottomEdge)) return NO;
+    const int steps = 12;
+    useconds_t stepUs = (useconds_t)(MAX(seconds, 0.1) * 1000000 / steps);
+    for (int i = 1; i <= steps; i++) {
+        usleep(stepUs);
+        double t = (double)i / steps;
+        TermiteSimSendTouch(client, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t,
+                            1, identifier, bottomEdge);
+    }
+    usleep(stepUs);
+    return TermiteSimSendTouch(client, x2, y2, 2, identifier, bottomEdge);
 }
 
 @end

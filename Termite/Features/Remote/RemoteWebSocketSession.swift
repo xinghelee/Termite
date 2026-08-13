@@ -166,6 +166,12 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         let udid: String?
         let quality: Double?
         let fps: Double?
+        /// 远端触摸:归一化坐标、阶段(0 按下 1 移动 2 抬起)、同一手势的编号
+        let x: Double?
+        let y: Double?
+        let phase: Int?
+        let touchID: UInt32?
+        let bottomEdge: Bool?
     }
 
     private func handleText(_ data: Data) {
@@ -199,6 +205,14 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                                      fps: msg.fps)
                 case "simDetach":
                     self.stopMirror()
+                case "simTouch":
+                    // 远端手指:归一化坐标 + 阶段。只有正在镜像的连接能发,
+                    // 免得别的连接对着一台没在看的模拟器乱点
+                    guard self.mirroring, let udid = msg.udid,
+                          let x = msg.x, let y = msg.y, let phase = msg.phase else { break }
+                    SimulatorMirror.shared.touch(udid: udid, phase: phase, x: x, y: y,
+                                                 identifier: msg.touchID ?? 1,
+                                                 bottomEdge: msg.bottomEdge ?? false)
                 case "claim", "claimResize":
                     // 接管:PTY 网格改归这台设备,Mac 与其它端转只读。
                     // claimResize 是旧客户端的同义词(它本来就是「我要自己的网格」)

@@ -74,6 +74,16 @@ final class SimulatorMirror {
         }
     }
 
+    /// 远端手指动作:phase 0=按下 1=移动 2=抬起。放 bridgeQueue 上,
+    /// 和采集共用一条串行队列,天然避免和帧回调抢私有 API
+    nonisolated func touch(udid: String, phase: Int, x: Double, y: Double,
+                           identifier: UInt32, bottomEdge: Bool) {
+        bridgeQueue.async {
+            SimulatorBridge.touch(udid, phase: Int32(phase), x: x, y: y,
+                                  identifier: identifier, bottomEdge: bottomEdge)
+        }
+    }
+
     nonisolated func stop() {
         bridgeQueue.async { [self] in
             guard let token = takeToken() else { return }

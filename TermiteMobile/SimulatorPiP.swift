@@ -134,15 +134,67 @@ struct SimulatorFullScreen: View {
     let client: MirrorClient
     @Environment(\.dismiss) private var dismiss
 
+    /// 当前这根手指的编号;nil = 没有手指按着
+    @State private var activeTouch: UInt32?
+    @State private var bottomEdge = false
+
+    /// 图片按 aspect fit 摆放后的实际矩形 —— 触点要按它换算,
+    /// 否则黑边也会被当成画面区域,点哪儿偏哪儿
+    private func fittedRect(image: CGSize, in container: CGSize) -> CGRect {
+        guard image.width > 0, image.height > 0 else { return .zero }
+        let scale = min(container.width / image.width, container.height / image.height)
+        let size = CGSize(width: image.width * scale, height: image.height * scale)
+        return CGRect(x: (container.width - size.width) / 2,
+                      y: (container.height - size.height) / 2,
+                      width: size.width, height: size.height)
+    }
+
+    private func normalized(_ point: CGPoint, in box: CGRect) -> CGPoint {
+        CGPoint(x: min(max((point.x - box.minX) / box.width, 0), 1),
+                y: min(max((point.y - box.minY) / box.height, 0), 1))
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
                 if let frame = client.frame {
-                    Image(uiImage: frame)
-                        .resizable()
-                        .interpolation(.medium)
-                        .aspectRatio(contentMode: .fit)
+                    GeometryReader { geo in
+                        let box = fittedRect(image: frame.size, in: geo.size)
+                        Image(uiImage: frame)
+                            .resizable()
+                            .interpolation(.medium)
+                            .frame(width: box.width, height: box.height)
+                            .position(x: box.midX, y: box.midY)
+                            // minimumDistance 0:手指一落就要发 down,
+                            // 不然轻点会被 SwiftUI 当成未达阈值直接丢掉
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        let point = normalized(value.location, in: box)
+                                        if activeTouch == nil {
+                                            activeTouch = client.nextTouchIdentifier()
+                                            // 从底部安全区起手 = home indicator 手势,
+                                            // 要打边缘标记,iOS 才会交给系统手势识别器
+                                            bottomEdge = point.y > 0.97
+                                            client.touch(phase: 0, x: point.x, y: point.y,
+                                                         identifier: activeTouch!,
+                                                         bottomEdge: bottomEdge)
+                                        } else {
+                                            client.touch(phase: 1, x: point.x, y: point.y,
+                                                         identifier: activeTouch!,
+                                                         bottomEdge: bottomEdge)
+                                        }
+                                    }
+                                    .onEnded { value in
+                                        guard let id = activeTouch else { return }
+                                        let point = normalized(value.location, in: box)
+                                        client.touch(phase: 2, x: point.x, y: point.y,
+                                                     identifier: id, bottomEdge: bottomEdge)
+                                        activeTouch = nil
+                                    }
+                            )
+                    }
                 } else {
                     ProgressView()
                 }

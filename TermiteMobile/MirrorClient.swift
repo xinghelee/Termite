@@ -34,6 +34,7 @@ final class MirrorClient {
     /// 实测帧率,显示在浮窗角标上
     private(set) var fps: Double = 0
     private var frameTimes: [Date] = []
+    private var touchCounter: UInt32 = 100
 
     private var task: URLSessionWebSocketTask?
     private var endpoint: Endpoint?
@@ -75,6 +76,20 @@ final class MirrorClient {
         frameTimes = []
         send(["type": "simAttach", "udid": udid, "cols": maxWidth,
               "quality": 0.55, "fps": fps])
+    }
+
+    /// 远端手指:phase 0=按下 1=移动 2=抬起,坐标归一化。
+    /// identifier 同一次手势保持一致,iOS 靠它把三个阶段串成一根手指
+    func touch(phase: Int, x: Double, y: Double, identifier: UInt32, bottomEdge: Bool = false) {
+        guard let udid = attachedID else { return }
+        send(["type": "simTouch", "udid": udid, "phase": phase,
+              "x": min(max(x, 0), 1), "y": min(max(y, 0), 1),
+              "touchID": identifier, "bottomEdge": bottomEdge])
+    }
+
+    func nextTouchIdentifier() -> UInt32 {
+        touchCounter &+= 1
+        return touchCounter
     }
 
     func detach() {

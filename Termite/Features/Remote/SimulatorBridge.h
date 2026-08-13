@@ -28,4 +28,27 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+/// 输入注入(坐标是归一化的 0~1)
+@interface SimulatorBridge (Input)
+
+/// 逐阶段触摸,给远端实时跟手用:0=按下 1=移动 2=抬起。
+/// identifier 同一次手势内保持一致,iOS 靠它把 down/move/up 串成一根手指
++ (BOOL)touch:(NSString *)udid phase:(int)phase
+            x:(double)x y:(double)y
+   identifier:(uint32_t)identifier
+   bottomEdge:(BOOL)bottomEdge;
+
+/// 单指点按
++ (BOOL)tap:(NSString *)udid x:(double)x y:(double)y hold:(double)seconds;
+
+/// 滑动/拖拽。steps 越多越跟手;dwellMs 是终点停留时间
+/// (从底边上滑时 iOS 靠停留时长区分「回主屏」和「应用切换器」)
++ (BOOL)swipe:(NSString *)udid
+         fromX:(double)x1 y:(double)y1
+           toX:(double)x2 y:(double)y2
+      duration:(double)seconds
+   fromBottomEdge:(BOOL)bottomEdge;
+
+@end
+
 NS_ASSUME_NONNULL_END
