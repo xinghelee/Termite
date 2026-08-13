@@ -321,6 +321,16 @@
         }
       }
     },
+    "在这里发一句就能开始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send one here to start"
+          }
+        }
+      }
+    },
     "地址无效": {
       "localizations": {
         "en": {
@@ -641,6 +651,16 @@
         }
       }
     },
+    "正在等你确认 · 去终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting on you · open terminal"
+          }
+        }
+      }
+    },
     "正在连接 %@…": {
       "localizations": {
         "en": {
@@ -837,6 +857,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Back to chat"
+          }
+        }
+      }
+    },
+    "这个会话还没有对话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No messages yet"
           }
         }
       }

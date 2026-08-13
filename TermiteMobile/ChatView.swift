@@ -6,7 +6,6 @@ struct ChatSessionListView: View {
     let client: ChatClient
 
     @Environment(ConnectionStore.self) private var store
-    @State private var opened: ChatClient.SessionInfo?
 
     var body: some View {
         NavigationStack {
@@ -19,13 +18,7 @@ struct ChatSessionListView: View {
                     }
                 } else {
                     List(client.sessions) { session in
-                        Button {
-                            opened = session
-                            client.attach(session.id)
-                        } label: {
-                            row(session)
-                        }
-                        .buttonStyle(.plain)
+                        NavigationLink(value: session) { row(session) }
                     }
                     .listStyle(.insetGrouped)
                 }
@@ -33,8 +26,9 @@ struct ChatSessionListView: View {
             .navigationTitle("对话")
             .navigationBarTitleDisplayMode(.large)
             .refreshable { client.refresh() }
-            .navigationDestination(item: $opened) { session in
+            .navigationDestination(for: ChatClient.SessionInfo.self) { session in
                 ChatView(client: client, session: session)
+                    .onAppear { client.attach(session.id) }
             }
         }
         .onAppear {
@@ -58,6 +52,12 @@ struct ChatSessionListView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+            }
+            if session.attention == "input" {
+                // 权限提示这类在转录里看不见,列表先标出来,免得你以为它没动静
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
             }
             Spacer()
             Text(relative(session.lastActivity))
@@ -93,6 +93,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             messageList
+            waitingBanner
             composer
         }
         .navigationTitle(session.title)
@@ -118,6 +119,15 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
+                    if client.loading {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                            .padding(.vertical, 40)
+                    } else if client.messages.isEmpty, !client.unavailable {
+                        ContentUnavailableView("这个会话还没有对话",
+                                               systemImage: "bubble.left",
+                                               description: Text("在这里发一句就能开始"))
+                            .padding(.top, 40)
+                    }
                     if client.unavailable {
                         Label("读不到这个会话的转录,去终端看", systemImage: "exclamationmark.triangle")
                             .font(.system(size: 12))
@@ -209,6 +219,27 @@ struct ChatView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private var waitingBanner: some View {
+        if session.attention == "input" {
+            Button {
+                showTerminal = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bell.badge.fill")
+                    Text("正在等你确认 · 去终端")
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold))
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.12))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var composer: some View {

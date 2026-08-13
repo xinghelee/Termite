@@ -13,6 +13,7 @@ final class ChatClient {
         let cwd: String?
         let agent: String
         let lastActivity: Double
+        let attention: String?
     }
 
     struct Message: Decodable, Identifiable, Equatable {
@@ -36,6 +37,11 @@ final class ChatClient {
     private(set) var connected = false
     /// 这个会话没有可读的转录 —— 客户端据此提示「去终端看」
     private(set) var unavailable = false
+    /// 附着后、首批消息到达前为 true:界面显示转圈而不是一片空白
+    private(set) var loading = false
+    /// socket 还没就绪时点进来的会话,连上后补发 —— 否则那次 attach 石沉大海,
+    /// 表现就是「点进去永远空白」
+    private var pendingAttach: UUID?
 
     private var task: URLSessionWebSocketTask?
     private var endpoint: Endpoint?
@@ -54,6 +60,7 @@ final class ChatClient {
         receive(socket, gen: gen)
         connected = true
         refresh()
+        if let pending = pendingAttach { attach(pending) }
     }
 
     func shutdown(keepEndpoint: Bool = false) {
@@ -74,12 +81,17 @@ final class ChatClient {
         attachedID = id
         messages = []
         unavailable = false
+        loading = true
+        guard task != nil else { pendingAttach = id; return }
+        pendingAttach = nil
         send(["type": "chatAttach", "id": id.uuidString, "limit": 200])
     }
 
     func detach() {
         guard attachedID != nil else { return }
         attachedID = nil
+        pendingAttach = nil
+        loading = false
         messages = []
         send(["type": "chatDetach"])
     }
@@ -131,6 +143,7 @@ final class ChatClient {
             guard let raw = obj["messages"],
                   let payload = try? JSONSerialization.data(withJSONObject: raw),
                   let batch = try? JSONDecoder().decode([Message].self, from: payload) else { return }
+            loading = false
             if obj["history"] as? Bool == true {
                 messages = batch
             } else {

@@ -40,6 +40,9 @@ struct ChatSessionInfo: Codable, Identifiable {
     var agent: String
     /// 最后一条消息的时间,列表按它排序
     var lastActivity: Double
+    /// pane 的注意力状态("input" = 正在等你确认/输入);
+    /// 权限提示这类纯 TUI 的东西转录里没有,靠它给对话页一个「去终端」的提示
+    var attention: String?
 }
 
 /// 各家 agent 的适配器接口。加一家就实现一个,上层与客户端都不用改
@@ -212,21 +215,32 @@ final class AgentTranscriptHub {
     }
 
     /// 有 agent 转录的会话(对话 tab 只列这些,普通 shell 归终端 tab)
+    /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
+    /// 否则 3 个 pane 就是 3 条一模一样的对话,点进去内容还相同
     func chatSessions() -> [ChatSessionInfo] {
-        var result: [ChatSessionInfo] = []
+        var byTranscript: [URL: ChatSessionInfo] = [:]
         for session in SessionManagerRegistry.shared.allSessions {
             guard let cwd = session.workingDirectory else { continue }
             for adapter in adapters {
                 guard let url = adapter.transcript(forCWD: cwd) else { continue }
                 let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
                     .contentModificationDate) ?? .distantPast
-                result.append(ChatSessionInfo(
+                let attention: String? = switch session.attention {
+                case .none: nil
+                case .needsInput: "input"
+                case .finished: "finished"
+                }
+                let info = ChatSessionInfo(
                     id: session.id, title: session.displayTitle, cwd: cwd,
-                    agent: adapter.agentName, lastActivity: modified.timeIntervalSince1970))
+                    agent: adapter.agentName, lastActivity: modified.timeIntervalSince1970,
+                    attention: attention)
+                // 同一份转录留「正在等你」的那个 pane,其次留先遇到的
+                if let existing = byTranscript[url], existing.attention == "input" { break }
+                byTranscript[url] = info
                 break
             }
         }
-        return result.sorted { $0.lastActivity > $1.lastActivity }
+        return byTranscript.values.sorted { $0.lastActivity > $1.lastActivity }
     }
 
     /// 订阅:先回放历史(最多 maxHistory 条),之后每秒查一次增量。
