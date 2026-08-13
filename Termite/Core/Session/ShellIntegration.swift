@@ -108,8 +108,12 @@ enum ShellIntegration {
     _termite_report_pwd
 
     # 终端内联看图(iTerm2 OSC 1337 协议,Termite 原生渲染),用法:imgcat 图.png
+    #
+    # 宽图声明 width=100%(按终端宽度缩放)而不是留默认的原始像素:同一串字节
+    # 会同时喂给 Mac 的宽画布和手机的窄画布,任何绝对尺寸必然在其中一端错 ——
+    # 远程看截图时表现为手机上只露出左上角一块。小图(图标之类)保持原尺寸不放大
     imgcat() {
-      local f size
+      local f size pixels args
       (( $# )) || { print -u2 "用法: imgcat <图片文件> ..."; return 1 }
       for f in "$@"; do
         if [[ ! -f "$f" ]]; then
@@ -117,11 +121,69 @@ enum ShellIntegration {
           continue
         fi
         size=$(stat -f%z "$f" 2>/dev/null || echo 0)
-        printf '\\e]1337;File=name=%s;size=%s;inline=1:%s\\a\\n' \\
-          "$(printf '%s' "${f:t}" | base64)" "$size" "$(base64 < "$f")"
+        pixels=$(sips -g pixelWidth "$f" 2>/dev/null | awk '/pixelWidth/ { print $2 }')
+        args=""
+        (( ${pixels:-0} > 640 )) && args="width=100%;preserveAspectRatio=1;"
+        printf '\\e]1337;File=name=%s;size=%s;%sinline=1:%s\\a\\n' \\
+          "$(printf '%s' "${f:t}" | base64)" "$size" "$args" "$(base64 < "$f")"
       done
     }
     alias icat=imgcat
+
+    # 截当前启动的模拟器并内联显示,用法:simshot [-f] [保存路径]
+    # 为「人在外面、用手机连回家里这台 Mac 开发 iOS」准备:手机端终端里直接看 UI。
+    # 默认降到 1400px 再显示 —— 原图 6MB base64 完是 8MB,手机流量等半天,
+    # 还会把远程镜像的回放缓冲一次冲干净(重连后图是碎的)。原图始终留在磁盘上
+    simshot() {
+      local full=0
+      [[ "$1" == "-f" ]] && { full=1; shift }
+      local out="${1:-$(mktemp -t simshot).png}"
+      if ! xcrun simctl io booted screenshot "$out" 2>/dev/null; then
+        print -u2 "simshot: 没有已启动的模拟器(先 open -a Simulator)"
+        return 1
+      fi
+      _termite_show_shot "$out" "$full"
+    }
+
+    # 内联显示截图:默认缩到 1400px 的 JPEG(约 240KB,原图 PNG 是 8MB)。
+    # 这个尺寸手机上够看清 UI,又刚好塞得进远程镜像 512K 的回放缓冲 ——
+    # 断线重连后那张图还是完整的。要像素级细节用 -f 走原图。
+    # 注意别用 path 当局部变量名 —— zsh 里它绑定着 PATH,一赋值这个函数里
+    # 所有外部命令都会 command not found
+    _termite_show_shot() {
+      local shot="$1" full="$2" small
+      if (( full )); then
+        imgcat "$shot"
+      else
+        small=$(mktemp -t shot).jpg
+        if sips -Z 1400 -s format jpeg -s formatOptions 75 "$shot" --out "$small" >/dev/null 2>&1; then
+          imgcat "$small"
+          command rm -f "$small"
+        else
+          imgcat "$shot"
+        fi
+      fi
+      print -u2 "→ $shot"
+    }
+
+    # 真机截图(需要设备已连接/已配对),用法:devshot [-f] [保存路径]
+    devshot() {
+      local full=0
+      [[ "$1" == "-f" ]] && { full=1; shift }
+      local out="${1:-$(mktemp -t devshot).png}" udid
+      # 机器名里有空格(「iPad Pro 13-inch (M5)」),不能按列号取,认 UUID 形状
+      udid=$(xcrun devicectl list devices 2>/dev/null \\
+             | awk '/connected/ && /physical/ { for (i=1; i<=NF; i++) if ($i ~ /^[0-9A-F]{8}-/) { print $i; exit } }')
+      if [[ -z "$udid" ]]; then
+        print -u2 "devshot: 没有已连接的真机"
+        return 1
+      fi
+      xcrun devicectl device screenshot --device "$udid" "$out" >/dev/null 2>&1 || {
+        print -u2 "devshot: 截图失败(设备可能锁屏或未信任)"
+        return 1
+      }
+      _termite_show_shot "$out" "$full"
+    }
 
     # 在 Termite 开新标签:termite [目录],缺省当前目录
     termite() { open -a Termite "${1:-$PWD}" }
