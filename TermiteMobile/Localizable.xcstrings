@@ -201,6 +201,16 @@
         }
       }
     },
+    "关闭模拟器浮窗": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the simulator window"
+          }
+        }
+      }
+    },
     "刷新": {
       "localizations": {
         "en": {
@@ -461,6 +471,16 @@
         }
       }
     },
+    "打开模拟器浮窗": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the simulator window"
+          }
+        }
+      }
+    },
     "打开终端": {
       "localizations": {
         "en": {
@@ -681,6 +701,16 @@
         }
       }
     },
+    "等待画面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for frames"
+          }
+        }
+      }
+    },
     "等待输入": {
       "localizations": {
         "en": {
@@ -807,6 +837,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick a session"
+          }
+        }
+      }
+    },
+    "选择模拟器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a simulator"
           }
         }
       }

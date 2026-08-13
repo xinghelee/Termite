@@ -15,6 +15,10 @@ struct TerminalScreenView: View {
     @AppStorage(MobileSettingsKeys.bellHaptics) private var bellHaptics = true
 
     @State private var bridge = TerminalBridge()
+    @State private var mirror = MirrorClient()
+    @State private var showMirror = false
+    @State private var mirrorFullScreen = false
+    @State private var showMirrorPicker = false
     @State private var ctrlArmed = false
     @State private var endedMessage: String?
     @State private var pinchBase: Double?
@@ -58,7 +62,17 @@ struct TerminalScreenView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 浮窗叠在终端区上,不占布局:跟 Claude 对话的同时看着模拟器里的 UI 变
             terminalArea
+                .overlay {
+                    GeometryReader { geo in
+                        if showMirror, mirror.attachedID != nil {
+                            SimulatorPiP(client: mirror, bounds: geo.size,
+                                         onExpand: { mirrorFullScreen = true },
+                                         onClose: { closeMirror() })
+                        }
+                    }
+                }
             keyBar
                 .frame(maxWidth: 620)
         }
@@ -83,6 +97,15 @@ struct TerminalScreenView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardVisible = false
+        }
+        .fullScreenCover(isPresented: $mirrorFullScreen) {
+            SimulatorFullScreen(client: mirror)
+        }
+        .confirmationDialog("选择模拟器", isPresented: $showMirrorPicker, titleVisibility: .visible) {
+            ForEach(mirror.devices) { device in
+                Button(device.name) { mirror.attach(device.id) }
+            }
+            Button("取消", role: .cancel) { closeMirror() }
         }
         .alert("会话已结束", isPresented: Binding(
             get: { endedMessage != nil },
@@ -179,6 +202,18 @@ struct TerminalScreenView: View {
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        if mirror.available {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    tapHaptic()
+                    if showMirror { closeMirror() } else { openMirror() }
+                } label: {
+                    Image(systemName: showMirror ? "iphone.badge.play" : "iphone")
+                }
+                .accessibilityIdentifier("terminal.mirror-toggle")
+                .help(showMirror ? "关闭模拟器浮窗" : "打开模拟器浮窗")
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
                 toggleControl()
@@ -261,6 +296,38 @@ struct TerminalScreenView: View {
 
     private func applyMode() {
         syncPresentation()
+    }
+
+    // MARK: - 模拟器浮窗
+
+    /// 只有一台模拟器就直接开;多台先让用户挑
+    private func openMirror() {
+        guard let mac = store.selected, let endpoint = store.endpoint(for: mac) else { return }
+        mirror.connect(endpoint)
+        showMirror = true
+        if mirror.devices.count == 1, let only = mirror.devices.first {
+            mirror.attach(only.id)
+        } else if mirror.devices.isEmpty {
+            // 列表还没回来:等一小会儿再决定,别让用户以为点了没反应
+            Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                guard showMirror, mirror.attachedID == nil else { return }
+                if mirror.devices.count == 1, let only = mirror.devices.first {
+                    mirror.attach(only.id)
+                } else if !mirror.devices.isEmpty {
+                    showMirrorPicker = true
+                }
+            }
+        } else {
+            showMirrorPicker = true
+        }
+    }
+
+    private func closeMirror() {
+        showMirror = false
+        mirrorFullScreen = false
+        mirror.detach()
+        mirror.shutdown()
     }
 
     /// 接管 / 交还。接管先按估算网格 claim,视图真正排完版后 onGridChange 再报一次精确值,
