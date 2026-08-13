@@ -42,6 +42,8 @@ struct SimulatorTabView: View {
             .refreshable { client.requestDevices() }
             .navigationDestination(item: $opened) { device in
                 SimulatorScreen(client: client, device: device)
+                    // 二级页整屏给模拟器画面
+                    .toolbar(.hidden, for: .tabBar)
             }
         }
         .onAppear {

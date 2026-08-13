@@ -178,8 +178,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         /// 对话模式:发给 agent 的文字、历史条数上限
         let text: String?
         let limit: Int?
-        /// 唤起 agent:在哪个项目里、敲哪个命令
+        /// 唤起 agent:在哪个项目里(或直接给目录)、敲哪个命令
         let project: UUID?
+        let cwd: String?
         let agent: String?
     }
 
@@ -243,11 +244,18 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                         agents: AgentTranscriptHub.shared.agentOptions()))
                 case "chatLaunch":
                     // 唤起 agent:在项目目录开一个**新** pane 再敲命令。
-                    // 绝不复用已有 pane —— 那里可能正跑着别的东西,注入等于抢键盘
-                    guard let project = msg.project, let command = msg.agent,
-                          let info = RemoteSessionHub.shared.launchAgent(
-                              projectID: project, command: command) else {
-                        self.sendJSON(ChatErrorMsg(message: String(localized: "启动失败,项目可能已被移除")))
+                    // 绝不复用已有 pane —— 那里可能正跑着别的东西,注入等于抢键盘。
+                    // 入口有两个:选项目(project)、或对话页里就地重开(cwd)
+                    guard let command = msg.agent else { break }
+                    let launched = if let project = msg.project {
+                        RemoteSessionHub.shared.launchAgent(projectID: project, command: command)
+                    } else if let cwd = msg.cwd {
+                        RemoteSessionHub.shared.launchAgent(cwd: cwd, command: command)
+                    } else {
+                        RemoteSessionInfo?.none
+                    }
+                    guard let info = launched else {
+                        self.sendJSON(ChatErrorMsg(message: String(localized: "启动失败,目录可能已不存在")))
                         break
                     }
                     self.sendJSON(ChatLaunchedMsg(id: info.id, title: info.title))
@@ -271,8 +279,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     guard let id = msg.id, let text = msg.text, !text.isEmpty,
                           let session = SessionManagerRegistry.shared.allSessions
                               .first(where: { $0.id == id }) else { break }
-                    // 只往真在跑 agent 的 pane 注入:普通 shell 收到就等于执行了一句命令
-                    guard session.requiresSharedTUILayout else {
+                    // 只往真在跑 agent 的 pane 注入:普通 shell 收到就等于执行了一句命令。
+                    // 判据看进程(shell 底下挂没挂 agent),不看易失的终端状态
+                    guard AgentTranscriptHub.shared.canInject(sessionID: id) else {
                         self.sendJSON(ChatErrorMsg(
                             message: String(localized: "这个会话的 agent 没在运行,发不出去")))
                         break

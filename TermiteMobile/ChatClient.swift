@@ -136,9 +136,22 @@ final class ChatClient {
         send(["type": "chatLaunch", "project": project.uuidString, "agent": agent.command])
     }
 
+    /// 按目录唤起:对话页看到「agent 没在运行」时就地重开一个,
+    /// 目录不一定是注册过的项目,所以不走 projectID
+    func launch(cwd: String, agent: AgentOption) {
+        guard !launching else { return }
+        launching = true
+        lastError = nil
+        send(["type": "chatLaunch", "cwd": cwd, "agent": agent.command])
+    }
+
     func consumeLaunched() { launched = nil }
 
-    func detach() {
+    /// 传 id 就只在「离开的正是当前附着的那个」时才断。
+    /// 唤起后会把栈顶换成新会话,SwiftUI 有可能先 onAppear 新页再 onDisappear 旧页 ——
+    /// 不带这道守卫,旧页的退出会把新页刚建立的订阅拆掉,表现是「点进去一片空白」
+    func detach(_ id: UUID? = nil) {
+        if let id, attachedID != id { return }
         guard attachedID != nil else { return }
         attachedID = nil
         pendingAttach = nil

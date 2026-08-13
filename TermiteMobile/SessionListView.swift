@@ -120,6 +120,8 @@ private struct TerminalTab: View {
             listCore
                 .navigationDestination(for: RemoteSessionSummary.self) { session in
                     TerminalScreenView(client: client, session: session)
+                        // 二级页把底部让给按键条
+                        .toolbar(.hidden, for: .tabBar)
                 }
         }
     }

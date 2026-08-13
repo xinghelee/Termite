@@ -568,6 +568,77 @@ private final class SQLiteReader {
     }
 }
 
+// MARK: - 进程事实
+
+/// 「这个 pane 里到底在不在跑 agent」只能问内核。
+///
+/// 之前拿终端状态判(备用屏/内联 TUI/标题带 ✳),全是**易失**的:
+/// app 一重启、agent 一空闲,标记就掉了,手机上就显示成「agent 没在运行」。
+/// 进程不会骗人:看这个 shell 的子孙里有没有 claude/codex/opencode。
+enum AgentProcessProbe {
+    struct Snapshot {
+        /// 父进程 → 子进程们
+        var children: [pid_t: [pid_t]] = [:]
+    }
+
+    /// 一次 proc_listallpids + 每个 pid 一次 PROC_PIDTBSDINFO 取父子关系,
+    /// 四百来个进程毫秒级;一轮 chatList 只扫一次
+    static func snapshot() -> Snapshot {
+        var result = Snapshot()
+        let count = proc_listallpids(nil, 0)
+        guard count > 0 else { return result }
+        // 余量给足:两次调用之间会有进程新建
+        var pids = [pid_t](repeating: 0, count: Int(count) + 256)
+        let filled = proc_listallpids(&pids, Int32(MemoryLayout<pid_t>.size * pids.count))
+        guard filled > 0 else { return result }
+        // 返回值是**进程数**(文档说是字节数,实测不是)。当字节数除以 4 只会扫到前四分之一,
+        // 大量 shell 被漏掉。按数量取,越界部分是填零的空位,跳过即可
+        let found = min(Int(filled), pids.count)
+        for pid in pids.prefix(found) where pid > 0 {
+            var info = proc_bsdinfo()
+            let size = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info,
+                                   Int32(MemoryLayout<proc_bsdinfo>.size))
+            guard size == Int32(MemoryLayout<proc_bsdinfo>.size) else { continue }
+            result.children[pid_t(info.pbi_ppid), default: []].append(pid)
+        }
+        return result
+    }
+
+    /// shell 的子孙里跑着哪家 agent。只往下走三层 ——
+    /// agent 要么是 shell 的直接子进程,要么隔一层启动器(npx / 版本管理器)
+    static func agent(under shell: pid_t, commands: [String], in snapshot: Snapshot) -> String? {
+        var frontier = [shell]
+        for _ in 0..<3 {
+            var next: [pid_t] = []
+            for pid in frontier {
+                for child in snapshot.children[pid] ?? [] {
+                    if let hit = command(of: child, among: commands) { return hit }
+                    next.append(child)
+                }
+            }
+            if next.isEmpty { break }
+            frontier = next
+        }
+        return nil
+    }
+
+    /// 认哪家:**不能只看进程名**。Claude Code 的可执行文件叫版本号
+    /// (`~/.local/share/claude/versions/2.1.229`),comm 里根本没有 "claude"。
+    /// 所以看完整路径的每一段:命中 `.../claude/...` 或文件名就是 codex/opencode 都算。
+    /// 只对 shell 的子孙调用,一次也就几个进程
+    private static func command(of pid: pid_t, among commands: [String]) -> String? {
+        // 4096 = PROC_PIDPATHINFO_MAXSIZE(宏,Swift 里看不见)
+        var buffer = [CChar](repeating: 0, count: 4096)
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
+        let path = String(cString: buffer)
+        guard !path.isEmpty else { return nil }
+        let parts = path.split(separator: "/").map(String.init)
+        // 末段优先(codex / opencode 就是本名),再看路径里有没有以家名命名的目录
+        if let last = parts.last, commands.contains(last) { return last }
+        return commands.first { parts.contains($0) }
+    }
+}
+
 // MARK: - 中枢
 
 /// 转录订阅:把某个终端 pane 的 agent 会话变成消息流推给手机。
@@ -609,8 +680,9 @@ final class AgentTranscriptHub {
     }
 
     /// 一个目录可能同时有几家 agent 的历史转录(先用 Claude 后用 Codex)。
-    /// 谁在这个 pane 里跑就选谁:标题点名的优先,否则挑转录写得最新的那家
-    private func locate(cwd: String, title: String) -> (adapter: AgentTranscriptAdapter, ref: AgentTranscriptRef)? {
+    /// 谁在这个 pane 里跑就选谁:**进程说了算**,其次标题点名的,最后挑转录最新的那家
+    private func locate(cwd: String, title: String,
+                        running: String? = nil) -> (adapter: AgentTranscriptAdapter, ref: AgentTranscriptRef)? {
         var found: [(AgentTranscriptAdapter, AgentTranscriptRef)] = []
         for adapter in adapters {
             let key = "\(adapter.agentName)|\(cwd)"
@@ -625,8 +697,30 @@ final class AgentTranscriptHub {
             if let ref { found.append((adapter, ref)) }
         }
         guard !found.isEmpty else { return nil }
+        if let running, let hit = found.first(where: { $0.0.launchCommand == running }) { return hit }
         if let named = found.first(where: { $0.0.matchesTitle(title) }) { return named }
         return found.max { $0.1.modified < $1.1.modified }
+    }
+
+    /// pane 的 shell pid。保活会话的 shell 在守护进程里,pid 得跟它要 ——
+    /// LIST 是异步的,所以缓存着用,首轮拿不到就退回旧的启发式判断
+    private var hostPIDs: [UUID: pid_t] = [:]
+    private var hostPIDsAt = Date.distantPast
+
+    private func refreshHostPIDs() {
+        guard Date().timeIntervalSince(hostPIDsAt) > 3 else { return }
+        hostPIDsAt = Date()
+        Task { @MainActor in
+            guard let listing = await PtyHostClient.shared.list() else { return }
+            hostPIDs = Dictionary(listing.map { ($0.id, $0.pid) }) { _, last in last }
+        }
+    }
+
+    private func shellPID(of session: TerminalSession) -> pid_t? {
+        if let ptyID = session.hostPtyID { return hostPIDs[ptyID] }
+        // 没走保活的会话(下拉终端等)shell 就在本进程下
+        let local = session.terminalView.process.shellPid
+        return local > 0 ? local : nil
     }
 
     /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
@@ -650,29 +744,40 @@ final class AgentTranscriptHub {
 
     func chatSessions() -> [ChatSessionInfo] {
         let spaces = spaceBinding()
+        refreshHostPIDs()
+        let processes = AgentProcessProbe.snapshot()
+        let commands = adapters.map(\.launchCommand)
         var byTranscript: [String: ChatSessionInfo] = [:]
         for session in SessionManagerRegistry.shared.allSessions {
-            guard let cwd = session.workingDirectory,
-                  let (adapter, ref) = locate(cwd: cwd, title: session.displayTitle) else { continue }
+            guard let cwd = session.workingDirectory else { continue }
+            // 这个 pane 的 shell 底下真的在跑哪家 agent(拿不到 pid 时为 nil)
+            let running = shellPID(of: session).flatMap {
+                AgentProcessProbe.agent(under: $0, commands: commands, in: processes)
+            }
+            guard let (adapter, ref) = locate(cwd: cwd, title: session.displayTitle,
+                                              running: running) else { continue }
             let attention: String? = switch session.attention {
             case .none: nil
             case .needsInput: "input"
             case .finished: "finished"
             }
-            // 「能发消息」= 备用屏 TUI + 看得出是 agent。
-            // 只看备用屏会误判:git log 走分页器同样是备用屏,发过去就打进 less 了。
-            // 判据一:标题点名了这家 agent;判据二:标题带 agent 的状态符号
-            // (Claude Code 把任务摘要写进标题,前面跟一个 ✳ ◑ ✻ 之类的转圈字符);
-            // 判据三:转录刚写过。三者取或 —— 闲置的会话标题还在,
-            // 而正在跑的即使标题没符号也算
-            let fresh = Date().timeIntervalSince(ref.modified) < 15 * 60
-            let looksLikeAgent = adapter.matchesTitle(session.displayTitle)
-                || Self.titleLooksLikeAgent(session.displayTitle)
+            // 「能发消息」优先信进程:这个 shell 底下确实挂着这家 agent 就是能发。
+            // 拿不到 pid(守护进程 LIST 还没回来)才退回旧的启发式:
+            // 备用屏/内联 TUI + 标题点名或带 ✳ 状态符或转录刚写过。
+            // 那套判据是**易失**的 —— app 重启、agent 闲着都会掉,不能当唯一依据
+            let canSend: Bool
+            if shellPID(of: session) != nil {
+                canSend = running == adapter.launchCommand
+            } else {
+                let fresh = Date().timeIntervalSince(ref.modified) < 15 * 60
+                let looksLikeAgent = adapter.matchesTitle(session.displayTitle)
+                    || Self.titleLooksLikeAgent(session.displayTitle)
+                canSend = session.requiresSharedTUILayout && (looksLikeAgent || fresh)
+            }
             let info = ChatSessionInfo(
                 id: session.id, title: session.displayTitle, cwd: cwd,
                 agent: adapter.agentName, lastActivity: ref.modified.timeIntervalSince1970,
-                attention: attention,
-                canSend: session.requiresSharedTUILayout && (looksLikeAgent || fresh),
+                attention: attention, canSend: canSend,
                 space: spaces[session.id]?.name, spaceID: spaces[session.id]?.id)
             // 同一份转录挑「真在跑 agent」的那个 pane —— 同目录下常混着普通 shell。
             // 其次才看谁在等你输入
@@ -732,6 +837,16 @@ final class AgentTranscriptHub {
         return []
     }
 
+    /// 注入前的最后一道闸门(服务端用),和列表的 canSend 同一套判据:
+    /// 这个 shell 底下挂着 agent 才让发,否则那行字就打进 bash 执行了
+    func canInject(sessionID: UUID) -> Bool {
+        guard let session = SessionManagerRegistry.shared.allSessions
+            .first(where: { $0.id == sessionID }) else { return false }
+        guard let pid = shellPID(of: session) else { return session.requiresSharedTUILayout }
+        return AgentProcessProbe.agent(under: pid, commands: adapters.map(\.launchCommand),
+                                       in: AgentProcessProbe.snapshot()) != nil
+    }
+
     /// 订阅:先回放历史(最多 maxHistory 条),之后每秒查一次增量。
     /// 用轮询而不是 FSEvents —— 转录是追加写,轮询一次只读增量,开销可以忽略,
     /// 而且不用处理文件替换/重建时的事件丢失
@@ -739,8 +854,13 @@ final class AgentTranscriptHub {
                 onMessages: @escaping ([ChatMessage], Bool) -> Void) -> Bool {
         detach(connID: connID)
         guard let session = SessionManagerRegistry.shared.allSessions.first(where: { $0.id == sessionID }),
-              let cwd = session.workingDirectory,
-              let (adapter, ref) = locate(cwd: cwd, title: session.displayTitle) else { return false }
+              let cwd = session.workingDirectory else { return false }
+        let running = shellPID(of: session).flatMap {
+            AgentProcessProbe.agent(under: $0, commands: adapters.map(\.launchCommand),
+                                    in: AgentProcessProbe.snapshot())
+        }
+        guard let (adapter, ref) = locate(cwd: cwd, title: session.displayTitle,
+                                          running: running) else { return false }
         let (history, cursor) = adapter.parse(ref, from: "")
         let watcher = Watcher(ref: ref, adapter: adapter, cursor: cursor)
         watchers[connID] = watcher

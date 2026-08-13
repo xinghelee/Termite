@@ -65,6 +65,8 @@ struct ChatSessionListView: View {
             .navigationDestination(for: ChatClient.SessionInfo.self) { session in
                 ChatView(client: client, session: session)
                     .onAppear { client.attach(session.id) }
+                    // 二级页把底部让给输入框
+                    .toolbar(.hidden, for: .tabBar)
             }
         }
         .sheet(isPresented: $showLaunch) {
@@ -303,7 +305,7 @@ struct ChatView: View {
                 .help("切到终端视图")
             }
         }
-        .onDisappear { client.detach() }
+        .onDisappear { client.detach(session.id) }
         .fullScreenCover(isPresented: $showTerminal) {
             TerminalFallbackView(sessionID: session.id, title: live.title)
         }
@@ -434,14 +436,33 @@ struct ChatView: View {
                 .padding(.vertical, 8)
                 .background(Color.orange.opacity(0.12))
         } else if live.canSend == false {
-            // 同目录下常混着普通 shell,绑到它的话发消息等于在 bash 里执行一句话
-            Label("这个目录的 agent 没在运行,只能查看历史", systemImage: "eye")
-                .font(.system(size: 12))
-                .foregroundStyle(theme.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(theme.surface)
+            // 同目录下常混着普通 shell,绑到它的话发消息等于在 bash 里执行一句话。
+            // 只说「不能发」等于把人堵死,给一条就地重开的出路
+            HStack(spacing: 8) {
+                Label("agent 没在运行,只能看历史", systemImage: "eye")
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.secondaryText)
+                Spacer(minLength: 4)
+                if let option = relaunchOption, let cwd = live.cwd {
+                    Button {
+                        client.launch(cwd: cwd, agent: option)
+                    } label: {
+                        if client.launching {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("启动 \(option.name)", systemImage: "play.fill")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(client.launching)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(theme.surface)
         } else if live.attention == "input" {
             Button {
                 showTerminal = true
@@ -460,6 +481,11 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// 就地重开时用哪家:优先这段转录本来的那家,其次 Mac 上装了的第一家
+    private var relaunchOption: ChatClient.AgentOption? {
+        client.agents.first { $0.name == live.agent } ?? client.agents.first
     }
 
     /// 占位文字点名当前这家 agent —— 三家都接了,写死「跟 Claude 说」会误导

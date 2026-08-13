@@ -482,23 +482,39 @@ final class RemoteSessionHub {
         return list().first { $0.id == sessionID }
     }
 
-    /// 从手机唤起 agent:在项目目录开一个新标签,然后把命令敲进去。
-    ///
+    /// 从手机唤起 agent:在项目目录开一个新标签,然后把命令敲进去
+    func launchAgent(projectID: UUID, command: String) -> RemoteSessionInfo? {
+        guard let project = ProjectStore.shared.projects.first(where: { $0.id == projectID })
+        else { return nil }
+        selectSpace(of: project)
+        return launchAgent(directory: project.path, projectPath: project.path, command: command)
+    }
+
+    /// 按目录唤起:对话页看到「这个目录的 agent 没在运行」时就地重开一个。
+    /// 目录不一定是注册过的项目,所以不能只认 projectID
+    func launchAgent(cwd: String, command: String) -> RemoteSessionInfo? {
+        // 正好是某个项目就顺手绑定,新标签才会归到侧边栏的那个项目下
+        let project = ProjectStore.shared.projects.first { $0.path == cwd }
+        if let project { selectSpace(of: project) }
+        return launchAgent(directory: cwd, projectPath: project?.path, command: command)
+    }
+
+    private func selectSpace(of project: Project) {
+        if let spaceID = SpaceStore.shared.effectiveSpaceID(of: project) {
+            SpaceStore.shared.select(spaceID)
+        }
+    }
+
     /// 刻意不复用已有标签 —— 那里可能正跑着编译或另一个 agent,
     /// 注入一行命令等于从你手里抢键盘。新开一个永远是安全的。
-    func launchAgent(projectID: UUID, command: String) -> RemoteSessionInfo? {
-        guard active,
-              let project = ProjectStore.shared.projects.first(where: { $0.id == projectID })
-        else { return nil }
+    private func launchAgent(directory: String, projectPath: String?,
+                             command: String) -> RemoteSessionInfo? {
+        guard active else { return nil }
         let registry = SessionManagerRegistry.shared
         guard !registry.managers.isEmpty else { return nil }
-        let spaceStore = SpaceStore.shared
-        if let spaceID = spaceStore.effectiveSpaceID(of: project) {
-            spaceStore.select(spaceID)
-        }
         let manager = registry.active
-        let session = manager.newTab(directory: project.path)
-        manager.tabs.last?.projectPath = project.path
+        let session = manager.newTab(directory: directory)
+        if let projectPath { manager.tabs.last?.projectPath = projectPath }
         // 等 shell 起来再敲:PTY 刚建好那一下 zsh 还在读配置,
         // 这时候写进去会被 shell 集成的输出冲掉,看着就像「没反应」
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
