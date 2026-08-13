@@ -43,6 +43,9 @@ struct ChatSessionInfo: Codable, Identifiable {
     /// pane 的注意力状态("input" = 正在等你确认/输入);
     /// 权限提示这类纯 TUI 的东西转录里没有,靠它给对话页一个「去终端」的提示
     var attention: String?
+    /// 绑定的 pane 是否真在跑 agent(备用屏 TUI)。false 时禁止发消息 ——
+    /// 同一目录下常有普通 shell,往它注入文字等于在 bash 里执行了一句你没打算执行的话
+    var canSend: Bool
 }
 
 /// 各家 agent 的适配器接口。加一家就实现一个,上层与客户端都不用改
@@ -215,6 +218,18 @@ final class AgentTranscriptHub {
     }
 
     /// 有 agent 转录的会话(对话 tab 只列这些,普通 shell 归终端 tab)
+    /// 标题是不是 agent 的样子:Claude Code 把任务摘要写进终端标题,
+    /// 前面带一个转圈状态符(✳ ◑ ✻ ·)。普通命令(git log / vim)不会这样
+    private static func titleLooksLikeAgent(_ title: String) -> Bool {
+        guard let first = title.unicodeScalars.first else { return false }
+        if title.localizedCaseInsensitiveContains("claude") { return true }
+        // 首字符是符号且后面还有空格分隔的正文
+        let isSymbol = !CharacterSet.alphanumerics.contains(first)
+            && !CharacterSet.whitespaces.contains(first)
+            && first.value > 0x2000
+        return isSymbol && title.contains(" ")
+    }
+
     /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
     /// 否则 3 个 pane 就是 3 条一模一样的对话,点进去内容还相同
     func chatSessions() -> [ChatSessionInfo] {
@@ -230,12 +245,26 @@ final class AgentTranscriptHub {
                 case .needsInput: "input"
                 case .finished: "finished"
                 }
+                // 「能发消息」= 备用屏 TUI + 看得出是 agent。
+                // 只看备用屏会误判:git log 走分页器同样是备用屏,发过去就打进 less 了。
+                // 判据一:标题带 agent 的状态符号(Claude Code 会把任务摘要写进标题,
+                //   前面跟一个 ✳ ◑ ✻ 之类的转圈字符);判据二:转录刚写过。
+                // 两者取或 —— 闲置的 Claude 会话标题还在,而正在跑的即使标题没符号也算
+                let fresh = Date().timeIntervalSince(modified) < 15 * 60
+                let looksLikeAgent = Self.titleLooksLikeAgent(session.displayTitle)
                 let info = ChatSessionInfo(
                     id: session.id, title: session.displayTitle, cwd: cwd,
                     agent: adapter.agentName, lastActivity: modified.timeIntervalSince1970,
-                    attention: attention)
-                // 同一份转录留「正在等你」的那个 pane,其次留先遇到的
-                if let existing = byTranscript[url], existing.attention == "input" { break }
+                    attention: attention,
+                    canSend: session.requiresSharedTUILayout && (looksLikeAgent || fresh))
+                // 同一份转录挑「真在跑 agent」的那个 pane —— 同目录下常混着普通 shell。
+                // 其次才看谁在等你输入
+                if let existing = byTranscript[url] {
+                    let better = (info.canSend && !existing.canSend)
+                        || (info.canSend == existing.canSend
+                            && info.attention == "input" && existing.attention != "input")
+                    guard better else { break }
+                }
                 byTranscript[url] = info
                 break
             }

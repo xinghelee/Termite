@@ -4691,6 +4691,16 @@
         }
       }
     },
+    "这个会话的 agent 没在运行,发不出去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The agent for this session is not running"
+          }
+        }
+      }
+    },
     "这个文件的修改历史": {
       "localizations": {
         "en": {

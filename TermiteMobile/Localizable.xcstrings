@@ -131,6 +131,16 @@
         }
       }
     },
+    "agent 没在运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent not running"
+          }
+        }
+      }
+    },
     "http://192.168.1.8:9280/?t=…": {
       "localizations": {
         "en": {
@@ -867,6 +877,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No messages yet"
+          }
+        }
+      }
+    },
+    "这个目录的 agent 没在运行,只能查看历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No agent running in this directory — history only"
           }
         }
       }

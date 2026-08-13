@@ -233,6 +233,12 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                     guard let id = msg.id, let text = msg.text, !text.isEmpty,
                           let session = SessionManagerRegistry.shared.allSessions
                               .first(where: { $0.id == id }) else { break }
+                    // 只往真在跑 agent 的 pane 注入:普通 shell 收到就等于执行了一句命令
+                    guard session.requiresSharedTUILayout else {
+                        self.sendJSON(ChatErrorMsg(
+                            message: String(localized: "这个会话的 agent 没在运行,发不出去")))
+                        break
+                    }
                     session.sendText(text + "\r")
                 case "simTouch":
                     // 远端手指:归一化坐标 + 阶段。只有正在镜像的连接能发,
@@ -475,6 +481,11 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var history: Bool
         /// 这个会话没有可读的转录(不是 agent 会话,或格式不认识)
         var unavailable = false
+    }
+
+    private struct ChatErrorMsg: Encodable {
+        var type = "chatError"
+        var message: String
     }
 
     private struct SimStateMsg: Encodable {

@@ -53,6 +53,11 @@ struct ChatSessionListView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            if session.canSend == false {
+                Image(systemName: "eye")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
             if session.attention == "input" {
                 // 权限提示这类在转录里看不见,列表先标出来,免得你以为它没动静
                 Image(systemName: "bell.badge.fill")
@@ -222,7 +227,24 @@ struct ChatView: View {
     }
 
     @ViewBuilder private var waitingBanner: some View {
-        if session.attention == "input" {
+        if let error = client.lastError {
+            Label(error, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.12))
+        } else if session.canSend == false {
+            // 同目录下常混着普通 shell,绑到它的话发消息等于在 bash 里执行一句话
+            Label("这个目录的 agent 没在运行,只能查看历史", systemImage: "eye")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color(.secondarySystemBackground))
+        } else if session.attention == "input" {
             Button {
                 showTerminal = true
             } label: {
@@ -244,7 +266,8 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(spacing: 8) {
-            TextField("跟 Claude 说…", text: $draft, axis: .vertical)
+            TextField(session.canSend == false ? "agent 没在运行" : "跟 Claude 说…",
+                      text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 12)
@@ -257,7 +280,8 @@ struct ChatView: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 28))
             }
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      || session.canSend == false)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

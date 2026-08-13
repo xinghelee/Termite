@@ -14,6 +14,8 @@ final class ChatClient {
         let agent: String
         let lastActivity: Double
         let attention: String?
+        /// 绑定的 pane 是否真在跑 agent;false 时输入框禁用
+        let canSend: Bool?
     }
 
     struct Message: Decodable, Identifiable, Equatable {
@@ -39,6 +41,8 @@ final class ChatClient {
     private(set) var unavailable = false
     /// 附着后、首批消息到达前为 true:界面显示转圈而不是一片空白
     private(set) var loading = false
+    /// 服务端拒发时的提示(比如 agent 没在跑)
+    private(set) var lastError: String?
     /// socket 还没就绪时点进来的会话,连上后补发 —— 否则那次 attach 石沉大海,
     /// 表现就是「点进去永远空白」
     private var pendingAttach: UUID?
@@ -101,6 +105,7 @@ final class ChatClient {
         guard let id = attachedID else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        lastError = nil
         send(["type": "chatSend", "id": id.uuidString, "text": trimmed])
         // 本地先乐观插一条,别等转录落盘那一秒的空窗
         messages.append(Message(id: "local-\(UUID().uuidString)", role: "user", text: trimmed,
@@ -138,6 +143,8 @@ final class ChatClient {
                let list = try? JSONDecoder().decode([SessionInfo].self, from: payload) {
                 sessions = list
             }
+        case "chatError":
+            lastError = obj["message"] as? String
         case "chatMessages":
             unavailable = obj["unavailable"] as? Bool ?? false
             guard let raw = obj["messages"],
