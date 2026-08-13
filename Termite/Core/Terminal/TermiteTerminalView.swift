@@ -222,6 +222,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         scrollerStyle = .legacy
         subdueScroller()
         addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
+        _ = Self.smoothScrollMonitor
     }
 
     required init?(coder: NSCoder) {
@@ -230,6 +231,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         scrollerStyle = .legacy
         subdueScroller()
         addGestureRecognizer(NSMagnificationGestureRecognizer(target: self, action: #selector(handleMagnify(_:))))
+        _ = Self.smoothScrollMonitor
     }
 
     /// legacy 滑块跟随 appearance 画成亮灰,深色主题近黑背景下太扎眼,整体压暗融入正文
@@ -262,6 +264,96 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     deinit {
         windowKeyObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
+    // MARK: - 平滑滚动(触控板像素级累计)
+
+    /// SwiftTerm 的 scrollWheel 用粗粒度 deltaY 套 1/3/10/20 行的速度阶梯,
+    /// 触控板轻扫也整块整块跳,且它是 public override,模块外不可再覆写。
+    /// 走 NSEvent 局部监视器在分发前截获(标题栏 PressDragLayer 同思路):
+    /// 精确增量设备(触控板/妙控鼠标)按像素累计 scrollingDeltaY,每满一个单元格
+    /// 高度折算一行,余量跨事件保留——手指位移与滚动量 1:1,惯性(momentum)
+    /// 事件流自然连续(Ghostty/Kitty 同款策略)。传统滚轮(无精确增量)仍走原路径。
+    private var scrollPixelAccumulator: CGFloat = 0
+
+    /// 进程内只装一次:命中终端视图(或其子视图,如 MTKView/滚动条)的滚轮事件
+    /// 交给平滑滚动处理,其余(侧边栏/设置页等)原样放行
+    private static let smoothScrollMonitor: Void = {
+        NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            // 局部监视器总在主线程回调;NSEvent 非 Sendable,只让 Bool 跨隔离边界
+            nonisolated(unsafe) let event = event
+            let consumed = MainActor.assumeIsolated { () -> Bool in
+                guard let window = event.window,
+                      let hit = window.contentView?.hitTest(event.locationInWindow) else { return false }
+                var view: NSView? = hit
+                while let current = view {
+                    if let terminal = current as? TermiteTerminalView {
+                        return terminal.handleSmoothScroll(event)
+                    }
+                    view = current.superview
+                }
+                return false
+            }
+            return consumed ? nil : event
+        }
+    }()
+
+    /// 返回 true 表示事件已消费(精确增量一律吞掉,防 SwiftTerm 原逻辑二次滚动);
+    /// false 放行给 SwiftTerm 原 scrollWheel(传统滚轮)
+    private func handleSmoothScroll(_ event: NSEvent) -> Bool {
+        guard event.hasPreciseScrollingDeltas else {
+            scrollPixelAccumulator = 0
+            return false
+        }
+        // 新手势落指清掉上次残余,不让旧余量偷走第一行的行程
+        if event.phase == .began || event.phase == .mayBegin {
+            scrollPixelAccumulator = 0
+        }
+        let cellHeight = caretFrame.height
+        guard cellHeight > 0 else { return false }
+        scrollPixelAccumulator += event.scrollingDeltaY
+        let lines = Int(scrollPixelAccumulator / cellHeight)
+        if lines != 0 {
+            scrollPixelAccumulator -= CGFloat(lines) * cellHeight
+            deliverScroll(lines: lines, event: event)
+        }
+        return true
+    }
+
+    /// 与 SwiftTerm 原版 scrollWheel 相同的三分支(鼠标上报 TUI / 备用屏方向键 /
+    /// 普通缓冲区回滚),只是行数来自像素累计而非速度阶梯
+    private func deliverScroll(lines: Int, event: NSEvent) {
+        let terminal = getTerminal()
+        let up = lines > 0
+        let count = abs(lines)
+        let shiftBypasses = event.modifierFlags.contains(.shift) && !terminal.mouseShiftCapture
+        if allowMouseReporting, !shiftBypasses, terminal.mouseMode != .off {
+            guard inputEnabled else { return }
+            let cell = caretFrame.size
+            guard cell.width > 0, cell.height > 0 else { return }
+            let point = convert(event.locationInWindow, from: nil)
+            let col = max(0, min(terminal.cols - 1, Int(point.x / cell.width)))
+            let row = max(0, min(terminal.rows - 1, Int((frame.height - point.y) / cell.height)))
+            let flags = event.modifierFlags
+            let buttonFlags = terminal.encodeButton(
+                button: up ? 4 : 5, release: false,
+                shift: flags.contains(.shift), meta: flags.contains(.option), control: flags.contains(.control))
+            let pixelX = Int(min(max(point.x, 0), bounds.width))
+            let pixelY = Int(bounds.height - min(max(point.y, 0), bounds.height))
+            for _ in 0..<count {
+                terminal.sendEvent(buttonFlags: buttonFlags, x: col, y: row, pixelX: pixelX, pixelY: pixelY)
+            }
+        } else if terminal.isCurrentBufferAlternate {
+            guard inputEnabled else { return }
+            let arrow = up
+                ? (terminal.applicationCursor ? "\u{1b}OA" : "\u{1b}[A")
+                : (terminal.applicationCursor ? "\u{1b}OB" : "\u{1b}[B")
+            send(txt: String(repeating: arrow, count: count))
+        } else if up {
+            scrollUp(lines: count)
+        } else {
+            scrollDown(lines: count)
+        }
     }
 
     // MARK: - ⌥点击定位光标(iTerm 惯例;issue #3 的 80/20 之一)

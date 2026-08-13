@@ -924,7 +924,9 @@ final class TerminalSession: Identifiable {
     }
 
     /// 嗅探输出是否结构化数据:只看首尾几行,避免大输出全量扫描。
-    /// JSON:首行以 {/[ 起、末行以 }/] 收;CSV/TSV:前两行分隔符列数一致且 ≥2 列。
+    /// JSON:首行以 {/[ 起、末行以 }/] 收。
+    /// CSV/TSV:采样开头连续 ≤5 行非空行,分隔符列数须全部一致;Tab ≥2 列,
+    /// 逗号 ≥3 列——散文里成对出现的单逗号(如 git push 每行结尾的「, done.」)不再误报。
     private func detectStructured(start: Int, end: Int) -> StructuredOutputFormat? {
         guard end > start else { return nil }
         let terminal = terminalView.getTerminal()
@@ -943,12 +945,19 @@ final class TerminalSession: Identifiable {
             return (last.hasSuffix("}") || last.hasSuffix("]")) ? .json : nil
         }
 
-        guard firstIndex + 1 < end else { return nil }
-        let second = text(firstIndex + 1)
-        guard !second.isEmpty else { return nil }
-        for (separator, format) in [("\t", StructuredOutputFormat.tsv), (",", .csv)] {
-            let columns = first.components(separatedBy: separator).count
-            if columns >= 2, second.components(separatedBy: separator).count == columns {
+        var sample: [String] = []
+        var row = firstIndex
+        while row < end, sample.count < 5 {
+            let line = text(row)
+            if line.isEmpty { break }
+            sample.append(line)
+            row += 1
+        }
+        guard sample.count >= 2 else { return nil }
+        for (separator, format, minColumns) in [("\t", StructuredOutputFormat.tsv, 2), (",", .csv, 3)] {
+            let columns = sample[0].components(separatedBy: separator).count
+            guard columns >= minColumns else { continue }
+            if sample.dropFirst().allSatisfy({ $0.components(separatedBy: separator).count == columns }) {
                 return format
             }
         }
