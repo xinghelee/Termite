@@ -11,6 +11,8 @@ struct MainView: View {
     @State private var chatClient = ChatClient()
     /// 模拟器 tab 和终端页里的浮窗共用一个客户端:同一时刻只该有一条镜像流
     @State private var mirrorClient = MirrorClient()
+    /// 三个 tab 共用一套配色:主题由终端连接下发,存这儿再注进环境
+    @State private var themeStore = ThemeStore()
 
     var body: some View {
         // 用经典 .tabItem 而不是 iOS 18 的 Tab —— target 是 iOS 17
@@ -21,6 +23,11 @@ struct MainView: View {
                 .tabItem { Label("对话", systemImage: "bubble.left.and.bubble.right") }
             SimulatorTabView(client: mirrorClient)
                 .tabItem { Label("模拟器", systemImage: "iphone.gen3") }
+        }
+        .environment(\.termiteTheme, themeStore.theme)
+        .tint(themeStore.theme.accent)
+        .onChange(of: client.theme, initial: true) { _, palette in
+            themeStore.palette = palette
         }
     }
 }

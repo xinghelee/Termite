@@ -6,6 +6,7 @@ struct ChatSessionListView: View {
     let client: ChatClient
 
     @Environment(ConnectionStore.self) private var store
+    @Environment(\.termiteTheme) private var theme
     /// 工作空间筛选:和终端 tab 同一套语义 —— 未分组的会话在所有空间都可见
     @State private var spaceFilter: UUID?
 
@@ -31,12 +32,14 @@ struct ChatSessionListView: View {
                         Section {
                             ForEach(visibleSessions) { session in
                                 NavigationLink(value: session) { row(session) }
+                                    .termiteRow(theme)
                             }
                         }
                     }
                     .listStyle(.insetGrouped)
                 }
             }
+            .termiteScreen(theme)
             .navigationTitle("对话")
             .navigationBarTitleDisplayMode(.large)
             .refreshable { client.refresh() }
@@ -79,9 +82,8 @@ struct ChatSessionListView: View {
                 .font(.system(size: 12, weight: selected ? .semibold : .regular))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Color.accentColor.opacity(0.22)
-                                                    : Color(.secondarySystemBackground)))
-                .foregroundStyle(selected ? Color.accentColor : .secondary)
+                .background(Capsule().fill(selected ? theme.accent.opacity(0.22) : theme.surface))
+                .foregroundStyle(selected ? theme.accent : theme.secondaryText)
         }
         .buttonStyle(.plain)
     }
@@ -90,14 +92,14 @@ struct ChatSessionListView: View {
         HStack(spacing: 10) {
             Image(systemName: "sparkles")
                 .font(.system(size: 14))
-                .foregroundStyle(.tint)
+                .foregroundStyle(theme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.title)
                     .font(.system(size: 15, weight: .medium))
                     .lineLimit(1)
                 Text(shortPath(session.cwd) + " · " + session.agent)
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.secondaryText)
                     .lineLimit(1)
             }
             if session.canSend == false {
@@ -114,7 +116,7 @@ struct ChatSessionListView: View {
             Spacer()
             Text(relative(session.lastActivity))
                 .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(theme.tertiaryText)
         }
         .padding(.vertical, 2)
     }
@@ -138,6 +140,7 @@ struct ChatView: View {
     let session: ChatClient.SessionInfo
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.termiteTheme) private var theme
     @State private var draft = ""
     @State private var expandedThinking: Set<String> = []
     @State private var showTerminal = false
@@ -148,6 +151,7 @@ struct ChatView: View {
             waitingBanner
             composer
         }
+        .termiteScreen(theme)
         .navigationTitle(session.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -215,8 +219,7 @@ struct ChatView: View {
                         .padding(.vertical, 9)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(message.isUser ? Color.accentColor.opacity(0.22)
-                                                     : Color(.secondarySystemBackground))
+                                .fill(message.isUser ? theme.accent.opacity(0.22) : theme.surface)
                         )
                         .frame(maxWidth: .infinity,
                                alignment: message.isUser ? .trailing : .leading)
@@ -244,7 +247,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(Capsule().fill(Color(.tertiarySystemBackground)))
+        .background(Capsule().fill(theme.surface))
     }
 
     private func thinkingBlock(_ message: ChatClient.Message) -> some View {
@@ -286,11 +289,11 @@ struct ChatView: View {
             // 同目录下常混着普通 shell,绑到它的话发消息等于在 bash 里执行一句话
             Label("这个目录的 agent 没在运行,只能查看历史", systemImage: "eye")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(Color(.secondarySystemBackground))
+                .background(theme.surface)
         } else if session.attention == "input" {
             Button {
                 showTerminal = true
@@ -319,7 +322,7 @@ struct ChatView: View {
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
-                .background(Capsule().fill(Color(.secondarySystemBackground)))
+                .background(Capsule().fill(theme.surface))
             Button {
                 client.send(text: draft)
                 draft = ""
@@ -332,7 +335,8 @@ struct ChatView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(theme.background)
+        .overlay(alignment: .top) { theme.separator.frame(height: 0.5) }
     }
 
     /// 简单 markdown:粗体/行内代码/链接交给 AttributedString,

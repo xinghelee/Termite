@@ -7,6 +7,7 @@ struct SimulatorTabView: View {
     let client: MirrorClient
 
     @Environment(ConnectionStore.self) private var store
+    @Environment(\.termiteTheme) private var theme
     @State private var opened: MirrorClient.Device?
     @State private var busy: Set<String> = []
 
@@ -34,6 +35,7 @@ struct SimulatorTabView: View {
                     list
                 }
             }
+            .termiteScreen(theme)
             .navigationTitle("模拟器")
             .refreshable { client.requestDevices() }
             .navigationDestination(item: $opened) { device in
@@ -57,7 +59,7 @@ struct SimulatorTabView: View {
             ForEach(grouped, id: \.runtime) { group in
                 Section(group.runtime) {
                     ForEach(group.devices) { device in
-                        row(device)
+                        row(device).termiteRow(theme)
                     }
                 }
             }
@@ -70,13 +72,13 @@ struct SimulatorTabView: View {
             Image(systemName: device.name.localizedCaseInsensitiveContains("ipad")
                   ? "ipad" : "iphone")
                 .font(.system(size: 15))
-                .foregroundStyle(device.isBooted ? Color.accentColor : .secondary)
+                .foregroundStyle(device.isBooted ? theme.accent : theme.secondaryText)
             VStack(alignment: .leading, spacing: 2) {
                 Text(device.name)
                     .font(.system(size: 15, weight: .medium))
                 Text(device.isBooted ? "运行中" : "已关闭")
                     .font(.system(size: 11))
-                    .foregroundStyle(device.isBooted ? .green : .secondary)
+                    .foregroundStyle(device.isBooted ? theme.accent : theme.secondaryText)
             }
             Spacer()
             if busy.contains(device.id) {
