@@ -14,6 +14,8 @@ struct MainView: View {
     @State private var stackPath: [RemoteSessionSummary] = []
     @State private var splitSelection: RemoteSessionSummary?
     @State private var spaceFilter: String?
+    /// 会话搜索:20 来个会话 + 同名项目(xc-sport-ios 就三个),手机屏上翻找最费劲
+    @State private var query = ""
     @State private var showSettings = false
     @State private var showPairing = false
     @State private var connectionPulse = false
@@ -141,21 +143,30 @@ struct MainView: View {
                     )
                 }
                 if visibleSessions.isEmpty {
-                    ContentUnavailableView {
-                        Label("没有打开的会话", systemImage: "terminal")
-                    } description: {
-                        Text(client.phase == .connected
-                             ? "在 Mac 上开个终端标签就会出现在这里"
-                             : "正在连接 \(store.selected?.name ?? "")…")
+                    if !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        ContentUnavailableView.search(text: query)
+                            .frame(maxWidth: .infinity, minHeight: 320)
+                    } else {
+                        ContentUnavailableView {
+                            Label("没有打开的会话", systemImage: "terminal")
+                        } description: {
+                            Text(client.phase == .connected
+                                 ? "在 Mac 上开个终端标签就会出现在这里"
+                                 : "正在连接 \(store.selected?.name ?? "")…")
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 320)
+                        .padding(.horizontal, 24)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 320)
-                    .padding(.horizontal, 24)
                 }
             }
             .padding(.bottom, 28)
         }
         .background(sidebarBackground.ignoresSafeArea())
         .refreshable { client.requestList() }
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .automatic),
+                    prompt: Text("搜索会话、项目、路径"))
+        .autocorrectionDisabled()
+        .textInputAutocapitalization(.never)
         .navigationTitle(store.selected?.name ?? "Termite")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarTitleDisplayMode(.inline)
@@ -518,6 +529,10 @@ struct MainView: View {
 
     /// 空间筛选:未分组会话全空间可见(对齐 Mac 侧边栏语义)
     private var visibleSessions: [RemoteSessionSummary] {
+        matchingQuery(spaceFiltered)
+    }
+
+    private var spaceFiltered: [RemoteSessionSummary] {
         guard let spaceFilter,
               let option = spaceOptions.first(where: { $0.id == spaceFilter }) else {
             return client.sessions
@@ -528,6 +543,18 @@ struct MainView: View {
             }
         }
         return client.sessions.filter { $0.space == option.title || $0.space == nil }
+    }
+
+    /// 搜索:标题 / 项目 / 路径 / shell / 工作空间都算命中,大小写不敏感。
+    /// 会话标题常带 ✳ ◑ 这类状态符号,所以只做包含匹配、不做前缀匹配
+    private func matchingQuery(_ sessions: [RemoteSessionSummary]) -> [RemoteSessionSummary] {
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !needle.isEmpty else { return sessions }
+        return sessions.filter { session in
+            let fields = [session.title, session.project, session.projectPath,
+                          session.cwd, session.shell, session.space]
+            return fields.contains { $0?.lowercased().contains(needle) == true }
+        }
     }
 
     private var attentionSessions: [RemoteSessionSummary] {
@@ -596,7 +623,10 @@ struct MainView: View {
             byKey[key]?.sessions.append(session)
             byKey[key]?.sessionCount += 1
         }
-        return order.compactMap { byKey[$0] }
+        let all = order.compactMap { byKey[$0] }
+        // 搜索时空项目组是噪音(平时留着是为了能从手机开空项目)
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return all }
+        return all.filter { !$0.sessions.isEmpty }
     }
 
     private var lastSessionID: UUID? {
