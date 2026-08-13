@@ -142,7 +142,7 @@ struct TerminalScreenView: View {
                         Text("\(client.control.controller ?? String(localized: "另一台设备")) 正在操作")
                             .font(.system(size: 14, weight: .semibold))
                         // Mac 持有 → 点卡片直接拿过来;别的远端持有 → 只能等
-                        Text(claimable ? "点一下即可接管" : "等对方交还后才能输入")
+                        Text(claimable ? "点一下接管控制" : "等对方交还后才能输入")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }

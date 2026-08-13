@@ -185,10 +185,11 @@ final class RemoteSessionHub {
         let snapshot = backlog.isEmpty ? session.scrollbackSnapshot(maxLines: 500) : nil
         let localGrid = session.terminalView.localViewportGrid
         let macGrid = Grid(cols: localGrid.cols, rows: localGrid.rows)
-        if tuiStates[sessionID] == nil { macGrids[sessionID] = macGrid }
-        observeTerminalMode(sessionID: sessionID, isTUI: session.requiresSharedTUILayout)
+        if tuiStates[sessionID] == nil, controls[sessionID] == nil { macGrids[sessionID] = macGrid }
+        // 先登记 sink 再判 TUI:冻结的前提是「有人在看」,顺序反了就永远冻不上
         sinks[connID] = Sink(sessionID: sessionID, pushOutput: pushOutput,
                              pushViewport: pushViewport)
+        observeTerminalMode(sessionID: sessionID, isTUI: session.requiresSharedTUILayout)
         let state = tuiStates[sessionID]
         // 接管中的会话按接管端的网格下发,新来的端照样看得到正确画面(只是不能动)
         let grid = canonicalGrid(sessionID: sessionID) ?? state?.grid ?? macGrid
@@ -203,14 +204,23 @@ final class RemoteSessionHub {
 
     func detach(connID: UUID) {
         guard let sink = sinks.removeValue(forKey: connID) else { return }
+        let sessionID = sink.sessionID
         // 操作端断开/切走 = 自动交还,不能让 Mac 一直被锁在离线设备的网格里
-        if controls[sink.sessionID]?.connID == connID {
-            releaseControl(sessionID: sink.sessionID, from: connID)
+        if controls[sessionID]?.connID == connID {
+            releaseControl(sessionID: sessionID, from: connID)
         }
-        if !sinks.values.contains(where: { $0.sessionID == sink.sessionID }) {
-            // TUI 状态仍要保留到进程退出 TUI，断开观察端不能改变 PTY。
-            if tuiStates[sink.sessionID] == nil { macGrids[sink.sessionID] = nil }
+        guard !hasWatchers(sessionID), controls[sessionID] == nil else { return }
+        // 最后一个观察端也走了:解冻,网格还给 Mac。留着冻结只会让这个 pane
+        // 一直按旧网格渲染(窗口一变就靠缩放字号硬凑),没人看时毫无意义
+        if tuiStates.removeValue(forKey: sessionID) != nil, let session = findSession(sessionID) {
+            let grid = restoreMacGrid(session)
+            session.resizePTY(cols: grid.cols, rows: grid.rows)
         }
+        macGrids[sessionID] = nil
+    }
+
+    private func hasWatchers(_ sessionID: UUID) -> Bool {
+        sinks.values.contains { $0.sessionID == sessionID }
     }
 
     func sendInput(connID: UUID, sessionID: UUID, bytes: [UInt8]) {
@@ -315,6 +325,11 @@ final class RemoteSessionHub {
         guard active, let session = findSession(sessionID) else { return }
         if isTUI {
             guard tuiStates[sessionID] == nil else { return }
+            // 没有设备在看就不冻结。视口隔离是为了保护正附着的设备,没人看时 Mac
+            // 该按自己的窗口正常伸缩 —— 否则开着远程开关,每个 TUI 会话都会被冻在
+            // 当时的网格(app 重启后是排版前的 80×31),切回那个项目时 pane 把窄画布
+            // 放大填满窗口,字大得离谱
+            guard hasWatchers(sessionID) || controls[sessionID] != nil else { return }
             let localGrid = session.terminalView.localViewportGrid
             let macGrid = macGrids[sessionID] ?? Grid(cols: localGrid.cols, rows: localGrid.rows)
             macGrids[sessionID] = macGrid
