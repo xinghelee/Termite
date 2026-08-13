@@ -178,6 +178,9 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         /// 对话模式:发给 agent 的文字、历史条数上限
         let text: String?
         let limit: Int?
+        /// 唤起 agent:在哪个项目里、敲哪个命令
+        let project: UUID?
+        let agent: String?
     }
 
     private func handleText(_ data: Data) {
@@ -232,9 +235,22 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                 case "simDetach":
                     self.stopMirror()
                 case "chatList":
+                    let catalog = RemoteSessionHub.shared.sidebarCatalog()
                     self.sendJSON(ChatListMsg(
                         sessions: AgentTranscriptHub.shared.chatSessions(),
-                        spaces: RemoteSessionHub.shared.sidebarCatalog().spaces))
+                        spaces: catalog.spaces,
+                        projects: catalog.projects,
+                        agents: AgentTranscriptHub.shared.agentOptions()))
+                case "chatLaunch":
+                    // 唤起 agent:在项目目录开一个**新** pane 再敲命令。
+                    // 绝不复用已有 pane —— 那里可能正跑着别的东西,注入等于抢键盘
+                    guard let project = msg.project, let command = msg.agent,
+                          let info = RemoteSessionHub.shared.launchAgent(
+                              projectID: project, command: command) else {
+                        self.sendJSON(ChatErrorMsg(message: String(localized: "启动失败,项目可能已被移除")))
+                        break
+                    }
+                    self.sendJSON(ChatLaunchedMsg(id: info.id, title: info.title))
                 case "chatAttach":
                     guard let id = msg.id else { break }
                     let ok = AgentTranscriptHub.shared.attach(
@@ -496,6 +512,17 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var sessions: [ChatSessionInfo]
         /// 工作空间目录:对话列表的筛选条和终端列表用同一套
         var spaces: [RemoteSidebarSpaceInfo]
+        /// 唤起 agent 时选的项目;和侧边栏同一份目录
+        var projects: [RemoteSidebarProjectInfo]
+        /// Mac 上实际装了的 agent
+        var agents: [ChatAgentOption]
+    }
+
+    private struct ChatLaunchedMsg: Encodable {
+        var type = "chatLaunched"
+        /// 新开的 pane,客户端直接附着上去
+        var id: UUID
+        var title: String
     }
 
     private struct ChatMessagesMsg: Encodable {

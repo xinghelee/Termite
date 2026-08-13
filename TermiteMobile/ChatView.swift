@@ -10,9 +10,11 @@ struct ChatSessionListView: View {
     /// 工作空间筛选:和终端 tab 同一套语义 —— 未分组的会话在所有空间都可见。
     /// 存 uuidString 而不是 UUID,是为了和终端共用 SpaceFilterBar
     @State private var spaceFilter: String?
+    @State private var path: [ChatClient.SessionInfo] = []
+    @State private var showLaunch = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 if !client.spaces.isEmpty {
                     SpaceFilterBar(
@@ -28,7 +30,9 @@ struct ChatSessionListView: View {
                     ContentUnavailableView {
                         Label("没有 AI 会话", systemImage: "bubble.left.and.text.bubble.right")
                     } description: {
-                        Text("在 Mac 上用 Claude Code 开一个会话就会出现在这里")
+                        Text(client.agents.isEmpty
+                             ? "在 Mac 上开一个 agent 会话就会出现在这里"
+                             : "点右上角的 + 直接在 Mac 上唤起一个")
                     }
                     .frame(maxHeight: .infinity)
                 } else {
@@ -46,16 +50,45 @@ struct ChatSessionListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarTitleDisplayMode(.inline)
             .refreshable { client.refresh() }
+            .toolbar {
+                if !client.agents.isEmpty, !client.projects.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showLaunch = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                        .accessibilityLabel("唤起 agent")
+                    }
+                }
+            }
             .navigationDestination(for: ChatClient.SessionInfo.self) { session in
                 ChatView(client: client, session: session)
                     .onAppear { client.attach(session.id) }
             }
+        }
+        .sheet(isPresented: $showLaunch) {
+            LaunchAgentSheet(client: client, spaceFilter: spaceFilter)
+        }
+        .onChange(of: client.launched) { _, launched in
+            // Mac 那边新 pane 开好了:关掉选择面板,直接推进对话页
+            guard let launched else { return }
+            showLaunch = false
+            path = [launched]
+            client.consumeLaunched()
         }
         .onAppear {
             if let mac = store.selected, let endpoint = store.endpoint(for: mac) {
                 client.connect(endpoint)
             }
             client.refresh()
+        }
+        .task(id: ObjectIdentifier(client)) {
+            // 轮询保持 canSend / 等待状态是新的 —— 和终端 tab 同一个节奏
+            while !Task.isCancelled {
+                client.refresh()
+                try? await Task.sleep(for: .seconds(3))
+            }
         }
     }
 
@@ -112,6 +145,126 @@ struct ChatSessionListView: View {
     }
 }
 
+/// 唤起面板:选一家 agent + 一个项目,Mac 就在那个目录开个新 pane 敲下命令。
+///
+/// 只列 Mac 上真装了的 agent —— 没装的选了也只会得到一句 command not found
+private struct LaunchAgentSheet: View {
+    let client: ChatClient
+    /// 跟随列表当前的工作空间:在「Work」里点 + 就只看到 Work 的项目
+    let spaceFilter: String?
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.termiteTheme) private var theme
+    @State private var agent: ChatClient.AgentOption?
+    @State private var query = ""
+
+    private var projects: [ChatClient.ProjectInfo] {
+        var list = client.projects
+        if let spaceFilter {
+            list = list.filter { $0.spaceID?.uuidString == spaceFilter }
+        }
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !needle.isEmpty else { return list }
+        return list.filter {
+            $0.name.lowercased().contains(needle) || $0.path.lowercased().contains(needle)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                agentPicker
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+                List {
+                    ForEach(projects) { project in
+                        Button {
+                            guard let agent else { return }
+                            client.launch(project: project.id, agent: agent)
+                        } label: {
+                            projectRow(project)
+                        }
+                        .buttonStyle(.plain)
+                        .termiteRow(theme)
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .listSectionSpacing(.compact)
+            }
+            .termiteScreen(theme)
+            .searchable(text: $query, prompt: Text("搜索项目"))
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .navigationTitle("唤起 agent")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+            }
+            .overlay {
+                if client.launching {
+                    ProgressView("正在启动…")
+                        .padding(20)
+                        .background(theme.surfaceRaised, in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+        .onAppear {
+            // 默认选 Claude Code —— 大概率就是你要的那家
+            agent = client.agents.first { $0.command == "claude" } ?? client.agents.first
+        }
+    }
+
+    private var agentPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(client.agents) { option in
+                let selected = agent?.id == option.id
+                Button {
+                    agent = option
+                } label: {
+                    Text(option.name)
+                        .font(.caption.weight(selected ? .semibold : .regular))
+                        .padding(.horizontal, 11)
+                        .frame(height: 32)
+                        .background(
+                            selected ? theme.accent : theme.surface,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                        .foregroundStyle(selected ? theme.accentForeground : theme.primaryText)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func projectRow(_ project: ChatClient.ProjectInfo) -> some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(project.accent.map { Color(UIColor(hex: $0)) } ?? theme.tertiaryText)
+                .frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(project.name)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(theme.primaryText)
+                Text((project.path as NSString).abbreviatingWithTildeInPath)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(theme.tertiaryText)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(theme.tertiaryText)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+    }
+}
+
 /// 气泡界面。工具调用折成一行、思考默认收起 ——
 /// 一场会话几百次 tool_use,全展开会把正文淹掉
 struct ChatView: View {
@@ -124,6 +277,12 @@ struct ChatView: View {
     @State private var expandedThinking: Set<String> = []
     @State private var showTerminal = false
 
+    /// 列表在后台每 3 秒刷一次,这里用最新的那份 ——
+    /// 否则 canSend / 等待状态会永远停在你点进来的那一刻
+    private var live: ChatClient.SessionInfo {
+        client.sessions.first { $0.id == session.id } ?? session
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             messageList
@@ -131,7 +290,7 @@ struct ChatView: View {
             composer
         }
         .termiteScreen(theme)
-        .navigationTitle(session.title)
+        .navigationTitle(live.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -146,7 +305,7 @@ struct ChatView: View {
         }
         .onDisappear { client.detach() }
         .fullScreenCover(isPresented: $showTerminal) {
-            TerminalFallbackView(sessionID: session.id, title: session.title)
+            TerminalFallbackView(sessionID: session.id, title: live.title)
         }
     }
 
@@ -157,13 +316,23 @@ struct ChatView: View {
                     if client.loading {
                         HStack { Spacer(); ProgressView(); Spacer() }
                             .padding(.vertical, 40)
+                    } else if client.retrying {
+                        // 刚唤起:agent 起来后才写第一份转录,这几秒别吓唬人
+                        VStack(spacing: 10) {
+                            ProgressView()
+                            Text("正在启动 agent…")
+                                .font(.system(size: 13))
+                                .foregroundStyle(theme.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
                     } else if client.messages.isEmpty, !client.unavailable {
                         ContentUnavailableView("这个会话还没有对话",
                                                systemImage: "bubble.left",
                                                description: Text("在这里发一句就能开始"))
                             .padding(.top, 40)
                     }
-                    if client.unavailable {
+                    if client.unavailable, !client.retrying {
                         Label("读不到这个会话的转录,去终端看", systemImage: "exclamationmark.triangle")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
@@ -264,7 +433,7 @@ struct ChatView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(Color.orange.opacity(0.12))
-        } else if session.canSend == false {
+        } else if live.canSend == false {
             // 同目录下常混着普通 shell,绑到它的话发消息等于在 bash 里执行一句话
             Label("这个目录的 agent 没在运行,只能查看历史", systemImage: "eye")
                 .font(.system(size: 12))
@@ -273,7 +442,7 @@ struct ChatView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(theme.surface)
-        } else if session.attention == "input" {
+        } else if live.attention == "input" {
             Button {
                 showTerminal = true
             } label: {
@@ -293,10 +462,16 @@ struct ChatView: View {
         }
     }
 
+    /// 占位文字点名当前这家 agent —— 三家都接了,写死「跟 Claude 说」会误导
+    private var placeholder: String {
+        if live.canSend == false { return String(localized: "agent 没在运行") }
+        let name = live.agent.isEmpty ? "agent" : live.agent
+        return String(localized: "跟 \(name) 说…")
+    }
+
     private var composer: some View {
         HStack(spacing: 8) {
-            TextField(session.canSend == false ? "agent 没在运行" : "跟 Claude 说…",
-                      text: $draft, axis: .vertical)
+            TextField(placeholder, text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 12)
@@ -310,7 +485,7 @@ struct ChatView: View {
                     .font(.system(size: 28))
             }
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                      || session.canSend == false)
+                      || live.canSend == false)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

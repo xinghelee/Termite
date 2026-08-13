@@ -25,6 +25,22 @@ final class ChatClient {
         let name: String
     }
 
+    /// 唤起 agent 时选的项目(和终端 tab 的侧边栏目录同一份)
+    struct ProjectInfo: Decodable, Identifiable, Hashable {
+        let id: UUID
+        let name: String
+        let path: String
+        let accent: String?
+        let spaceID: UUID?
+    }
+
+    /// Mac 上装了的 agent。没装的不下发,列表里就不会出现
+    struct AgentOption: Decodable, Identifiable, Hashable {
+        let id: String
+        let name: String
+        let command: String
+    }
+
     struct Message: Decodable, Identifiable, Equatable {
         struct ToolCall: Decodable, Equatable, Hashable {
             let name: String
@@ -42,7 +58,12 @@ final class ChatClient {
 
     private(set) var sessions: [SessionInfo] = []
     private(set) var spaces: [SpaceInfo] = []
+    private(set) var projects: [ProjectInfo] = []
+    private(set) var agents: [AgentOption] = []
     private(set) var messages: [Message] = []
+    /// 刚唤起的会话:视图看到它就把页面推进去
+    private(set) var launched: SessionInfo?
+    private(set) var launching = false
     private(set) var attachedID: UUID?
     private(set) var connected = false
     /// 这个会话没有可读的转录 —— 客户端据此提示「去终端看」
@@ -51,9 +72,13 @@ final class ChatClient {
     private(set) var loading = false
     /// 服务端拒发时的提示(比如 agent 没在跑)
     private(set) var lastError: String?
+    /// 刚唤起、还在等 agent 写出第一份转录 —— 界面显示「正在启动」而不是「读不到转录」
+    private(set) var retrying = false
     /// socket 还没就绪时点进来的会话,连上后补发 —— 否则那次 attach 石沉大海,
     /// 表现就是「点进去永远空白」
     private var pendingAttach: UUID?
+    private var attachedAt = Date.distantPast
+    private var retry: Task<Void, Never>?
 
     private var task: URLSessionWebSocketTask?
     private var endpoint: Endpoint?
@@ -91,6 +116,9 @@ final class ChatClient {
 
     func attach(_ id: UUID) {
         attachedID = id
+        attachedAt = Date()
+        retry?.cancel()
+        retrying = false
         messages = []
         unavailable = false
         loading = true
@@ -99,10 +127,23 @@ final class ChatClient {
         send(["type": "chatAttach", "id": id.uuidString, "limit": 200])
     }
 
+    /// 唤起:Mac 在项目目录开一个新 pane 并敲下命令。
+    /// agent 要几秒才写出第一份转录,所以推进页面后还会自动重试附着
+    func launch(project: UUID, agent: AgentOption) {
+        guard !launching else { return }
+        launching = true
+        lastError = nil
+        send(["type": "chatLaunch", "project": project.uuidString, "agent": agent.command])
+    }
+
+    func consumeLaunched() { launched = nil }
+
     func detach() {
         guard attachedID != nil else { return }
         attachedID = nil
         pendingAttach = nil
+        retry?.cancel()
+        retrying = false
         loading = false
         messages = []
         send(["type": "chatDetach"])
@@ -156,10 +197,41 @@ final class ChatClient {
                let list = try? JSONDecoder().decode([SpaceInfo].self, from: payload) {
                 spaces = list
             }
+            if let raw = obj["projects"],
+               let payload = try? JSONSerialization.data(withJSONObject: raw),
+               let list = try? JSONDecoder().decode([ProjectInfo].self, from: payload) {
+                projects = list
+            }
+            if let raw = obj["agents"],
+               let payload = try? JSONSerialization.data(withJSONObject: raw),
+               let list = try? JSONDecoder().decode([AgentOption].self, from: payload) {
+                agents = list
+            }
+        case "chatLaunched":
+            launching = false
+            guard let id = (obj["id"] as? String).flatMap(UUID.init) else { return }
+            // 转录还没落盘,先造一条乐观的会话信息把页面推进去
+            launched = SessionInfo(id: id, title: obj["title"] as? String ?? "新会话",
+                                   cwd: nil, agent: "", lastActivity: Date().timeIntervalSince1970,
+                                   attention: nil, canSend: true, space: nil, spaceID: nil)
+            refresh()
         case "chatError":
+            launching = false
             lastError = obj["message"] as? String
         case "chatMessages":
             unavailable = obj["unavailable"] as? Bool ?? false
+            if unavailable, let id = attachedID, Date().timeIntervalSince(attachedAt) < 90 {
+                // 刚唤起的会话:agent 还没写出转录,过两秒再试
+                retry?.cancel()
+                retrying = true
+                retry = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled, let self, self.attachedID == id else { return }
+                    self.send(["type": "chatAttach", "id": id.uuidString, "limit": 200])
+                }
+            } else {
+                retrying = false
+            }
             guard let raw = obj["messages"],
                   let payload = try? JSONSerialization.data(withJSONObject: raw),
                   let batch = try? JSONDecoder().decode([Message].self, from: payload) else { return }

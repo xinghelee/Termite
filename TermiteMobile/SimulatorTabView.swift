@@ -37,6 +37,8 @@ struct SimulatorTabView: View {
             }
             .termiteScreen(theme)
             .navigationTitle("模拟器")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .refreshable { client.requestDevices() }
             .navigationDestination(item: $opened) { device in
                 SimulatorScreen(client: client, device: device)
@@ -57,14 +59,23 @@ struct SimulatorTabView: View {
     private var list: some View {
         List {
             ForEach(grouped, id: \.runtime) { group in
-                Section(group.runtime) {
+                Section {
                     ForEach(group.devices) { device in
                         row(device).termiteRow(theme)
                     }
+                } header: {
+                    // 自定 header:系统默认那套大写+上下留白在小屏上顶掉一屏
+                    Text(group.runtime)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(theme.secondaryText)
+                        .textCase(nil)
+                        .padding(.bottom, 2)
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
+        .contentMargins(.top, 4, for: .scrollContent)
     }
 
     private func row(_ device: MirrorClient.Device) -> some View {
