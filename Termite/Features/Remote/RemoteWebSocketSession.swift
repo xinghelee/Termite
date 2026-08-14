@@ -178,6 +178,8 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         /// 对话模式:发给 agent 的文字、历史条数上限
         let text: String?
         let limit: Int?
+        /// 应答模式:按下的那个键("1" / "y" / "enter" / "esc" / "up" / "down")
+        let key: String?
         /// 唤起 agent:在哪个项目里(或直接给目录)、敲哪个命令
         let project: UUID?
         let cwd: String?
@@ -273,6 +275,25 @@ final class RemoteWebSocketSession: @unchecked Sendable {
                 case "chatDetach":
                     AgentTranscriptHub.shared.detach(connID: self.connID)
                     self.chatting = false
+                case "chatPrompt":
+                    // 「它在等什么」:读 pane 当前画面。权限确认框只活在画面上,
+                    // 转录里查无此事 —— 应答界面的问题原文只能从这儿来
+                    guard let id = msg.id,
+                          let prompt = AgentTranscriptHub.shared.prompt(sessionID: id) else { break }
+                    self.sendJSON(ChatPromptMsg(prompt: prompt))
+                case "chatKey":
+                    // 按下选项。和 chatSend 同一道闸门:pane 底下没挂 agent 就不许注入,
+                    // 否则一个 "1" 会被 bash 当成命令执行
+                    guard let id = msg.id, let key = msg.key else { break }
+                    guard AgentTranscriptHub.shared.sendKey(sessionID: id, key: key) else {
+                        self.sendJSON(ChatErrorMsg(
+                            message: String(localized: "这个会话的 agent 没在运行,按键发不出去")))
+                        break
+                    }
+                    // 按完立刻回一份新画面,手机上不用等下一轮轮询才看到反应
+                    if let prompt = AgentTranscriptHub.shared.prompt(sessionID: id) {
+                        self.sendJSON(ChatPromptMsg(prompt: prompt))
+                    }
                 case "chatSend":
                     // 发消息 = 把文字注入回那个 pane 的 PTY(agent 自己会读)。
                     // 这是高层动作,不走接管的按键闸门 —— 对话模式的心智就是「跟 agent 说话」
@@ -541,6 +562,11 @@ final class RemoteWebSocketSession: @unchecked Sendable {
         var history: Bool
         /// 这个会话没有可读的转录(不是 agent 会话,或格式不认识)
         var unavailable = false
+    }
+
+    private struct ChatPromptMsg: Encodable {
+        var type = "chatPrompt"
+        var prompt: ChatPromptInfo
     }
 
     private struct ChatErrorMsg: Encodable {

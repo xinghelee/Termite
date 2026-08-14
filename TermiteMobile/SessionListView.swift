@@ -3,24 +3,28 @@ import SwiftUI
 /// 主界面:iPhone 栈式 / iPad 双栏。
 /// 列表即仪表盘:「等待输入」置顶高亮(手机端的核心时刻),
 /// 其余按项目分组(对齐 Mac 侧边栏),工作空间做芯片筛选。
-/// 底部 TabBar:终端 / 对话。两个 tab 各有自己的会话列表 ——
-/// 对话 tab 只列有 agent 转录的会话,普通 shell 归终端 tab。
-/// TabBar 只活在列表层:push 进会话页时自动隐藏,把底部让给按键条/输入框
+/// 底部 TabBar:终端 / 回复。两个 tab 各有自己的会话列表 ——
+/// 回复 tab 只列有 agent 转录的会话,普通 shell 归终端 tab。
+/// TabBar 只活在列表层:push 进会话页时自动隐藏,把底部让给选项/输入框
 struct MainView: View {
     let client: RemoteClient
+    @Environment(ConnectionStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
     @State private var chatClient = ChatClient()
     /// 模拟器 tab 和终端页里的浮窗共用一个客户端:同一时刻只该有一条镜像流
     @State private var mirrorClient = MirrorClient()
     /// 三个 tab 共用一套配色:主题由终端连接下发,存这儿再注进环境
     @State private var themeStore = ThemeStore()
+    @State private var notifier = ReplyNotifier()
 
     var body: some View {
         // 用经典 .tabItem 而不是 iOS 18 的 Tab —— target 是 iOS 17
         TabView {
             TerminalTab(client: client)
                 .tabItem { Label("终端", systemImage: "terminal") }
-            ChatSessionListView(client: chatClient)
-                .tabItem { Label("对话", systemImage: "bubble.left.and.bubble.right") }
+            ChatSessionListView(client: chatClient, notifier: notifier)
+                .tabItem { Label("回复", systemImage: "bell.badge") }
+                .badge(chatClient.waiting.count)
             SimulatorTabView(client: mirrorClient)
                 .tabItem { Label("模拟器", systemImage: "iphone.gen3") }
         }
@@ -28,6 +32,22 @@ struct MainView: View {
         .tint(themeStore.theme.accent)
         .onChange(of: client.theme, initial: true) { _, palette in
             themeStore.palette = palette
+        }
+        // 轮询活在 tab 之上:切到终端 tab 时角标和通知照样跟着 Mac 的状态走。
+        // 挂在子视图上的话,切走那一刻 .task 就被取消,「等你回复」会永远停在旧值
+        .task(id: store.selectedID) {
+            guard let mac = store.selected, let endpoint = store.endpoint(for: mac) else { return }
+            notifier.reset()
+            chatClient.connect(endpoint)
+            while !Task.isCancelled {
+                chatClient.refresh()
+                try? await Task.sleep(for: .seconds(3))
+                notifier.sync(waiting: chatClient.waiting)
+            }
+        }
+        .onChange(of: scenePhase) {
+            // 回前台:上一轮等待可能已经过时了,重新记账再开始提醒
+            if scenePhase == .active { notifier.reset() }
         }
     }
 }

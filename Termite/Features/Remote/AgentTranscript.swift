@@ -42,12 +42,20 @@ struct ChatSessionInfo: Codable, Identifiable {
     /// 最后一条消息的时间,列表按它排序
     var lastActivity: Double
     /// pane 的注意力状态("input" = 正在等你确认/输入);
-    /// 权限提示这类纯 TUI 的东西转录里没有,靠它给对话页一个「去终端」的提示
+    /// 权限提示这类纯 TUI 的东西转录里没有,靠它把会话顶到「等你回复」
     var attention: String?
+    /// 已经等了多少秒。手机上「等了 12 分钟」比「在等」有用得多
+    var attentionSeconds: Int?
+    /// 它在问什么(只对正在等你的会话读画面提炼)。
+    /// 列表有这一句,才谈得上「不点进去也知道该不该管」
+    var question: String?
     /// 绑定的 pane 是否真在跑 agent(备用屏 TUI)。false 时禁止发消息 ——
     /// 同一目录下常有普通 shell,往它注入文字等于在 bash 里执行了一句你没打算执行的话
     var canSend: Bool
-    /// 工作空间归属:对话列表和终端列表用同一套筛选语义
+    /// 项目归属:列表按它给人定位「这是哪个仓库在问」
+    var project: String?
+    var projectColor: String?
+    /// 工作空间归属:应答列表和终端列表用同一套筛选语义
     var space: String?
     var spaceID: UUID?
 }
@@ -723,27 +731,43 @@ final class AgentTranscriptHub {
         return local > 0 ? local : nil
     }
 
-    /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
-    /// 否则 3 个 pane 就是 3 条一模一样的对话,点进去内容还相同
-    /// 会话 → 工作空间。归属挂在标签上,得走一遍 窗口→标签→分屏(和侧边栏同一套语义)
-    private func spaceBinding() -> [UUID: (name: String?, id: UUID?)] {
-        var result: [UUID: (String?, UUID?)] = [:]
+    /// 会话 → 侧边栏归属(工作空间 + 项目)。归属挂在标签上,
+    /// 得走一遍 窗口→标签→分屏(和侧边栏、终端列表同一套语义)
+    private struct SidebarBinding {
+        var spaceName: String?
+        var spaceID: UUID?
+        var project: String?
+        var projectColor: String?
+    }
+
+    private func sidebarBinding() -> [UUID: SidebarBinding] {
+        var result: [UUID: SidebarBinding] = [:]
         for manager in SessionManagerRegistry.shared.managers {
             for tab in manager.tabs {
                 let spaceID = manager.spaceID(of: tab)
-                let name = spaceID.flatMap { id in
+                let spaceName = spaceID.flatMap { id in
                     SpaceStore.shared.spaces.first { $0.id == id }?.name
                 }
+                let projectPath = manager.projectGroup(of: tab)
+                let project = projectPath.flatMap { path in
+                    ProjectStore.shared.projects.first { $0.path == path }
+                }
+                let binding = SidebarBinding(
+                    spaceName: spaceName, spaceID: spaceID,
+                    project: project?.name ?? projectPath.map { ($0 as NSString).lastPathComponent },
+                    projectColor: project?.accentHex)
                 for sessionID in tab.root.leafIDs() {
-                    result[sessionID] = (name, spaceID)
+                    result[sessionID] = binding
                 }
             }
         }
         return result
     }
 
+    /// 同一个工作目录下的多个 pane 会指向同一份转录,列表按转录去重 ——
+    /// 否则 3 个 pane 就是 3 条一模一样的对话,点进去内容还相同
     func chatSessions() -> [ChatSessionInfo] {
-        let spaces = spaceBinding()
+        let sidebar = sidebarBinding()
         refreshHostPIDs()
         let processes = AgentProcessProbe.snapshot()
         let commands = adapters.map(\.launchCommand)
@@ -774,11 +798,21 @@ final class AgentTranscriptHub {
                     || Self.titleLooksLikeAgent(session.displayTitle)
                 canSend = session.requiresSharedTUILayout && (looksLikeAgent || fresh)
             }
+            let binding = sidebar[session.id]
+            // 只给真在等你的会话读画面:提炼一句「它在问什么」。
+            // 其余会话读画面是纯浪费 —— 列表每 3 秒刷一次
+            let waiting = attention == "input"
             let info = ChatSessionInfo(
                 id: session.id, title: session.displayTitle, cwd: cwd,
                 agent: adapter.agentName, lastActivity: ref.modified.timeIntervalSince1970,
-                attention: attention, canSend: canSend,
-                space: spaces[session.id]?.name, spaceID: spaces[session.id]?.id)
+                attention: attention,
+                attentionSeconds: attention == nil ? nil : session.attentionSince.map {
+                    max(0, Int(Date().timeIntervalSince($0)))
+                },
+                question: waiting ? AgentPromptReader.preview(session: session) : nil,
+                canSend: canSend,
+                project: binding?.project, projectColor: binding?.projectColor,
+                space: binding?.spaceName, spaceID: binding?.spaceID)
             // 同一份转录挑「真在跑 agent」的那个 pane —— 同目录下常混着普通 shell。
             // 其次才看谁在等你输入
             if let existing = byTranscript[ref.key] {
@@ -845,6 +879,24 @@ final class AgentTranscriptHub {
         guard let pid = shellPID(of: session) else { return session.requiresSharedTUILayout }
         return AgentProcessProbe.agent(under: pid, commands: adapters.map(\.launchCommand),
                                        in: AgentProcessProbe.snapshot()) != nil
+    }
+
+    /// 「它在等什么」:读 pane 当前画面。
+    /// 应答界面每两秒问一次,所以这里不缓存 —— 画面变了就得立刻反映出来
+    func prompt(sessionID: UUID) -> ChatPromptInfo? {
+        guard let session = SessionManagerRegistry.shared.allSessions
+            .first(where: { $0.id == sessionID }) else { return nil }
+        return AgentPromptReader.read(session: session, canSend: canInject(sessionID: sessionID))
+    }
+
+    /// 按下手机上那个选项。走和发消息同一道闸门 ——
+    /// 普通 shell 收到一个 "1" 就是执行了一条叫 1 的命令
+    func sendKey(sessionID: UUID, key: String) -> Bool {
+        guard let bytes = AgentPromptReader.bytes(forKey: key), canInject(sessionID: sessionID),
+              let session = SessionManagerRegistry.shared.allSessions
+                  .first(where: { $0.id == sessionID }) else { return false }
+        session.sendRawInput(bytes)
+        return true
     }
 
     /// 订阅:先回放历史(最多 maxHistory 条),之后每秒查一次增量。

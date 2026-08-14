@@ -1677,6 +1677,16 @@
         }
       }
     },
+    "否": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        }
+      }
+    },
     "启动 Shell": {
       "localizations": {
         "en": {
@@ -3155,6 +3165,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Old"
+          }
+        }
+      }
+    },
+    "是": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes"
           }
         }
       }
@@ -4697,6 +4717,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The agent for this session is not running"
+          }
+        }
+      }
+    },
+    "这个会话的 agent 没在运行,按键发不出去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session's agent isn't running, so the keypress can't be delivered"
           }
         }
       }

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// 对话模式的客户端:单开一条 WS 专收转录消息。
+/// 应答模式的客户端:单开一条 WS 专收转录和「它在等什么」。
 ///
 /// 和镜像同样的理由 —— 不跟终端那条字节流混在一起,随时可停,互不影响。
 @MainActor
@@ -14,10 +14,40 @@ final class ChatClient {
         let agent: String
         let lastActivity: Double
         let attention: String?
+        /// 已经等了多久。列表上「等了 12 分钟」比「在等」有用得多
+        let attentionSeconds: Int?
+        /// 它在问什么(Mac 从画面提炼的一句)。有这句才谈得上不点进去就知道该不该管
+        let question: String?
         /// 绑定的 pane 是否真在跑 agent;false 时输入框禁用
         let canSend: Bool?
+        let project: String?
+        let projectColor: String?
         let space: String?
         let spaceID: UUID?
+
+        var isWaiting: Bool { attention == "input" }
+    }
+
+    /// 「它在等什么」:Mac 直接读 pane 当前画面的结果。
+    /// 权限确认框只活在画面上,转录里查无此事 —— 应答界面的问题原文只能从这儿来
+    struct Prompt: Decodable, Equatable {
+        struct Option: Decodable, Equatable, Identifiable, Hashable {
+            /// 要按的那个键
+            let id: String
+            let label: String
+            /// agent 的光标正指着它
+            let selected: Bool
+        }
+        let id: UUID
+        /// 画面原文(已剥掉方框线)。提炼不出选项时,它就是界面的全部
+        let screen: String
+        let question: String?
+        let options: [Option]
+        let attention: String?
+        let attentionSeconds: Int?
+        let canSend: Bool
+
+        var isWaiting: Bool { attention == "input" }
     }
 
     struct SpaceInfo: Decodable, Identifiable, Hashable {
@@ -61,6 +91,8 @@ final class ChatClient {
     private(set) var projects: [ProjectInfo] = []
     private(set) var agents: [AgentOption] = []
     private(set) var messages: [Message] = []
+    /// 当前附着会话在等什么。应答界面每两秒问一次,按完键立刻会收到新的一份
+    private(set) var prompt: Prompt?
     /// 刚唤起的会话:视图看到它就把页面推进去
     private(set) var launched: SessionInfo?
     private(set) var launching = false
@@ -114,17 +146,39 @@ final class ChatClient {
         send(["type": "chatList"])
     }
 
+    /// 正在等你回复的会话。角标、通知、列表置顶都读这一份
+    var waiting: [SessionInfo] {
+        sessions.filter(\.isWaiting)
+    }
+
     func attach(_ id: UUID) {
         attachedID = id
         attachedAt = Date()
         retry?.cancel()
         retrying = false
         messages = []
+        prompt = nil
         unavailable = false
         loading = true
         guard task != nil else { pendingAttach = id; return }
         pendingAttach = nil
         send(["type": "chatAttach", "id": id.uuidString, "limit": 200])
+        requestPrompt()
+    }
+
+    /// 问一次「它在等什么」。应答界面开着就每两秒问一次 ——
+    /// 不依赖 chatList 那三秒一轮的节奏,按下选项后的反馈才跟得上手
+    func requestPrompt() {
+        guard let id = attachedID else { return }
+        send(["type": "chatPrompt", "id": id.uuidString])
+    }
+
+    /// 按下一个选项。Mac 那边过同一道闸门(pane 底下没挂 agent 就不注入),
+    /// 按完会立刻回一份新画面
+    func sendKey(_ key: String) {
+        guard let id = attachedID else { return }
+        lastError = nil
+        send(["type": "chatKey", "id": id.uuidString, "key": key])
     }
 
     /// 唤起:Mac 在项目目录开一个新 pane 并敲下命令。
@@ -159,6 +213,7 @@ final class ChatClient {
         retrying = false
         loading = false
         messages = []
+        prompt = nil
         send(["type": "chatDetach"])
     }
 
@@ -226,8 +281,17 @@ final class ChatClient {
             // 转录还没落盘,先造一条乐观的会话信息把页面推进去
             launched = SessionInfo(id: id, title: obj["title"] as? String ?? "新会话",
                                    cwd: nil, agent: "", lastActivity: Date().timeIntervalSince1970,
-                                   attention: nil, canSend: true, space: nil, spaceID: nil)
+                                   attention: nil, attentionSeconds: nil, question: nil,
+                                   canSend: true, project: nil, projectColor: nil,
+                                   space: nil, spaceID: nil)
             refresh()
+        case "chatPrompt":
+            guard let raw = obj["prompt"],
+                  let payload = try? JSONSerialization.data(withJSONObject: raw),
+                  let value = try? JSONDecoder().decode(Prompt.self, from: payload) else { return }
+            // 迟到的回包可能属于上一个会话,别让它盖住当前这个
+            guard value.id == attachedID else { return }
+            prompt = value
         case "chatError":
             launching = false
             lastError = obj["message"] as? String
