@@ -271,3 +271,72 @@ html, body {
 #session-list::-webkit-scrollbar-track { background: transparent; }
 #session-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 3px; }
 #session-list { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.14) transparent; }
+
+/* ── 模拟器 ── */
+
+#sim-screen { display: flex; flex-direction: column; height: 100dvh; }
+
+#sim-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sim-fps {
+  font-size: 11px;
+  color: var(--dim);
+  font-family: ui-monospace, Menlo, monospace;
+  min-width: 46px;
+  text-align: right;
+}
+
+#sim-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sim-action { flex: none; padding: 6px 12px; min-width: 56px; }
+.sim-empty { text-align: center; color: var(--dim); margin-top: 32vh; font-size: 14px; padding: 0 24px; line-height: 1.6; }
+
+/* 画面等比铺满,黑底居中;touch-action: none 是必须的 ——
+   否则手指一划就被浏览器当成页面滚动/缩放,pointermove 直接断掉 */
+#sim-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 6px;
+}
+
+#sim-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 6px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-btn:active { background: #2e3237; }

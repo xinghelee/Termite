@@ -22,6 +22,11 @@
 <div id="list-screen">
   <header class="bar">
     <h1>Termite</h1>
+    <button id="sim-btn" class="icon-btn" aria-label="Simulators">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="6" y="2.5" width="12" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/>
+      </svg>
+    </button>
     <span id="conn-state"></span>
   </header>
   <input id="search" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" data-i18n-ph="search">
@@ -50,6 +55,19 @@
     <button class="key" data-send="&#x1b;[D">←</button>
     <button class="key" data-send="&#x1b;[C">→</button>
     <button class="key" data-send="&#xd;">⏎</button>
+  </div>
+</div>
+
+<div id="sim-screen" hidden>
+  <header class="bar">
+    <button id="sim-back" class="key" data-i18n="back"></button>
+    <div id="sim-title"></div>
+    <div id="sim-fps"></div>
+  </header>
+  <main id="sim-list"></main>
+  <div id="sim-stage" hidden>
+    <!-- 画面按帧自带的宽高等比铺进容器;触控坐标归一化后发回,和 iOS 端同一套协议 -->
+    <canvas id="sim-canvas"></canvas>
   </div>
 </div>
 

@@ -24,6 +24,13 @@ const T = {
   other: zh ? "其他" : "Other",
   search: zh ? "搜索会话、项目、路径" : "Search sessions, projects, paths",
   noMatch: zh ? "没有匹配的会话" : "No matching sessions",
+  simulators: zh ? "模拟器" : "Simulators",
+  view: zh ? "查看" : "View",
+  boot: zh ? "启动" : "Boot",
+  booting: zh ? "启动中…" : "Booting…",
+  simNone: zh ? "没有找到模拟器" : "No simulators found",
+  simUnavailable: zh ? "这台 Mac 上取不到模拟器画面(需要 Xcode)"
+                     : "Can't reach the simulator on this Mac (Xcode required)",
 };
 
 /* 「已等 3 分钟」——手机上第一眼要能判断该不该现在管 */
@@ -118,8 +125,14 @@ function connect() {
   ws.onmessage = (e) => {
     if (typeof e.data === "string") {
       handleControl(JSON.parse(e.data));
+      return;
+    }
+    // 终端输出和模拟器画面共用二进制通道,靠 SIMG 魔数分流 —— 不分会把 JPEG 灌进 xterm
+    const buf = e.data;
+    if (buf.byteLength > 8 && isSimFrame(buf)) {
+      drawSimFrame(buf);
     } else if (term && !termScreen.hidden) {
-      term.write(new Uint8Array(e.data));
+      term.write(new Uint8Array(buf));
     }
   };
 
@@ -201,6 +214,20 @@ function handleControl(msg) {
       if (term) {
         term.resize(ptyCols, ptyRows);
         fitFont();
+      }
+      break;
+    case "simList":
+      renderSimList(msg);
+      break;
+    case "simState":
+      // 附着失败(模拟器没在跑 / 私有接口不可用)时带 message,退回设备列表
+      if (msg.message) {
+        toast(msg.message);
+        simAttached = null;
+        simStage.hidden = true;
+        simList.hidden = false;
+        $("sim-title").textContent = T.simulators;
+        send({ type: "simDevices" });
       }
       break;
     case "exited":
@@ -388,6 +415,192 @@ function backToList() {
   listScreen.hidden = false;
   startListPolling();
 }
+
+/* ── 模拟器 ──
+ * 协议与 iOS 端同一套:simList/simDevices 列设备,simAttach 订阅,
+ * 画面走二进制帧(SIMG + 2 字节宽 + 2 字节高 + JPEG),simTouch 回传归一化坐标。 */
+
+const simScreen = $("sim-screen");
+const simList = $("sim-list");
+const simStage = $("sim-stage");
+const simCanvas = $("sim-canvas");
+const simCtx = simCanvas.getContext("2d", { alpha: false });
+
+let simAttached = null;     // 正在看的模拟器 udid
+let simDecoding = false;    // 上一帧还没解完就丢帧,别积压
+let simTouchID = 100;
+let simFrameTimes = [];
+let simPollTimer = null;
+
+function isSimFrame(buf) {
+  const b = new Uint8Array(buf, 0, 4);
+  return b[0] === 0x53 && b[1] === 0x49 && b[2] === 0x4d && b[3] === 0x47; // "SIMG"
+}
+
+async function drawSimFrame(buf) {
+  if (simDecoding || simScreen.hidden) return;
+  simDecoding = true;
+  try {
+    const view = new DataView(buf);
+    const w = view.getUint16(4), h = view.getUint16(6);
+    const bmp = await createImageBitmap(new Blob([buf.slice(8)], { type: "image/jpeg" }));
+    if (simCanvas.width !== w || simCanvas.height !== h) {
+      simCanvas.width = w;
+      simCanvas.height = h;
+    }
+    simCtx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const now = performance.now();
+    simFrameTimes = simFrameTimes.filter((t) => now - t < 1000);
+    simFrameTimes.push(now);
+    $("sim-fps").textContent = `${simFrameTimes.length} fps`;
+  } catch (_) {
+    /* 帧坏了就丢,下一帧会来 */
+  } finally {
+    simDecoding = false;
+  }
+}
+
+function openSimulators() {
+  listScreen.hidden = true;
+  simScreen.hidden = false;
+  simStage.hidden = true;
+  simList.hidden = false;
+  $("sim-title").textContent = T.simulators;
+  $("sim-fps").textContent = "";
+  send({ type: "simDevices" });
+  clearInterval(simPollTimer);
+  // 只在设备列表页轮询;看画面时靠帧推送,不必再问
+  simPollTimer = setInterval(() => {
+    if (!simScreen.hidden && !simAttached) send({ type: "simDevices" });
+  }, 4000);
+}
+
+function closeSimulators() {
+  if (simAttached) send({ type: "simDetach" });
+  simAttached = null;
+  clearInterval(simPollTimer);
+  simScreen.hidden = true;
+  listScreen.hidden = false;
+  startListPolling();
+}
+
+function renderSimList(msg) {
+  if (!msg.available) {
+    simList.replaceChildren(emptyNote(T.simUnavailable));
+    return;
+  }
+  const devices = msg.devices || [];
+  if (!devices.length) {
+    simList.replaceChildren(emptyNote(T.simNone));
+    return;
+  }
+  simList.replaceChildren(...devices.map((d) => {
+    const booted = d.state === "Booted";
+    const card = document.createElement("div");
+    card.className = "session-card";
+    const badge = document.createElement("span");
+    badge.className = "badge " + (booted ? "running" : "idle");
+    const info = document.createElement("div");
+    info.className = "info";
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = d.name;
+    const sub = document.createElement("div");
+    sub.className = "cwd";
+    sub.textContent = d.runtime || "";
+    info.append(title, sub);
+    const act = document.createElement("button");
+    act.className = "key sim-action";
+    act.textContent = booted ? T.view : T.boot;
+    act.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (booted) attachSimulator(d);
+      else {
+        act.disabled = true;
+        act.textContent = T.booting;
+        send({ type: "simBoot", udid: d.id });
+      }
+    });
+    card.append(badge, info, act);
+    if (booted) card.addEventListener("click", () => attachSimulator(d));
+    return card;
+  }));
+}
+
+function emptyNote(text) {
+  const p = document.createElement("p");
+  p.className = "sim-empty";
+  p.textContent = text;
+  return p;
+}
+
+function attachSimulator(device) {
+  simAttached = device.id;
+  simList.hidden = true;
+  simStage.hidden = false;
+  $("sim-title").textContent = device.name;
+  simFrameTimes = [];
+  // maxWidth 给屏宽的 2 倍上限:高清屏上别糊,又不至于把 4K 帧推过来
+  const maxWidth = Math.min(900, Math.round(simStage.clientWidth * (devicePixelRatio || 1)));
+  send({ type: "simAttach", udid: device.id, cols: maxWidth, quality: 0.6, fps: 20 });
+}
+
+/* 手指 → 归一化坐标。canvas 是等比铺进容器的,直接用它自己的矩形换算 */
+function simPoint(e) {
+  const r = simCanvas.getBoundingClientRect();
+  return {
+    x: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1),
+    y: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1),
+  };
+}
+
+let simActiveTouch = null;
+let simBottomEdge = false;
+
+simCanvas.addEventListener("pointerdown", (e) => {
+  if (!simAttached) return;
+  e.preventDefault();
+  simCanvas.setPointerCapture(e.pointerId);
+  const p = simPoint(e);
+  simActiveTouch = ++simTouchID;
+  // 从底部安全区起手 = home indicator 手势,要打边缘标记 iOS 才认
+  simBottomEdge = p.y > 0.97;
+  send({ type: "simTouch", udid: simAttached, x: p.x, y: p.y, phase: 0,
+         touchID: simActiveTouch, bottomEdge: simBottomEdge });
+});
+
+simCanvas.addEventListener("pointermove", (e) => {
+  if (!simAttached || simActiveTouch === null) return;
+  const p = simPoint(e);
+  send({ type: "simTouch", udid: simAttached, x: p.x, y: p.y, phase: 1,
+         touchID: simActiveTouch, bottomEdge: simBottomEdge });
+});
+
+function endSimTouch(e) {
+  if (!simAttached || simActiveTouch === null) return;
+  const p = simPoint(e);
+  send({ type: "simTouch", udid: simAttached, x: p.x, y: p.y, phase: 2,
+         touchID: simActiveTouch, bottomEdge: simBottomEdge });
+  simActiveTouch = null;
+}
+simCanvas.addEventListener("pointerup", endSimTouch);
+simCanvas.addEventListener("pointercancel", endSimTouch);
+
+$("sim-btn").addEventListener("click", openSimulators);
+$("sim-back").addEventListener("click", () => {
+  if (simAttached) {           // 看画面时先退回设备列表,再点一次才离开
+    send({ type: "simDetach" });
+    simAttached = null;
+    simStage.hidden = true;
+    simList.hidden = false;
+    $("sim-title").textContent = T.simulators;
+    $("sim-fps").textContent = "";
+    send({ type: "simDevices" });
+    return;
+  }
+  closeSimulators();
+});
 
 /* ── 按键条 ── */
 
