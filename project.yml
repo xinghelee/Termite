@@ -117,10 +117,15 @@ targets:
         NSBonjourServices:
           - _termite._tcp
           - _sandboxserver._tcp
-        # 数据面是 LAN/Tailscale 内网 ws://(IP 字面量直连,ATS 本就豁免 IP 地址),
-        # 不开全局明文放行(NSAllowsArbitraryLoads 是审核红旗);仅声明本地网络场景
+        # 数据面是 LAN/Tailscale 内网的明文 ws://。原以为「ATS 豁免 IP 字面量」,实测不成立:
+        # NSAllowsLocalNetworking 只豁免 RFC1918(10/8、172.16/12、192.168/16)与 .local,
+        # Tailscale 的 100.64/10(CGNAT)不在其列,连 100.x 会被 -1022 拦在客户端,TCP 都不发出。
+        # ATS 又不认 CIDR,例外域名写死某台 Mac 的 Tailscale IP 没有通用性,只能整体放行。
+        # 坑:NSAllowsArbitraryLoads 不能与 NSAllowsLocalNetworking 并存 ——
+        # 两者同时出现时,支持新 key 的系统会忽略前者,等于没配。
+        # 待办:上架前改用 NWConnection 自研 WS 客户端(不受 ATS 约束),再摘掉这一项。
         NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoads: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.termite.mobile

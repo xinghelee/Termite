@@ -41,6 +41,7 @@ struct Endpoint: Equatable {
                 return nil
             }
             let port = items.first(where: { $0.name == "port" })?.value.flatMap { UInt16($0) } ?? 9280
+            guard isPrivateHost(host) else { return nil }
             return Endpoint(host: host, port: port, token: token)
         }
         guard let host = comps.host, !host.isEmpty,
@@ -48,7 +49,51 @@ struct Endpoint: Equatable {
             return nil
         }
         let port = UInt16(comps.port ?? 9280)
+        guard isPrivateHost(host) else { return nil }
         return Endpoint(host: host, port: port, token: token)
+    }
+
+    /// 明文闸门:数据面是 ws://,而 ATS 已经整体放行(原因见 project.yml 里的注释),
+    /// 所以放行范围改由这里界定 —— 只允许内网地址,一条粘错的公网链接不该把
+    /// 访问密钥明文发上互联网。产品定位本就是 LAN / Tailscale,不做公网穿透。
+    static func isPrivateHost(_ host: String) -> Bool {
+        var bare = host
+        if bare.hasPrefix("["), bare.hasSuffix("]") {
+            bare = String(bare.dropFirst().dropLast())
+        }
+        bare = bare.components(separatedBy: "%")[0] // 去掉 fe80::1%en0 的区域标识
+
+        var v4 = in_addr()
+        if inet_pton(AF_INET, bare, &v4) == 1 {
+            let addr = UInt32(bigEndian: v4.s_addr)
+            let octets = (addr >> 24, (addr >> 16) & 0xFF)
+            switch octets.0 {
+            case 10, 127: return true                                  // 10/8、回环
+            case 172: return (16...31).contains(octets.1)              // 172.16/12
+            case 192: return octets.1 == 168                           // 192.168/16
+            case 169: return octets.1 == 254                           // 链路本地
+            case 100: return (64...127).contains(octets.1)             // 100.64/10 CGNAT:Tailscale
+            default: return false
+            }
+        }
+
+        var v6 = in6_addr()
+        if inet_pton(AF_INET6, bare, &v6) == 1 {
+            let bytes = withUnsafeBytes(of: v6) { Array($0) }
+            if bytes == (Array(repeating: UInt8(0), count: 15) + [1]) { return true } // ::1
+            // IPv4-mapped(::ffff:a.b.c.d):按 IPv4 规则再判一次
+            if bytes.prefix(10).allSatisfy({ $0 == 0 }), bytes[10] == 0xFF, bytes[11] == 0xFF {
+                let mapped = bytes[12...].map(String.init).joined(separator: ".")
+                return isPrivateHost(mapped)
+            }
+            if bytes[0] & 0xFE == 0xFC { return true }                 // fc00::/7 ULA
+            if bytes[0] == 0xFE, bytes[1] & 0xC0 == 0x80 { return true } // fe80::/10 链路本地
+            return false
+        }
+
+        // 主机名:.local(Bonjour)、.ts.net(Tailscale MagicDNS)、以及不含点的裸机器名
+        let lower = bare.lowercased()
+        return lower.hasSuffix(".local") || lower.hasSuffix(".ts.net") || !lower.contains(".")
     }
 }
 
