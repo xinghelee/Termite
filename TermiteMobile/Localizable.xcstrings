@@ -1,6 +1,7 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "·": {},
     "%@ 正在操作": {
       "localizations": {
         "en": {
@@ -11,12 +12,64 @@
         }
       }
     },
+    "%@:%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@:%2$@"
+          }
+        }
+      }
+    },
+    "%lld": {},
+    "%lld pt": {},
     "%lld 个会话": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld sessions"
+          }
+        }
+      }
+    },
+    "^D 结束输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^D End of input"
+          }
+        }
+      }
+    },
+    "^L 清屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^L Clear screen"
+          }
+        }
+      }
+    },
+    "^R 搜索历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^R Search history"
+          }
+        }
+      }
+    },
+    "^Z 挂起": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^Z Suspend"
           }
         }
       }
@@ -31,6 +84,19 @@
         }
       }
     },
+    "agent 在等你回复": {},
+    "agent 没在运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent not running"
+          }
+        }
+      }
+    },
+    "agent 没在运行,只能看历史": {},
+    "ctrl": {},
     "End": {
       "localizations": {
         "en": {
@@ -47,6 +113,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Home"
+          }
+        }
+      }
+    },
+    "http://192.168.1.8:9280/?t=…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "http://192.168.1.8:9280/?t=…"
           }
         }
       }
@@ -97,66 +173,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Page Up"
-          }
-        }
-      }
-    },
-    "^D 结束输入": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^D End of input"
-          }
-        }
-      }
-    },
-    "^L 清屏": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^L Clear screen"
-          }
-        }
-      }
-    },
-    "^R 搜索历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^R Search history"
-          }
-        }
-      }
-    },
-    "^Z 挂起": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^Z Suspend"
-          }
-        }
-      }
-    },
-    "agent 没在运行": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Agent not running"
-          }
-        }
-      }
-    },
-    "http://192.168.1.8:9280/?t=…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "http://192.168.1.8:9280/?t=…"
           }
         }
       }
@@ -221,6 +237,16 @@
         }
       }
     },
+    "会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chats"
+          }
+        }
+      }
+    },
     "会话不存在或已关闭": {
       "localizations": {
         "en": {
@@ -241,6 +267,8 @@
         }
       }
     },
+    "会话已置顶到等待你": {},
+    "保持文字可读": {},
     "全部": {
       "localizations": {
         "en": {
@@ -282,11 +310,22 @@
       }
     },
     "其它": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Other"
+          }
+        }
+      }
+    },
+    "最近": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
           }
         }
       }
@@ -371,6 +410,7 @@
         }
       }
     },
+    "启动 %@": {},
     "命令已完成": {
       "localizations": {
         "en": {
@@ -391,7 +431,9 @@
         }
       }
     },
+    "唤起 agent": {},
     "回复": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -421,6 +463,7 @@
         }
       }
     },
+    "在 Mac 上开一个 agent 会话就会出现在这里": {},
     "在 Mac 上开个终端标签就会出现在这里": {
       "localizations": {
         "en": {
@@ -432,6 +475,7 @@
       }
     },
     "在 Mac 上用 Claude Code 开一个会话就会出现在这里": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -521,7 +565,9 @@
         }
       }
     },
+    "完整画布": {},
     "对话": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -652,6 +698,7 @@
       }
     },
     "恢复 Mac 端尺寸": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -722,6 +769,7 @@
       }
     },
     "扫描 Mac 端「设置 → 远程」里的二维码": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -791,6 +839,7 @@
         }
       }
     },
+    "搜索项目": {},
     "改名": {
       "localizations": {
         "en": {
@@ -801,22 +850,15 @@
         }
       }
     },
+    "无法启动项目": {},
+    "显示完整会话画布": {},
+    "暂无打开的会话": {},
     "更多": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "More"
-          }
-        }
-      }
-    },
-    "最近": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent"
           }
         }
       }
@@ -861,6 +903,8 @@
         }
       }
     },
+    "正在启动 agent…": {},
+    "正在启动…": {},
     "正在等你确认": {
       "localizations": {
         "en": {
@@ -872,6 +916,7 @@
       }
     },
     "正在等你确认 · 去终端": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -891,22 +936,22 @@
         }
       }
     },
-    "没有 AI 会话": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No AI sessions"
-          }
-        }
-      }
-    },
     "没有 agent 在等你": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No agent is waiting on you"
+          }
+        }
+      }
+    },
+    "没有 AI 会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No AI sessions"
           }
         }
       }
@@ -941,6 +986,7 @@
         }
       }
     },
+    "清晰视图": {},
     "点一下接管控制": {
       "localizations": {
         "en": {
@@ -951,6 +997,7 @@
         }
       }
     },
+    "点右上角的 + 直接在 Mac 上唤起一个": {},
     "版本": {
       "localizations": {
         "en": {
@@ -982,6 +1029,7 @@
       }
     },
     "空间": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1091,7 +1139,9 @@
         }
       }
     },
+    "跟 %@ 说…": {},
     "跟 Claude 说…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1132,6 +1182,7 @@
       }
     },
     "返回对话": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1152,6 +1203,7 @@
       }
     },
     "这个目录的 agent 没在运行,只能查看历史": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1212,6 +1264,7 @@
       }
     },
     "适配手机宽度": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1221,6 +1274,7 @@
         }
       }
     },
+    "适配本机": {},
     "适配本机宽度": {
       "localizations": {
         "en": {
@@ -1332,6 +1386,7 @@
       }
     },
     "镜像 Mac 尺寸(整体缩放看全貌)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

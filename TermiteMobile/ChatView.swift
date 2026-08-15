@@ -21,7 +21,7 @@ struct ChatSessionListView: View {
         NavigationStack(path: $path) {
             content
                 .termiteScreen(theme)
-                .navigationTitle("回复")
+                .navigationTitle("会话")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbarTitleDisplayMode(.inline)
                 .refreshable { client.refresh() }

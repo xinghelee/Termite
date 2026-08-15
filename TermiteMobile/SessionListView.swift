@@ -23,7 +23,7 @@ struct MainView: View {
             TerminalTab(client: client)
                 .tabItem { Label("终端", systemImage: "terminal") }
             ChatSessionListView(client: chatClient, notifier: notifier)
-                .tabItem { Label("回复", systemImage: "bell.badge") }
+                .tabItem { Label("会话", systemImage: "bell.badge") }
                 .badge(chatClient.waiting.count)
             SimulatorTabView(client: mirrorClient)
                 .tabItem { Label("模拟器", systemImage: "iphone.gen3") }
