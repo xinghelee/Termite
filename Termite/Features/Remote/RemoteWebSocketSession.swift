@@ -6,7 +6,7 @@ import Network
 /// 线程模型:网络收发在 netQueue;桥接状态(附着会话、尺寸跟随)全部主线程,
 /// 输入经 DispatchQueue.main FIFO 入主线程,和本地键入同路且保序。
 final class RemoteWebSocketSession: @unchecked Sendable {
-    private let connection: NWConnection
+    private let connection: SocketConnection
     private let onClose: () -> Void
     private let connID = UUID()
 
@@ -30,7 +30,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
 
     private static let maxMessage = 1 * 1024 * 1024
 
-    init(connection: NWConnection, onClose: @escaping () -> Void) {
+    init(connection: SocketConnection, onClose: @escaping () -> Void) {
         self.connection = connection
         self.onClose = onClose
     }
@@ -67,7 +67,7 @@ final class RemoteWebSocketSession: @unchecked Sendable {
     // MARK: - 接收与帧解析(netQueue)
 
     private func receiveLoop() {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+        connection.receive(maximumLength: 64 * 1024) { [weak self] data, isComplete, error in
             guard let self, !self.tornDown else { return }
             if let data, !data.isEmpty {
                 self.buffer.append(data)
@@ -140,13 +140,12 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             } else {
                 handleBinary(message)
             }
-        case 0x8: // close:回礼标记 finalMessage(先冲数据再 FIN);
-            // contentProcessed 不等于已落线,紧跟 cancel 会把回礼丢在栈里
+        case 0x8: // close:回礼写完再半关闭(先冲数据再 FIN),
+            // 紧跟 cancel 会把回礼丢在发送队列里
             closing = true
-            connection.send(content: Data([0x88, 0x00]), contentContext: .finalMessage,
-                            isComplete: true, completion: .contentProcessed { [weak self] _ in
+            connection.send(Data([0x88, 0x00]), isFinal: true) { [weak self] _ in
                 self?.onClose()
-            })
+            }
         case 0x9: // ping → pong 原样带回
             sendFrame(opcode: 0xA, payload: payload)
         case 0xA: // pong:心跳回包,无需处理
@@ -619,6 +618,6 @@ final class RemoteWebSocketSession: @unchecked Sendable {
             withUnsafeBytes(of: &len) { frame.append(contentsOf: $0) }
         }
         frame.append(payload)
-        connection.send(content: frame, completion: .idempotent)
+        connection.send(frame)
     }
 }

@@ -28,7 +28,7 @@ final class RemoteForwarder {
     private(set) var forwards: [Forward] = []
     private(set) var lastError: String?
 
-    private var listeners: [UUID: NWListener] = [:]
+    private var listeners: [UUID: SocketListener] = [:]
     private let connections = ConnectionBag()
 
     private static let storageKey = "remote.forwards"
@@ -90,26 +90,23 @@ final class RemoteForwarder {
     }
 
     private func startListener(_ forward: Forward) {
-        let params = NWParameters.tcp
-        params.allowLocalEndpointReuse = true
-        guard let port = NWEndpoint.Port(rawValue: forward.listen),
-              let listener = try? NWListener(using: params, on: port) else {
-            lastError = String(localized: "端口 \(String(forward.listen)) 监听失败")
-            return
-        }
-        listeners[forward.id] = listener
         let token = RemoteAccessServer.shared.token
         let target = forward.target
         let bag = connections
-        listener.newConnectionHandler = { connection in
+        guard let listener = try? SocketListener(port: forward.listen,
+                                                 queue: RemoteAccessServer.netQueue,
+                                                 onAccept: { connection in
             let proxy = RemoteProxyConnection(client: connection, targetPort: target,
                                               token: token) { done in
                 bag.remove(done)
             }
             bag.add(proxy)
             proxy.start()
+        }) else {
+            lastError = String(localized: "端口 \(String(forward.listen)) 监听失败")
+            return
         }
-        listener.start(queue: RemoteAccessServer.netQueue)
+        listeners[forward.id] = listener
     }
 
     // MARK: - 持久化
@@ -149,7 +146,7 @@ final class RemoteForwarder {
 /// 一条被代理的连接:验完 token 就退化成纯字节对拼(所以 WS / SSE / 长连接都不用特判)。
 /// 鉴权只看第一个请求头 —— 之后浏览器带的是 cookie,子资源(app.js 之类)不会再带 ?t=
 final class RemoteProxyConnection: @unchecked Sendable {
-    private let client: NWConnection
+    private let client: SocketConnection
     private let targetPort: UInt16
     private let token: String
     private let onClosed: (RemoteProxyConnection) -> Void
@@ -161,7 +158,7 @@ final class RemoteProxyConnection: @unchecked Sendable {
     private static let cookieName = "termite_fwd"
     private static let maxHead = 64 * 1024
 
-    init(client: NWConnection, targetPort: UInt16, token: String,
+    init(client: SocketConnection, targetPort: UInt16, token: String,
          onClosed: @escaping (RemoteProxyConnection) -> Void) {
         self.client = client
         self.targetPort = targetPort
@@ -170,11 +167,8 @@ final class RemoteProxyConnection: @unchecked Sendable {
     }
 
     func start() {
-        client.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { self?.cancel() }
-            if case .cancelled = state { self?.cancel() }
-        }
-        client.start(queue: RemoteAccessServer.netQueue)
+        client.onFailure = { [weak self] in self?.cancel() }
+        client.start()
         readHead()
     }
 
@@ -189,7 +183,7 @@ final class RemoteProxyConnection: @unchecked Sendable {
     // MARK: - 鉴权
 
     private func readHead() {
-        client.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { [weak self] data, _, isComplete, error in
+        client.receive(maximumLength: 16 * 1024) { [weak self] data, isComplete, error in
             guard let self, !self.closed else { return }
             if let data, !data.isEmpty { self.buffer.append(data) }
             if error != nil || isComplete { self.cancel(); return }
@@ -290,9 +284,9 @@ final class RemoteProxyConnection: @unchecked Sendable {
     }
 
     private func send(_ response: String) {
-        client.send(content: Data(response.utf8), completion: .contentProcessed { [weak self] _ in
+        client.send(Data(response.utf8), isFinal: true) { [weak self] _ in
             self?.cancel()
-        })
+        }
     }
 
     /// 目标服务没起来:回一句人话,别让手机上白转圈。
@@ -306,9 +300,9 @@ final class RemoteProxyConnection: @unchecked Sendable {
         head += "Connection: close\r\n\r\n"
         var out = Data(head.utf8)
         out.append(body)
-        client.send(content: out, completion: .contentProcessed { [weak self] _ in
+        client.send(out, isFinal: true) { [weak self] _ in
             self?.cancel()
-        })
+        }
     }
 
     // MARK: - 对拼
@@ -324,8 +318,8 @@ final class RemoteProxyConnection: @unchecked Sendable {
                 var initial = head
                 initial.append(leftover)
                 upstream.send(content: initial, completion: .idempotent)
-                self.pump(from: upstream, to: self.client)
-                self.pump(from: self.client, to: upstream)
+                self.pumpUpstreamToClient(upstream)
+                self.pumpClientToUpstream(upstream)
             // 连不上时 NWConnection 先进 .waiting(ECONNREFUSED 会一直重试),不是 .failed
             case .failed, .cancelled, .waiting:
                 self.sendGatewayError()
@@ -336,14 +330,25 @@ final class RemoteProxyConnection: @unchecked Sendable {
         upstream.start(queue: RemoteAccessServer.netQueue)
     }
 
-    private func pump(from source: NWConnection, to sink: NWConnection) {
-        source.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+    /// 上游(本地服务,NWConnection)→ 手机(SocketConnection)
+    private func pumpUpstreamToClient(_ upstream: NWConnection) {
+        upstream.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, !self.closed else { return }
+            if let data, !data.isEmpty { self.client.send(data) }
+            if error != nil || isComplete { self.cancel(); return }
+            self.pumpUpstreamToClient(upstream)
+        }
+    }
+
+    /// 手机 → 上游
+    private func pumpClientToUpstream(_ upstream: NWConnection) {
+        client.receive(maximumLength: 64 * 1024) { [weak self] data, isComplete, error in
             guard let self, !self.closed else { return }
             if let data, !data.isEmpty {
-                sink.send(content: data, completion: .idempotent)
+                upstream.send(content: data, completion: .idempotent)
             }
             if error != nil || isComplete { self.cancel(); return }
-            self.pump(from: source, to: sink)
+            self.pumpClientToUpstream(upstream)
         }
     }
 

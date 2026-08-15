@@ -27,7 +27,9 @@ final class RemoteAccessServer {
     private(set) var isRunning = false
     private(set) var lastError: String?
 
-    private var listener: NWListener?
+    private var listener: SocketListener?
+    /// Bonjour 广播独立于监听:BSD socket 自己不发布服务
+    private var bonjour: NetService?
     /// 打开中的连接(netQueue 专属,强引用防释放)
     private let connectionBag = ConnectionBag()
 
@@ -163,53 +165,37 @@ final class RemoteAccessServer {
     func start() {
         guard listener == nil else { return }
         lastError = nil
-        let params = NWParameters.tcp
-        params.allowLocalEndpointReuse = true
-        guard let nwPort = NWEndpoint.Port(rawValue: port),
-              let listener = try? NWListener(using: params, on: nwPort) else {
-            lastError = String(localized: "端口 \(Int(port)) 监听失败")
-            return
-        }
-        self.listener = listener
-        // 广播只暴露「这台 Mac 上有 Termite」和端口,不含 token
-        listener.service = NWListener.Service(name: Self.serviceName, type: Self.serviceType)
         let expectedToken = token
         let broker = pairing
-        RemoteSessionHub.shared.start()
-        RemoteForwarder.shared.startAll()
-
-        listener.stateUpdateHandler = { [weak self] state in
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    switch state {
-                    case .ready:
-                        self.isRunning = true
-                    case .failed(let error):
-                        self.lastError = String(localized: "监听失败:\(error.localizedDescription)")
-                        self.stop()
-                    default:
-                        break
-                    }
-                }
-            }
-        }
-        listener.newConnectionHandler = { [weak self] connection in
-            guard let self else { return }
-            let bag = self.connectionBag
+        let bag = connectionBag
+        guard let listener = try? SocketListener(port: port, queue: Self.netQueue,
+                                                 onAccept: { connection in
             let http = RemoteHTTPConnection(connection: connection, token: expectedToken,
                                             pairing: broker) { conn in
                 bag.remove(conn)
             }
             bag.add(http)
             http.start()
+        }) else {
+            lastError = String(localized: "端口 \(Int(port)) 监听失败")
+            return
         }
-        listener.start(queue: Self.netQueue)
+        self.listener = listener
+        isRunning = true
+        // 广播只暴露「这台 Mac 上有 Termite」和端口,不含 token
+        let service = NetService(domain: "local.", type: "\(Self.serviceType).",
+                                 name: Self.serviceName, port: Int32(port))
+        service.publish()
+        bonjour = service
+        RemoteSessionHub.shared.start()
+        RemoteForwarder.shared.startAll()
     }
 
     func stop() {
         listener?.cancel()
         listener = nil
+        bonjour?.stop()
+        bonjour = nil
         isRunning = false
         pairing.cancel()
         RemoteForwarder.shared.stopAll()
@@ -281,7 +267,7 @@ final class RemoteAccessServer {
 /// 一次 HTTP 交换(静态文件)或升级为 WebSocket 长连接。
 /// 生命周期全程在 RemoteAccessServer.netQueue 上。
 final class RemoteHTTPConnection: @unchecked Sendable {
-    private let connection: NWConnection
+    private let connection: SocketConnection
     private let token: String
     private let onClosed: (RemoteHTTPConnection) -> Void
     private var buffer = Data()
@@ -300,7 +286,7 @@ final class RemoteHTTPConnection: @unchecked Sendable {
 
     private let pairing: RemoteAccessServer.PairingBroker
 
-    init(connection: NWConnection, token: String,
+    init(connection: SocketConnection, token: String,
          pairing: RemoteAccessServer.PairingBroker,
          onClosed: @escaping (RemoteHTTPConnection) -> Void) {
         self.connection = connection
@@ -310,10 +296,8 @@ final class RemoteHTTPConnection: @unchecked Sendable {
     }
 
     func start() {
-        connection.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { self?.cancel() }
-        }
-        connection.start(queue: RemoteAccessServer.netQueue)
+        connection.onFailure = { [weak self] in self?.cancel() }
+        connection.start()
         receiveHead()
     }
 
@@ -329,7 +313,7 @@ final class RemoteHTTPConnection: @unchecked Sendable {
     // MARK: - 请求头接收与路由
 
     private func receiveHead() {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+        connection.receive(maximumLength: 64 * 1024) { [weak self] data, isComplete, error in
             guard let self, !self.closed else { return }
             if let data { self.buffer.append(data) }
             if error != nil || (isComplete && data == nil) {
@@ -425,9 +409,9 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         response += "Connection: close\r\n\r\n"
         var out = Data(response.utf8)
         out.append(data)
-        connection.send(content: out, completion: .contentProcessed { [weak self] _ in
+        connection.send(out, isFinal: true) { [weak self] _ in
             self?.cancel()
-        })
+        }
     }
 
     // MARK: - 静态文件
@@ -447,16 +431,16 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         response += "Connection: close\r\n\r\n"
         var payload = Data(response.utf8)
         payload.append(data)
-        connection.send(content: payload, completion: .contentProcessed { [weak self] _ in
+        connection.send(payload, isFinal: true) { [weak self] _ in
             self?.cancel()
-        })
+        }
     }
 
     private func sendSimple(status: String) {
         let response = "HTTP/1.1 \(status)\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-        connection.send(content: Data(response.utf8), completion: .contentProcessed { [weak self] _ in
+        connection.send(Data(response.utf8), isFinal: true) { [weak self] _ in
             self?.cancel()
-        })
+        }
     }
 
     // MARK: - WebSocket 升级
@@ -477,7 +461,7 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         response += "Upgrade: websocket\r\n"
         response += "Connection: Upgrade\r\n"
         response += "Sec-WebSocket-Accept: \(accept)\r\n\r\n"
-        connection.send(content: Data(response.utf8), completion: .contentProcessed { [weak self] error in
+        connection.send(Data(response.utf8)) { [weak self] error in
             guard let self, error == nil else {
                 self?.cancel()
                 return
@@ -487,6 +471,6 @@ final class RemoteHTTPConnection: @unchecked Sendable {
             }
             self.websocket = ws
             ws.start(initialBuffer: leftover)
-        })
+        }
     }
 }
