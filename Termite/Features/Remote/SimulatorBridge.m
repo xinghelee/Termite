@@ -123,7 +123,14 @@
         if (![port respondsToSelector:@selector(descriptor)]) continue;
         id desc = [port descriptor];
         if (!desc || ![desc conformsToProtocol:renderable]) continue;
-        if ([port respondsToSelector:@selector(connectToDeviceIO:)]) {
+        // Simulator.app 开着时,它已经把主屏连好并上电了 —— 这时再 connectToDeviceIO:
+        // 会把它那条 SimFramebuffer 连接搅崩,整台模拟器当场从 Booted 掉成 Shutdown
+        // (2026-08-15 实测,用户正在用的机器被打挂两次)。
+        // 所以先白拿一次 surface:拿得到就说明这块屏已经活着,连与上电都得跳过;
+        // 拿不到才是 headless(simctl boot 无 GUI)的情形,再走原来的连接+上电路径。
+        IOSurfaceRef ready = [desc respondsToSelector:@selector(framebufferSurface)]
+                             ? [desc framebufferSurface] : NULL;
+        if (!ready && [port respondsToSelector:@selector(connectToDeviceIO:)]) {
             [port connectToDeviceIO:io];
         }
         if (![desc respondsToSelector:@selector(screenProperties)]) continue;
