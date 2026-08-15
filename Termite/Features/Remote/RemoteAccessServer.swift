@@ -282,6 +282,12 @@ final class RemoteHTTPConnection: @unchecked Sendable {
         "/style.css": ("style.css", "text/css; charset=utf-8"),
         "/vendor/xterm.min.js": ("vendor/xterm.min.js", "application/javascript; charset=utf-8"),
         "/vendor/xterm.min.css": ("vendor/xterm.min.css", "text/css; charset=utf-8"),
+        // 「添加到主屏幕」用:没有这几个,加出来的是个白方块
+        "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json; charset=utf-8"),
+        "/icons/icon-180.png": ("icons/icon-180.png", "image/png"),
+        "/icons/icon-192.png": ("icons/icon-192.png", "image/png"),
+        "/icons/icon-512.png": ("icons/icon-512.png", "image/png"),
+        "/favicon.ico": ("icons/icon-192.png", "image/png"),
     ]
 
     private let pairing: RemoteAccessServer.PairingBroker

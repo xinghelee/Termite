@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Termite">
 <meta name="theme-color" content="#111214">
 <title>Termite</title>
+<!-- 「添加到主屏幕」后就是个独立 app:有图标、全屏、深色底。
+     开源分发里这条路比让人自己签一个 iOS 包现实得多 -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="stylesheet" href="/vendor/xterm.min.css">
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -17,6 +24,7 @@
     <h1>Termite</h1>
     <span id="conn-state"></span>
   </header>
+  <input id="search" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" data-i18n-ph="search">
   <main id="session-list"></main>
   <p id="list-empty" hidden data-i18n="noSessions"></p>
 </div>

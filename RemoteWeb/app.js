@@ -20,10 +20,27 @@ const T = {
   claimHint: zh ? "点上方「接管」即可操作" : "Hit Take over above to drive it",
   takeOver: zh ? "接管" : "Take over",
   handBack: zh ? "交还" : "Hand back",
+  waiting: zh ? "等你回复" : "Waiting on you",
+  other: zh ? "其他" : "Other",
+  search: zh ? "搜索会话、项目、路径" : "Search sessions, projects, paths",
+  noMatch: zh ? "没有匹配的会话" : "No matching sessions",
 };
+
+/* 「已等 3 分钟」——手机上第一眼要能判断该不该现在管 */
+function waitedText(sec) {
+  if (sec == null) return "";
+  if (sec < 60) return zh ? `已等 ${sec} 秒` : `waiting ${sec}s`;
+  const m = Math.floor(sec / 60);
+  if (m < 60) return zh ? `已等 ${m} 分钟` : `waiting ${m}m`;
+  const h = Math.floor(m / 60);
+  return zh ? `已等 ${h} 小时` : `waiting ${h}h`;
+}
 
 document.querySelectorAll("[data-i18n]").forEach((el) => {
   el.textContent = T[el.dataset.i18n] || "";
+});
+document.querySelectorAll("[data-i18n-ph]").forEach((el) => {
+  el.placeholder = T[el.dataset.i18nPh] || "";
 });
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +54,31 @@ const overlayText = $("overlay-text");
 
 const token = new URLSearchParams(location.search).get("t") || "";
 const encoder = new TextEncoder();
+
+/* 手机上能读的字号下限。Mac 那边通常 80 列,硬塞进手机宽度会缩到 10px 以下,
+   所以接管时不再继承 Mac 网格,而是按这个字号反推自己的列数(tmux 语义)。 */
+const READABLE_FONT = 13;
+const CHAR_W = 0.602;   // Menlo 等宽字的字宽 ≈ 0.602 × 字号
+const LINE_H = 1.2;     // xterm 默认行高倍数
+
+function deviceName() {
+  const ua = navigator.userAgent;
+  if (ua.includes("iPhone")) return "iPhone (Web)";
+  if (ua.includes("iPad")) return "iPad (Web)";
+  if (ua.includes("Android")) return "Android (Web)";
+  return "Web";
+}
+
+/* 这块屏按 READABLE_FONT 能放下多大的网格 */
+function deviceGrid(size = READABLE_FONT) {
+  const holder = $("term-holder");
+  const w = Math.max(0, holder.clientWidth - 8);
+  const h = Math.max(0, holder.clientHeight - 4);
+  return {
+    cols: Math.max(20, Math.floor(w / (size * CHAR_W))),
+    rows: Math.max(10, Math.floor(h / (size * LINE_H))),
+  };
+}
 
 let ws = null;
 let wsReady = false;
@@ -131,10 +173,9 @@ $("control-btn").addEventListener("click", () => {
   if (controlState && controlState.mine) {
     send({ type: "release", id: attachedID });
   } else if (controlState && controlState.claimable) {
-    // 网页端不改网格,原样接管:发当前网格 = 只拿控制权,PTY 尺寸不动
-    send({ type: "claim", id: attachedID, cols: ptyCols, rows: ptyRows,
-           device: navigator.userAgent.includes("iPhone") ? "iPhone (Web)"
-                 : navigator.userAgent.includes("iPad") ? "iPad (Web)" : "Web" });
+    // 接管 = 要自己的宽度:发这块屏按可读字号算出的网格,别继承 Mac 的 80 列
+    const g = deviceGrid();
+    send({ type: "claim", id: attachedID, cols: g.cols, rows: g.rows, device: deviceName() });
   }
 });
 
@@ -175,29 +216,92 @@ function handleControl(msg) {
 
 /* ── 会话列表 ── */
 
-function renderList(sessions) {
-  listEmpty.hidden = sessions.length > 0;
-  sessionList.replaceChildren(
-    ...sessions.map((s) => {
-      const card = document.createElement("div");
-      card.className = "session-card";
-      const badge = document.createElement("span");
-      badge.className = "badge " + (!s.alive ? "dead" : s.attention ? "attention" : s.running ? "running" : "idle");
-      const info = document.createElement("div");
-      info.className = "info";
-      const title = document.createElement("div");
-      title.className = "title";
-      title.textContent = s.title;
-      const cwd = document.createElement("div");
-      cwd.className = "cwd";
-      cwd.textContent = s.cwd || s.shell;
-      info.append(title, cwd);
-      card.append(badge, info);
-      if (s.alive) card.addEventListener("click", () => attach(s));
-      return card;
-    })
-  );
+let lastSessions = [];
+let filterText = "";
+
+function sessionCard(s) {
+  const card = document.createElement("div");
+  card.className = "session-card" + (s.attention === "input" && s.alive ? " waiting" : "");
+  const badge = document.createElement("span");
+  badge.className = "badge " + (!s.alive ? "dead" : s.attention ? "attention" : s.running ? "running" : "idle");
+  const info = document.createElement("div");
+  info.className = "info";
+  const title = document.createElement("div");
+  title.className = "title";
+  title.textContent = s.title;
+  const cwd = document.createElement("div");
+  cwd.className = "cwd";
+  cwd.textContent = s.cwd || s.shell;
+  info.append(title, cwd);
+  card.append(badge, info);
+  // 等待中的会话把等了多久摆在右边:决定「现在管还是待会管」全靠它
+  if (s.alive && s.attention === "input") {
+    const waited = document.createElement("div");
+    waited.className = "waited";
+    waited.textContent = waitedText(s.attentionSeconds);
+    card.append(waited);
+  }
+  if (s.alive) card.addEventListener("click", () => attach(s));
+  return card;
 }
+
+function sectionHeader(name, count, color) {
+  const h = document.createElement("div");
+  h.className = "section";
+  const dot = document.createElement("span");
+  dot.className = "section-dot";
+  if (color) dot.style.background = color;
+  const label = document.createElement("span");
+  label.className = "section-name";
+  label.textContent = name;
+  const n = document.createElement("span");
+  n.className = "section-count";
+  n.textContent = count;
+  h.append(dot, label, n);
+  return h;
+}
+
+function matches(s) {
+  if (!filterText) return true;
+  const q = filterText.toLowerCase();
+  return [s.title, s.cwd, s.project, s.shell, s.space]
+    .some((v) => v && v.toLowerCase().includes(q));
+}
+
+function renderList(sessions) {
+  lastSessions = sessions;
+  const shown = sessions.filter(matches);
+  listEmpty.hidden = shown.length > 0;
+  listEmpty.textContent = sessions.length && !shown.length ? T.noMatch : T.noSessions;
+
+  const out = [];
+  // 「谁在等我」是手机上的头等大事:单独置顶一组,不跟项目混排
+  const waiting = shown.filter((s) => s.alive && s.attention === "input");
+  if (waiting.length) {
+    waiting.sort((a, b) => (b.attentionSeconds || 0) - (a.attentionSeconds || 0));
+    out.push(sectionHeader(T.waiting, waiting.length));
+    out[out.length - 1].classList.add("urgent");
+    waiting.forEach((s) => out.push(sessionCard(s)));
+  }
+  // 其余按项目归堆,对齐 Mac 侧边栏的语义
+  const groups = new Map();
+  for (const s of shown) {
+    if (s.alive && s.attention === "input") continue;
+    const key = s.project || T.other;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  }
+  for (const [name, items] of groups) {
+    out.push(sectionHeader(name, items.length, items[0].projectColor));
+    items.forEach((s) => out.push(sessionCard(s)));
+  }
+  sessionList.replaceChildren(...out);
+}
+
+$("search").addEventListener("input", (e) => {
+  filterText = e.target.value.trim();
+  renderList(lastSessions);
+});
 
 function startListPolling() {
   send({ type: "list" });
@@ -256,16 +360,23 @@ function openTerminal() {
   term.focus();
 }
 
-/* 字号自适应:列数装进屏宽(下限 7px,更宽就横向滚动) */
+/* 字号自适应。自己接管时网格本就是按 READABLE_FONT 要来的,直接用;
+   跟随 Mac 时只能把它的列数塞进屏宽(下限 7px,再宽就横向滚动)。 */
 function fitFont() {
   if (!term) return;
   const holder = $("term-holder");
   const available = holder.clientWidth - 8;
-  // Menlo 字宽 ≈ 0.6 × 字号;逐档试到能放下为止
-  let size = 16;
-  while (size > 7 && ptyCols * size * 0.602 > available) size--;
+  const mine = !!(controlState && controlState.mine);
+  let size = READABLE_FONT;
+  if (!mine) {
+    size = 16;
+    while (size > 7 && ptyCols * size * CHAR_W > available) size--;
+  }
   term.options.fontSize = size;
-  $("term-size").textContent = `${ptyCols}×${ptyRows} · ${size}px`;
+  $("term-size").textContent = mine ? `${ptyCols}×${ptyRows}` : `${ptyCols}×${ptyRows} · ${size}px`;
+  // 跟随 Mac 且已经缩到看不清:提示这里可以拿自己的宽度
+  const tiny = !mine && size < 11 && controlState && controlState.claimable;
+  $("term-size").classList.toggle("warn", !!tiny);
 }
 
 function backToList() {
@@ -319,7 +430,20 @@ function toast(text) {
   toastTimer = setTimeout(hideOverlay, 1800);
 }
 
-window.addEventListener("resize", fitFont);
+/* 旋转屏幕 / 键盘弹收都会改可视高度。自己接管时网格是我们说了算的,
+   重新按新尺寸要一次;跟随 Mac 时只调字号。防抖是必要的 —— iOS 上
+   键盘动画期间 resize 会连发几十次 */
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  fitFont();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!attachedID || !controlState || !controlState.mine) return;
+    const g = deviceGrid();
+    if (g.cols === ptyCols && g.rows === ptyRows) return;
+    send({ type: "claim", id: attachedID, cols: g.cols, rows: g.rows, device: deviceName() });
+  }, 250);
+});
 
 connect();
 startListPolling();
