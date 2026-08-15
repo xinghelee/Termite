@@ -1,0 +1,32 @@
+project: Termite.xcodeproj
+scheme: TermiteMobile
+bundle_id: com.termite.mobile
+# 个人号(与 iOS 签名证书同队);默认的 credentials.env 是公司号,别混
+team: 99LYH6FNPS
+credentials: ~/.appstoreconnect/credentials.personal.env
+
+# 刻意不设 pre_build: xcodegen generate ——
+# TermiteMobile/Info.plist 是 xcodegen 的生成物,ship 的 build 号 bump 写在这里,
+# archive 前再跑一次 xcodegen 会把它冲回 project.yml 的值,导致 build 号回退、
+# 上传撞 ITMS-90189 重复。改了 project.yml 就先手动 xcodegen generate 再 ship。
+
+testflight:
+  groups: []
+  locale: en-US
+  submit_beta_review: false
+
+# ad-hoc OTA:绕开 ASC 的 App 记录与审核等待,手机点链接直接装。
+# itms-services 要求 manifest 走 HTTPS 且证书受 iOS 信任,自签会被拒;
+# 2026-08-15 验证可行的做法是 `tailscale cert <MagicDNS 名>` 签一张 Let's Encrypt 证书,
+# 再用它起一个只监听 tailnet 的静态服务 —— ipa 不公开暴露,人在外面也能装。
+# base_url / upload_cmd 与机器绑定,按当时环境填,别固化到仓库里:
+# ota:
+#   base_url: https://<host>.<tailnet>.ts.net:9443
+#   upload_cmd: 'rsync -a --delete "$SHIP_OTA_DIR/" /path/to/webroot/'
+#   title: Termite
+#
+# 另外:导出 ad-hoc 需要 Xcode 登录着 Apple ID,否则 automatic signing 报
+# 「No Accounts / No profiles」。人不在机器前时可以全程走 ASC API:
+# 注册 explicit bundle id → 按指纹匹配本机有私钥的 Apple Distribution 证书 →
+# 建只含目标设备的 IOS_APP_ADHOC profile → 装进 ~/Library/MobileDevice/Provisioning Profiles/
+# → 用 signingStyle: manual 的 ExportOptions 手动 xcodebuild -exportArchive。
