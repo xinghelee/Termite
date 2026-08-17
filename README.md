@@ -31,11 +31,16 @@
 
 
 
-https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225
-
-<p align="center">
-  <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="360">
-</p>
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <video src="https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225" width="100%" controls muted></video>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="100%">
+    </td>
+  </tr>
+</table>
 
 > The video shows an iPhone connecting to a Mac over a trusted LAN or Tailscale private network to preview and control an iOS Simulator in real time. Compatibility: **macOS 26.0 or later** on the Mac; **iOS / iPadOS 17.0 or later** on iPhone and iPad.
 

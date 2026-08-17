@@ -31,11 +31,16 @@
 
 
 
-https://github.com/user-attachments/assets/6f9ccfb3-61d4-4d12-b270-c3a71f0fe4ae
-
-<p align="center">
-  <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone 客户端远程操作 Claude Code 会话，右上角画中画实时预览 iOS 模拟器" width="360">
-</p>
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <video src="https://github.com/user-attachments/assets/6f9ccfb3-61d4-4d12-b270-c3a71f0fe4ae" width="100%" controls muted></video>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone 客户端远程操作 Claude Code 会话，右上角画中画实时预览 iOS 模拟器" width="100%">
+    </td>
+  </tr>
+</table>
 
 > 视频演示 iPhone 通过受信任的局域网或 Tailscale 私有网络连接 Mac，实时查看并操作 Mac 上运行的 iOS 模拟器。兼容性：Mac 端需要 **macOS 26.0 或更高版本**；移动端支持 **iOS / iPadOS 17.0 或更高版本**，兼容 iPhone 与 iPad。
 
