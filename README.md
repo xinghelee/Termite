@@ -29,7 +29,10 @@
   <img src="docs/assets/hero-overview.png" alt="Termite workspace with terminal panes, system monitoring, and two AI coding agents running side by side" width="1180">
 </p>
 
-https://github.com/user-attachments/assets/90299472-69d9-404d-922c-5f0d741ee5c3
+
+
+https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225
+
 
 > The video shows an iPhone connecting to a Mac over a trusted LAN or Tailscale private network to preview and control an iOS Simulator in real time. Compatibility: **macOS 26.0 or later** on the Mac; **iOS / iPadOS 17.0 or later** on iPhone and iPad.
 
