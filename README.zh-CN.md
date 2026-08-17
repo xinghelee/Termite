@@ -29,7 +29,10 @@
   <img src="docs/assets/hero-overview.png" alt="Termite 的四分屏工作区：终端、系统监控与两个 AI 编程 Agent 并行运行" width="1180">
 </p>
 
-https://github.com/user-attachments/assets/90299472-69d9-404d-922c-5f0d741ee5c3
+
+
+https://github.com/user-attachments/assets/6f9ccfb3-61d4-4d12-b270-c3a71f0fe4ae
+
 
 > 视频演示 iPhone 通过受信任的局域网或 Tailscale 私有网络连接 Mac，实时查看并操作 Mac 上运行的 iOS 模拟器。兼容性：Mac 端需要 **macOS 26.0 或更高版本**；移动端支持 **iOS / iPadOS 17.0 或更高版本**，兼容 iPhone 与 iPad。
 
