@@ -37,7 +37,7 @@
       <video src="https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225" controls muted></video>
     </td>
     <td valign="top">
-      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="315">
+      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="315" hspace="16">
     </td>
   </tr>
 </table>

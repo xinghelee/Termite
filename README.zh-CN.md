@@ -37,7 +37,7 @@
       <video src="https://github.com/user-attachments/assets/6f9ccfb3-61d4-4d12-b270-c3a71f0fe4ae" controls muted></video>
     </td>
     <td valign="top">
-      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone 客户端远程操作 Claude Code 会话，右上角画中画实时预览 iOS 模拟器" width="315">
+      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone 客户端远程操作 Claude Code 会话，右上角画中画实时预览 iOS 模拟器" width="315" hspace="16">
     </td>
   </tr>
 </table>
