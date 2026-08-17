@@ -6,7 +6,7 @@ import XCTest
 final class UpdateCheckerTests: XCTestCase {
     func testNumericSegmentCompare() {
         XCTAssertTrue(UpdateChecker.isNewer("1.10", than: "1.9"))
-        XCTAssertTrue(UpdateChecker.isNewer("2.0", than: "1.9"))
+        XCTAssertTrue(UpdateChecker.isNewer("2.0.0", than: "1.28"))
         XCTAssertTrue(UpdateChecker.isNewer("1.9.1", than: "1.9"))
         XCTAssertFalse(UpdateChecker.isNewer("1.9", than: "1.9"))
         XCTAssertFalse(UpdateChecker.isNewer("1.9", than: "1.10"))
