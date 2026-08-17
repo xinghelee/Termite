@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import Foundation
+import os
 
 /// termite-ptyhost 守护进程的 app 侧客户端:单连接多路复用全部会话。
 /// 守护进程按需拉起(bundle 内 Contents/MacOS/termite-ptyhost);
@@ -8,6 +9,8 @@ import Foundation
 @MainActor
 final class PtyHostClient {
     static let shared = PtyHostClient()
+
+    private static let log = Logger(subsystem: "com.termite.app", category: "keepalive")
 
     /// 会话回调(MainActor 上调用)
     struct Binding {
@@ -62,43 +65,74 @@ final class PtyHostClient {
     /// 进行中的连接/握手(spawns 记录该轮是否允许拉起守护进程)
     private var connecting: (spawns: Bool, task: Task<Bool, Never>)?
 
+    /// 没人在听时的预算:socket 上没有监听者,连不上就是连不上,别拖住首屏
+    private static let listeningBudget: TimeInterval = 2
+    /// 自己拉起守护进程后的预算。更新后首次 exec 要过 Gatekeeper 评估
+    /// (2026-08-17 实测 ~30 秒才 bind),原来沿用 2 秒 → 整轮启动恢复全量回落
+    /// 本地:保活静默失效、上百个 shell 还挤在同一秒起爆(空屏数分钟的元凶)
+    private static let daemonStartupBudget: TimeInterval = 60
+
     private func establishConnection(spawnIfNeeded: Bool) async -> Bool {
         let path = PtyHostPaths.socketURL.path
         try? FileManager.default.createDirectory(at: PtyHostPaths.socketURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
-        var spawned = false
-        for _ in 0..<20 {
-            if connect(to: path) {
-                guard let reply = await request(.hello, payload: heloPayload(), expect: [.helloAck]),
-                      let ack: PtyHello = PtyFrameCodec.decodeJSON(reply.1),
-                      ack.version == ptyHostProtocolVersion else {
-                    // 版本对不上(理论上 socket 名已隔离版本):放弃保活
-                    disconnect(notifySessions: false)
+        var daemon: Process?
+        var noticedExit = false
+        var deadline = Date().addingTimeInterval(Self.listeningBudget)
+        while Date() < deadline {
+            switch await handshake(path: path) {
+            case .ready: return true
+            case .rejected: return false // 版本不符 / 握手无应答:放弃保活
+            case .notListening: break
+            }
+            if daemon == nil {
+                guard spawnIfNeeded else { return false }
+                guard let process = spawnDaemon() else {
+                    Self.log.error("守护进程拉不起来,回落本地直连")
                     return false
                 }
-                // 上一程可能有 kill 发进断掉的传输:趁连接鲜活补刀
-                flushCondemned()
-                return true
-            }
-            if !spawned {
-                guard spawnIfNeeded else { return false }
-                spawned = true
-                guard spawnDaemon() else { return false }
+                daemon = process
+                deadline = Date().addingTimeInterval(Self.daemonStartupBudget)
+            } else if let daemon, !daemon.isRunning, !noticedExit {
+                // 我们拉起的那个已经退了(多半 bind 输给了并发实例):赢家可能正要
+                // 就绪,再等一小会儿即止,不干等满冷启动预算
+                noticedExit = true
+                deadline = min(deadline, Date().addingTimeInterval(Self.listeningBudget))
             }
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
+        Self.log.error("等守护进程就绪超时,回落本地直连(本次会话不保活)")
         return false
+    }
+
+    /// notListening = socket 上没人应答(可重试);rejected = 连上了但握手不成(放弃)
+    private enum Handshake { case ready, rejected, notListening }
+
+    private func handshake(path: String) async -> Handshake {
+        guard connect(to: path) else { return .notListening }
+        guard let reply = await request(.hello, payload: heloPayload(), expect: [.helloAck]),
+              let ack: PtyHello = PtyFrameCodec.decodeJSON(reply.1),
+              ack.version == ptyHostProtocolVersion else {
+            // 版本对不上(理论上 socket 名已隔离版本)或握手无应答:放弃保活
+            disconnect(notifySessions: false)
+            return .rejected
+        }
+        // 上一程可能有 kill 发进断掉的传输:趁连接鲜活补刀
+        flushCondemned()
+        return .ready
     }
 
     private func heloPayload() -> Data {
         (try? JSONEncoder().encode(PtyHello(version: ptyHostProtocolVersion))) ?? Data()
     }
 
-    private func spawnDaemon() -> Bool {
-        guard let url = Bundle.main.url(forAuxiliaryExecutable: "termite-ptyhost") else { return false }
+    /// 返回进程句柄:冷启动等待期间靠 isRunning 区分「还在过 Gatekeeper」和「已经退了」
+    private func spawnDaemon() -> Process? {
+        guard let url = Bundle.main.url(forAuxiliaryExecutable: "termite-ptyhost") else { return nil }
         let process = Process()
         process.executableURL = url
-        return (try? process.run()) != nil
+        guard (try? process.run()) != nil else { return nil }
+        return process
     }
 
     private func connect(to path: String) -> Bool {
