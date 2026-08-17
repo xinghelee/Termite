@@ -175,7 +175,7 @@ PtyHostDaemon/    PTY daemon
 PtyHostShared/    Local socket protocol shared by the app and daemon
 RemoteWeb/        Embedded remote-access Web client
 TermiteTests/     Unit tests
-docs/assets/      Sanitized product screenshots and mobile demo
+docs/assets/      Product screenshots and mobile demo
 ~~~
 
 Termite is built with SwiftUI and AppKit, uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) for terminal and Metal-rendering capabilities, and manages the project with XcodeGen. The macOS app is not sandboxed so it can provide the full filesystem and process access a terminal requires.

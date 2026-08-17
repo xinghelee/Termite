@@ -175,7 +175,7 @@ PtyHostDaemon/    PTY 守护进程
 PtyHostShared/    应用与守护进程共享的本地 socket 协议
 RemoteWeb/        内置远程访问 Web 客户端
 TermiteTests/     单元测试
-docs/assets/      已脱敏的产品截图与移动端演示
+docs/assets/      产品截图与移动端演示
 ```
 
 Termite 基于 SwiftUI 和 AppKit 构建，使用 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) 提供终端与 Metal 渲染能力，并通过 XcodeGen 管理工程。为提供完整的文件系统与进程能力，macOS 应用不使用 App Sandbox。
