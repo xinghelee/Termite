@@ -104,6 +104,10 @@ final class PtyHostClient {
     private func connect(to path: String) -> Bool {
         let sock = socket(AF_UNIX, SOCK_STREAM, 0)
         guard sock >= 0 else { return false }
+        // close-on-exec:守护进程 socket 是单客户端语义,连接归属决定会话归谁。
+        // 让 fork 出来的 shell 继承这个 fd,等于把「客户端还活着」的判据交给了
+        // 一群与连接无关的进程,app 退出后连接迟迟不断
+        _ = fcntl(sock, F_SETFD, FD_CLOEXEC)
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         path.utf8CString.withUnsafeBufferPointer { src in

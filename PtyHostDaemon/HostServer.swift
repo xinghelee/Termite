@@ -33,6 +33,10 @@ final class HostServer {
 
         listenFD = socket(AF_UNIX, SOCK_STREAM, 0)
         guard listenFD >= 0 else { throw PtyStreamError.badFrame("socket errno=\(errno)") }
+        // close-on-exec:守护进程 forkpty 出每一个 shell,不设就等于把监听 socket
+        // 发给所有 shell。守护进程死后这些 shell 仍让 socket 活着,canConnect 照样成功,
+        // 新守护进程会误判「已有守护进程在」而拒绝启动
+        _ = fcntl(listenFD, F_SETFD, FD_CLOEXEC)
         var addr = Self.unixSockaddr(for: socketPath)
         let len = socklen_t(MemoryLayout<sockaddr_un>.size)
         let bound = withUnsafePointer(to: &addr) {
@@ -61,6 +65,10 @@ final class HostServer {
     private func acceptClient() {
         let fd = accept(listenFD, nil, nil)
         guard fd >= 0 else { return }
+        // 客户端 fd 漏进 shell 后,只有「所有副本都关掉」才读得到 EOF ——
+        // app 已经退了,守护进程却因为一群 shell 还攥着副本而认为客户端仍在,
+        // 会话归属判断随之失真([[双实例抢 socket]] 那类事故的温床)
+        _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
         _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
         var one: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))

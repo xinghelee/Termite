@@ -28,6 +28,11 @@ final class SocketListener: @unchecked Sendable {
 
         let handle = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)
         guard handle >= 0 else { throw Failure.socketFailed(errno) }
+        // 出生即 close-on-exec:终端会话是 fork+exec 出来的,监听 fd 一旦被 shell 继承,
+        // app 退出后端口仍被这些 shell 占着,下一个实例 bind 失败、远程访问静默死掉
+        //(表现为手机连不上却查不出原因);顺带也不该把终端控制服务的 socket
+        // 交到用户在终端里随手运行的任何程序手上
+        _ = fcntl(handle, F_SETFD, FD_CLOEXEC)
         self.fd = handle
 
         var yes: Int32 = 1
@@ -72,6 +77,9 @@ final class SocketListener: @unchecked Sendable {
                     }
                 }
                 guard client >= 0 else { return }
+                // 同上:accept 出来的连接 fd 也不能漏给 shell,否则对端关掉后
+                // 连接卡在 CLOSE_WAIT 收不干净(fd 还被子进程攥着)
+                _ = fcntl(client, F_SETFD, FD_CLOEXEC)
                 onAccept(SocketConnection(fd: client, queue: queue))
             }
         }

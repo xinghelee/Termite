@@ -55,6 +55,10 @@ final class HostSession {
 
         pid = child
         masterFD = master
+        // close-on-exec:不设的话,之后每 forkpty 一个新会话,新 shell 都会继承
+        // 前面所有会话的 PTY master。某个 shell 退出时 master 端因为还被别人攥着而
+        // 读不到 EOF,那个会话就「死不掉」;fd 也随会话数平方级泄漏
+        _ = fcntl(master, F_SETFD, FD_CLOEXEC)
         _ = fcntl(master, F_SETFL, fcntl(master, F_GETFL) | O_NONBLOCK)
         writer = FDWriter(fd: master, queue: queue)
 
