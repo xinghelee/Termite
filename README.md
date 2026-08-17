@@ -31,13 +31,13 @@
 
 
 
-<table>
+<table align="center">
   <tr>
-    <td width="50%" valign="top">
-      <video src="https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225" width="100%" controls muted></video>
+    <td valign="top">
+      <video src="https://github.com/user-attachments/assets/cd18f5d0-4465-4f60-9342-07e29974a225" controls muted></video>
     </td>
-    <td width="50%" valign="top">
-      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="100%">
+    <td valign="top">
+      <img src="docs/assets/mobile-live-session.png" alt="Termite iPhone client driving a live Claude Code session, with the iOS Simulator mirrored picture-in-picture" width="315">
     </td>
   </tr>
 </table>
