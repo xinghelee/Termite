@@ -546,9 +546,12 @@ struct ReplyView: View {
 
     private var composer: some View {
         HStack(spacing: 8) {
+            // agent 没在跑时连输入都关掉。只灰掉发送键的话,人打完一段字点下去
+            // 什么都不发生 —— 上面那条「只能看历史」的横幅根本没人会去读
             TextField(placeholder, text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
+                .disabled(!canSend)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(Capsule().fill(theme.surface))
@@ -565,6 +568,7 @@ struct ReplyView: View {
         .padding(.vertical, 8)
         .background(theme.background)
         .overlay(alignment: .top) { theme.separator.frame(height: 0.5) }
+        .opacity(canSend ? 1 : 0.5)
     }
 
     // MARK: - 动作

@@ -99,7 +99,7 @@ targets:
         # 显式写死:不写的话 xcodegen 每次生成都会把版本冲回 1.0/1,
         # ship 的 build 号 bump 白做,上传还会撞 ITMS-90189 重复
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "2"
+        CFBundleVersion: "3"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
