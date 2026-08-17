@@ -79,6 +79,11 @@ final class TerminalSession: Identifiable {
     /// nil = 本地 LocalProcess 直连(保活关闭 / 守护进程不可用 / 下拉终端)
     @ObservationIgnored private(set) var hostPtyID: UUID?
     var usesHostTransport: Bool { hostPtyID != nil }
+    /// 落盘票据:活连接用当前会话;回落本地时沿用押着的孤儿票据,下次启动接回真身
+    var persistableReattach: PtyReattach? {
+        if let hostPtyID { return PtyReattach(id: hostPtyID, offset: consumedHostOffset) }
+        return orphanedReattach
+    }
     /// 传输就绪前(保活握手 + CREATE 往返,冷启动拉守护进程可达秒级)的键入
     /// 先攒着,就绪后按原序补发;此前这段输入直接打进未启动的 LocalProcess 丢掉
     @ObservationIgnored private var transportReady = false
@@ -86,6 +91,9 @@ final class TerminalSession: Identifiable {
     /// 已消费的守护进程输出流偏移(持久化后用于重连断点续传)
     @ObservationIgnored private(set) var consumedHostOffset: UInt64 = 0
     @ObservationIgnored private var pendingReattach: PtyReattach?
+    /// 接回失败/守护进程连不上时押着的票据:真身还活在守护进程里。
+    /// 丢了它,下次启动真身就被孤儿收养成重复标签(存档同项目 ×2/×4/×6 的元凶)
+    @ObservationIgnored private var orphanedReattach: PtyReattach?
     /// 命令时间线(OSC 133 完整周期的记录,新在后)
     private(set) var commandHistory: [CommandRecord] = []
     /// 当前正在录制到的文件 URL(nil = 未录制)
@@ -319,15 +327,52 @@ final class TerminalSession: Identifiable {
         markTransportReady()
     }
 
+    /// 保活接不上时的回落:沿用恢复错峰。原来直奔 launchLocal,批量恢复一旦回落
+    /// 就是上百个 zsh 挤在同一秒起爆——首屏空白好几分钟,和卡死没法区分
+    private func launchLocalFallback(env: [String: String], cwd: String) async {
+        if spawnDelay > 0 {
+            try? await Task.sleep(for: .seconds(spawnDelay))
+            guard !didShutdown else { return }
+        }
+        feedFallbackNotice()
+        launchLocal(env: env, cwd: cwd)
+    }
+
+    /// 回落是静默降级(保活没了却看不出来):在屏上留一行,退出前就知道这会话不保留
+    private func feedFallbackNotice() {
+        feedNotice(String(localized: "会话保活不可用,已本地直连:退出后此会话不保留"))
+    }
+
+    /// 守护进程冷启动可能要几十秒(更新后首次 exec 要过 Gatekeeper 评估),
+    /// 而空白面板加个光标与「卡死」长得一模一样:等太久就在屏上说明一句
+    private func longWaitHint() -> Task<Void, Never> {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, !Task.isCancelled, !didShutdown else { return }
+            feedNotice(String(localized: "正在连接会话守护进程…"))
+        }
+    }
+
+    private func feedNotice(_ text: String) {
+        terminalView.feed(text: "\u{1b}[2m─── " + text + " ───\u{1b}[0m\r\n")
+    }
+
     /// 保活路径:shell 进程活在 termite-ptyhost 里,app 只是显示器
     private func startViaHost(env: [String: String], cwd: String, reattach: PtyReattach?) async {
         let client = PtyHostClient.shared
-        guard await client.ensureReady() else {
-            launchLocal(env: env, cwd: cwd)
+        let hint = longWaitHint()
+        let ready = await client.ensureReady()
+        hint.cancel()
+        guard ready else {
+            orphanedReattach = reattach
+            await launchLocalFallback(env: env, cwd: cwd)
             return
         }
-        if let reattach, await tryReattach(reattach, client: client) {
-            return
+        if let reattach {
+            if await tryReattach(reattach, client: client) { return }
+            // 接回失败先押票:若接下来全新 create 也失败(多半传输又断了),
+            // 票据照常落盘,下次启动仍能接回真身
+            orphanedReattach = reattach
         }
         // 恢复错峰:接不回才需要冷启动 spawn,批量恢复时排队发出,
         // 别十几个 zsh 同一秒挤爆 CPU(空屏干等提示符的元凶);选中标签延迟为 0
@@ -342,12 +387,18 @@ final class TerminalSession: Identifiable {
         )
         bindHostCallbacks(id, client: client)
         if await client.create(request) != nil {
+            // 全新会话顶替了接回失败的真身:真身判死,否则下次启动被收养成重复标签
+            if let orphaned = orphanedReattach {
+                client.kill(id: orphaned.id)
+                orphanedReattach = nil
+            }
             hostPtyID = id
             markTransportReady()
             // 票据(ptyID)立即落盘:此刻崩溃也能凭它接回刚建的会话
             manager?.layoutChangedSoon()
         } else {
             client.unbind(id)
+            feedFallbackNotice() // 错峰已在上面等过,这里直接起
             launchLocal(env: env, cwd: cwd)
         }
     }
@@ -456,6 +507,11 @@ final class TerminalSession: Identifiable {
             serialSource = nil
             serialWriteQueue.async { source?.cancel() }
             return
+        }
+        if let orphaned = orphanedReattach {
+            // 回落本地期间被 ⌘W:守护进程里的真身一并判死,不然下次启动复活成重复标签
+            orphanedReattach = nil
+            PtyHostClient.shared.kill(id: orphaned.id)
         }
         if let hostPtyID {
             // 保活会话:⌘W/关窗是明确的「关闭」,连守护进程里的 shell 一起挂断。

@@ -150,10 +150,21 @@ struct PtyError: Codable {
 }
 
 enum PtyHostPaths {
-    /// 版本号编进文件名:协议演进即换新 socket,老守护进程不受打扰
+    /// 版本号编进文件名:协议演进即换新 socket,老守护进程不受打扰。
+    /// 构建身份(非正式 bundle id / Debug)也编进来:demo 录制、开发构建各用各的
+    /// socket——共用一个的话,后启动的实例会顶掉正式版连接、把对方的会话
+    /// 当孤儿收养成一排重复标签,还留下一批永远接不回的守护进程孤儿 shell。
+    /// 正式发行版沿用旧文件名,升级不丢保活会话
     static var socketURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Termite/ptyhost-v\(ptyHostProtocolVersion).sock")
+        var name = "ptyhost"
+        if let bundleID = Bundle.main.bundleIdentifier, bundleID != "com.termite.app" {
+            name += "-" + bundleID
+        }
+        #if DEBUG
+        name += "-debug"
+        #endif
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Termite/\(name)-v\(ptyHostProtocolVersion).sock")
     }
 }
 

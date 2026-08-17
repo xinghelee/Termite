@@ -1007,6 +1007,16 @@
         }
       }
     },
+    "会话保活不可用,已本地直连:退出后此会话不保留" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep-alive unavailable — running locally; this session won't survive quitting"
+          }
+        }
+      }
+    },
     "会话回放" : {
       "localizations" : {
         "en" : {
@@ -3526,6 +3536,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Regular expression"
+          }
+        }
+      }
+    },
+    "正在连接会话守护进程…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the session daemon…"
           }
         }
       }

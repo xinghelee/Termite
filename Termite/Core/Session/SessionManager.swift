@@ -671,8 +671,10 @@ final class SessionManager {
         case .leaf(let sid):
             let encoded = WorkspaceNode(cwd: session(sid)?.workingDirectory)
             // 保活票据:重启后凭 (会话 ID, 已消费偏移) 无缝接回守护进程里的 shell
-            encoded.ptyID = session(sid)?.hostPtyID
-            encoded.ptyOffset = session(sid)?.consumedHostOffset
+            //(回落本地的会话沿用孤儿票据,真身才不会被下次启动当孤儿收养成重复标签)
+            let ticket = session(sid)?.persistableReattach
+            encoded.ptyID = ticket?.id
+            encoded.ptyOffset = ticket?.offset
             encoded.paneName = session(sid)?.customName
             if let scrollbackDirectory,
                let text = session(sid)?.scrollbackSnapshot() {
