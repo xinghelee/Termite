@@ -40,6 +40,20 @@ Termite brings terminals, nested panes, shell-aware command history, Git workflo
 
 It is built for developers and teams running planning, implementation, testing, and review in parallel. Give each AI agent a dedicated pane or <code>git worktree</code>, then follow its state, handle input, and complete Git work without leaving the workspace.
 
+## Primary development environment
+
+Termite is primarily developed and verified on the maintainer's current workstation:
+
+| Component | Environment |
+| --- | --- |
+| Hardware | MacBook Pro · Apple M5 Max (18-core) · 48 GB unified memory |
+| macOS | macOS 27.0 · build 26A5406e |
+| Toolchain | Xcode 26.6 · Swift 6.3.3 · XcodeGen 2.46.0 |
+| Shell | zsh 5.9 |
+| Mobile verification | iOS 27.0 Simulator |
+
+> This is the primary development setup, not the minimum requirement. The supported baseline remains **macOS 26.0+** for the Mac app and **iOS / iPadOS 17.0+** for the mobile client.
+
 ## See parallel work at a glance
 
 Panes can be nested indefinitely. Carousel mode lays every pane in the current tab out as equal-width columns: inspect a task and the keyboard focus follows. Together with input-needed alerts, broadcast input, and session restoration, multi-task work does not degrade into a pile of lost windows.
