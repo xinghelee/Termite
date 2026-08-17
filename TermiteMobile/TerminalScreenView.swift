@@ -101,12 +101,6 @@ struct TerminalScreenView: View {
         .fullScreenCover(isPresented: $mirrorFullScreen) {
             SimulatorFullScreen(client: mirror)
         }
-        .confirmationDialog("选择模拟器", isPresented: $showMirrorPicker, titleVisibility: .visible) {
-            ForEach(mirror.devices) { device in
-                Button(device.name) { mirror.attach(device.id) }
-            }
-            Button("取消", role: .cancel) { closeMirror() }
-        }
         .alert("会话已结束", isPresented: Binding(
             get: { endedMessage != nil },
             set: { if !$0 { endedMessage = nil } }
@@ -212,6 +206,14 @@ struct TerminalScreenView: View {
                 }
                 .accessibilityIdentifier("terminal.mirror-toggle")
                 .help(showMirror ? "关闭模拟器浮窗" : "打开模拟器浮窗")
+                // 系统可能把 confirmationDialog 作为带箭头的弹窗显示。
+                // 必须挂在触发按钮上，箭头才会锚定到右上角按钮。
+                .confirmationDialog("选择模拟器", isPresented: $showMirrorPicker, titleVisibility: .visible) {
+                    ForEach(mirror.devices) { device in
+                        Button(device.name) { mirror.attach(device.id) }
+                    }
+                    Button("取消", role: .cancel) { closeMirror() }
+                }
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
