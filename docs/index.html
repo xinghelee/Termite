@@ -7,7 +7,7 @@
 <meta name="description" content="Termite 是 macOS 原生终端:命令可跳转、可回看、可搜索,内置完整 Git 面板,无限分屏与 20 套主题。SwiftUI 从头写,免费开源。">
 <meta property="og:title" content="Termite — macOS 原生终端">
 <meta property="og:description" content="macOS 原生终端:命令级导航,内置 Git 面板,SwiftUI 从头写。免费开源。">
-<meta property="og:image" content="https://termite.xinghelee.com/screenshot.png">
+<meta property="og:image" content="https://termite.xinghelee.com/pane-carousel.png">
 <meta property="og:url" content="https://termite.xinghelee.com">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0F0C'/%3E%3Ctext x='10' y='44' font-family='Menlo,monospace' font-size='34' font-weight='bold' fill='%232EE6A8'%3E%E2%9D%AF%3C/text%3E%3Crect x='34' y='18' width='14' height='28' fill='%232EE6A8'/%3E%3C/svg%3E">
@@ -147,6 +147,11 @@ kbd{
   font-family:var(--mono);font-size:12.5px;color:var(--faint);
   text-align:center;margin-top:14px;
 }
+.mobile-shot{max-width:340px;margin-left:auto;margin-right:auto}
+.cmdblock .feature-shot{margin:0 0 28px}
+.worktree-shot{max-width:560px;margin-left:auto;margin-right:auto}
+.mobile-gallery{display:flex;justify-content:center;align-items:flex-start;gap:28px;flex-wrap:wrap}
+.mobile-gallery .mobile-shot{width:min(340px,100%);margin:0}
 
 /* ---------- install ---------- */
 .install{
@@ -174,6 +179,7 @@ footer .spacer{flex:1}
   header{padding-top:56px}
   .cmdline .meta{display:none}
   .install{padding:34px 22px}
+  .mobile-gallery{gap:22px}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -188,7 +194,7 @@ footer .spacer{flex:1}
     <a class="brand" href="#"><span><span class="glyph">❯</span><span class="block"></span></span>Termite</a>
     <div class="nav-links">
       <a href="https://github.com/xinghelee/Termite">GitHub</a>
-      <a href="https://github.com/xinghelee/Termite/blob/main/README.en.md">English</a>
+      <a href="https://github.com/xinghelee/Termite/blob/main/README.md">English</a>
       <a class="dl" href="https://github.com/xinghelee/Termite/releases/latest">下载</a>
     </div>
   </div>
@@ -201,14 +207,13 @@ footer .spacer{flex:1}
     <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载 Termite</a>
     <span class="brew"><span class="dollar">$</span><code id="brewCmd">brew install --cask xinghelee/tap/termite</code><button id="brewCopy" aria-label="复制安装命令">复制</button></span>
   </div>
-  <p class="hero-meta"><span>macOS 15.0+</span><span>Apple 公证</span><span>Apple Silicon &amp; Intel</span></p>
+  <p class="hero-meta"><span>macOS 26.0+</span><span>Apple 公证</span><span>Apple Silicon &amp; Intel</span></p>
 </header>
 
 <section class="demo wrap">
   <figure class="shot">
-    <video src="termite-demo.mp4" poster="screenshot.png" autoplay muted loop playsinline controls
-           aria-label="Termite 演示:侧边栏项目切换、无限分屏、neofetch 与 imgcat 内联图片"></video>
-    <figcaption>1 分钟演示 · 20 套手工调校的主题,染的是整个窗口 chrome,不只是终端区域。</figcaption>
+    <img src="pane-carousel.png" alt="Termite 三栏巡视分屏：规划、构建和验证任务并排展示">
+    <figcaption>当前版本桌面端 · 同一标签中的三栏巡视分屏；终端内容为演示任务。</figcaption>
   </figure>
 </section>
 
@@ -218,10 +223,6 @@ footer .spacer{flex:1}
     <div class="cmdline"><span class="p">❯</span><span class="c">termite panes</span><span class="flag">--carousel</span><span class="meta"><span class="ok">✓ 0</span> · 5ms</span></div>
     <h2>巡视模式</h2>
     <p class="sub">每个分屏挂一个 agent?<kbd>⇧⌘\</kbd> 或双指捏合,所有分屏等宽横排,触控板横滑逐个巡视——滑到谁,键盘就是谁的。</p>
-    <figure class="shot">
-      <video src="carousel-demo.mp4" autoplay muted loop playsinline controls
-             aria-label="巡视模式演示:分屏等宽横排,触控板横滑分页,翻页即聚焦"></video>
-    </figure>
     <div class="feat-grid">
       <div class="feat"><h3>捏合进出</h3><p>双指捏合摊平总览,张开还原布局;<kbd>⌘←</kbd><kbd>⌘→</kbd> 键盘翻页。</p></div>
       <div class="feat"><h3>翻页即聚焦</h3><p>滑到哪个分屏,键盘焦点就落在哪,顺手消掉它的等待提醒。</p></div>
@@ -234,6 +235,10 @@ footer .spacer{flex:1}
     <div class="cmdline"><span class="p">❯</span><span class="c">termite worktree</span><span class="flag">--split</span><span class="meta"><span class="ok">✓ 0</span> · 8ms</span></div>
     <h2>Worktree 分屏</h2>
     <p class="sub">并行 agent 共用一个工作树,diff 会混成一锅。把 <code>git worktree</code> 做成一次右键:每个 agent 一个隔离的工作树。</p>
+    <figure class="shot feature-shot worktree-shot">
+      <img src="worktree-split.png" alt="Termite 的 Worktree 分屏选择器，显示现有分支 feature-mobile">
+      <figcaption>当前版本桌面端 · 右键即可将现有分支检出为独立 Worktree 分屏。</figcaption>
+    </figure>
     <div class="feat-grid">
       <div class="feat"><h3>新建或检出</h3><p>输入名字新建分支,或模糊搜索几千个已有分支(本地 + 远程)直接检出,不卡。</p></div>
       <div class="feat"><h3>已有 Worktree 直接打开</h3><p>已被检出的分支带标识,一键分屏进它现有的目录,不撞 git 报错。</p></div>
@@ -270,6 +275,10 @@ footer .spacer{flex:1}
     <div class="cmdline"><span class="p">❯</span><span class="c">termite git</span><span class="flag">--panel</span><span class="meta"><span class="ok">✓ 0</span> · 12ms</span></div>
     <h2>Git 集成</h2>
     <p class="sub">不离开终端,把仓库看清楚、改明白。</p>
+    <figure class="shot feature-shot">
+      <img src="git-workflow.png" alt="Termite Git 图形历史：分支泳道、提交记录与内联 Diff">
+      <figcaption>当前版本桌面端 · 独立 Git 图形历史窗口，分支泳道、提交记录与内联 Diff 全在终端工作流里。</figcaption>
+    </figure>
     <div class="feat-grid">
       <div class="feat"><h3>Git 面板 <kbd>⌘G</kbd></h3><p>SourceTree 式图形提交历史、词级高亮 diff、blame、单文件修改历史、图片改动预览。</p></div>
       <div class="feat"><h3>完整操作</h3><p>暂存 / 取消暂存 / 丢弃、分支切换、cherry-pick / revert,全部图形化完成。</p></div>
@@ -302,6 +311,22 @@ footer .spacer{flex:1}
     </div>
   </section>
 
+  <section class="cmdblock">
+    <div class="cmdline"><span class="p">❯</span><span class="c">termite remote</span><span class="flag">--pair</span><span class="meta"><span class="ok">✓</span> · private network</span></div>
+    <h2>手机端远程接管</h2>
+    <p class="sub">在受信任的局域网或 Tailscale 网络中，用二维码或一次性六位配对码连接 iPhone、iPad 或 Web 客户端。远程访问默认关闭，Mac 可随时收回输入控制权。</p>
+    <div class="mobile-gallery">
+      <figure class="shot mobile-shot">
+        <img src="mobile-pairing.png" alt="Termite iPhone 客户端的六位配对界面">
+        <figcaption>iPhone 客户端 · 用一次性配对码安全连接 Mac 上的会话。</figcaption>
+      </figure>
+      <figure class="shot mobile-shot">
+        <img src="mobile-simulator-mirror.png" alt="Termite iPhone 客户端的全屏模拟器镜像视图">
+        <figcaption>当前版本 iOS 客户端 · 全屏查看并操作 Mac 上的模拟器；屏内为演示数据。</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="install" id="install">
     <h2>装上试试</h2>
     <p class="sub">DMG 已过 Apple 公证,拖进 Applications 即用。</p>
@@ -309,7 +334,7 @@ footer .spacer{flex:1}
       <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载最新版</a>
       <span class="brew"><span class="dollar">$</span><code>brew install --cask xinghelee/tap/termite</code><button id="brewCopy2" aria-label="复制安装命令">复制</button></span>
     </div>
-    <p class="fine">macOS 15.0+ · 开源免费 · <a href="https://github.com/xinghelee/Termite#从源码构建">从源码构建</a></p>
+    <p class="fine">macOS 26.0+ · 开源免费 · <a href="https://github.com/xinghelee/Termite/blob/main/README.zh-CN.md#%E4%BB%8E%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA">从源码构建</a></p>
   </section>
 
 </main>
@@ -319,7 +344,7 @@ footer .spacer{flex:1}
     <span><span style="color:var(--emerald)">❯</span> Termite</span>
     <a href="https://github.com/xinghelee/Termite">GitHub</a>
     <a href="https://github.com/xinghelee/Termite/releases">Releases</a>
-    <a href="https://github.com/xinghelee/Termite/blob/main/README.en.md">English</a>
+    <a href="https://github.com/xinghelee/Termite/blob/main/README.md">English</a>
     <span class="spacer"></span>
     <span>© 2026 xinghe · 引擎 <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a></span>
   </div>

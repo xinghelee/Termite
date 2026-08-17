@@ -1,110 +1,191 @@
-# Termite
+<p align="center">
+  <img src="docs/assets/readme-logo.png" alt="Termite Logo" width="1000">
+</p>
 
-[English](README.en.md)
+<h1 align="center">Termite</h1>
 
-**为 macOS 而写的原生终端。**
+<p align="center">
+  <strong>A native terminal for macOS—and the control plane for parallel AI development workflows.</strong>
+</p>
 
-界面从头用 SwiftUI 写,不是套壳;shell 集成把每条命令变成可跳转、可回看的单元;Git 面板、无限分屏、命令面板、20 套主题,开箱即用。
+<p align="center">
+  <a href="README.zh-CN.md">简体中文</a>
+  ·
+  <a href="https://github.com/xinghelee/Termite/releases/latest">Download</a>
+  ·
+  <a href="#install">Install</a>
+  ·
+  <a href="#build-from-source">Build from source</a>
+</p>
 
-![Termite 演示](docs/termite-demo.gif)
+<p align="center">
+  <a href="https://github.com/xinghelee/Termite/releases/latest"><img src="https://img.shields.io/github/v/release/xinghelee/Termite?display_name=tag&label=release&color=F2A93B" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-26%2B-111827?logo=apple" alt="Requires macOS 26 or later">
+  <img src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-17%2B-111827?logo=apple" alt="Mobile client supports iOS and iPadOS 17 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-0E8A16" alt="GPL-3.0 license"></a>
+</p>
 
-**[⬇️ 下载最新版](https://github.com/xinghelee/Termite/releases/latest)** — DMG 已过 Apple 公证,拖进 Applications 即用;或用 Homebrew:
+<p align="center">
+  <img src="docs/assets/hero-overview.png" alt="Termite workspace with terminal panes, system monitoring, and two AI coding agents running side by side" width="1180">
+</p>
 
-```sh
+https://github.com/user-attachments/assets/90299472-69d9-404d-922c-5f0d741ee5c3
+
+> The video shows an iPhone connecting to a Mac over a trusted LAN or Tailscale private network to preview and control an iOS Simulator in real time. Compatibility: **macOS 26.0 or later** on the Mac; **iOS / iPadOS 17.0 or later** on iPhone and iPad.
+
+Termite brings terminals, nested panes, shell-aware command history, Git workflows, and private-network remote access into one native macOS workspace. Its job is not to open more terminal windows; it is to keep concurrent work visible, reachable, and under control.
+
+It is built for developers and teams running planning, implementation, testing, and review in parallel. Give each AI agent a dedicated pane or <code>git worktree</code>, then follow its state, handle input, and complete Git work without leaving the workspace.
+
+## See parallel work at a glance
+
+Panes can be nested indefinitely. Carousel mode lays every pane in the current tab out as equal-width columns: inspect a task and the keyboard focus follows. Together with input-needed alerts, broadcast input, and session restoration, multi-task work does not degrade into a pile of lost windows.
+
+- Create horizontal or vertical panes with <kbd>⌘D</kbd> / <kbd>⇧⌘D</kbd>, then press <kbd>⇧⌘\</kbd> for carousel mode.
+- When an agent needs a response, its pane, the menu bar, and system notifications surface it; <kbd>⌘J</kbd> jumps to the pane waiting longest.
+- New tabs inherit the current directory. Relaunch with your windows, tabs, pane layout, focus, and scrollback restored.
+- Create or open a dedicated <code>git worktree</code> from a pane menu so concurrent changes never share the same working tree.
+
+## Product tour
+
+<table>
+  <tr>
+    <td width="38%" valign="middle">
+      <h3>Pane carousel</h3>
+      Keep terminals, live status, and several agents visible in a single tab. Browse with a trackpad gesture or <code>⌘←</code> / <code>⌘→</code>; focus follows the pane you inspect.
+    </td>
+    <td width="62%">
+      <img src="docs/assets/panes-overview.png" alt="Termite's four-pane AI agent workspace" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td width="38%" valign="middle">
+      <h3>Git work, beside the task</h3>
+      A detached history window presents branch lanes, commits, and file diffs. Review history, switch branches, stage, or roll back changes without moving into a separate Git client.
+    </td>
+    <td width="62%">
+      <img src="docs/assets/git-history.png" alt="Termite's Git commit graph and branch lanes" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td width="38%" valign="middle">
+      <h3>Remote access on trusted networks</h3>
+      Enable it from <em>Settings → Remote</em>, then use a one-time pairing code to connect an iPhone, iPad, or browser. A LAN address may be visible; treat every access credential as terminal permission.
+    </td>
+    <td width="62%">
+      <img src="docs/assets/remote-access.png" alt="Termite remote-access settings with LAN pairing and local port forwarding" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td width="38%" valign="middle">
+      <h3>Terminal and simulator from your phone</h3>
+      Browse sessions, take input control, and see a simulator running on your Mac from an iPhone or iPad. Mobile keeps quick control keys and a full software keyboard close at hand.
+    </td>
+    <td width="62%" align="center">
+      <img src="docs/assets/mobile-pairing.png" alt="Termite iPhone client pairing with a Mac" width="43%">
+      <img src="docs/assets/mobile-simulator.png" alt="Termite iPhone client viewing a live Mac session and simulator control" width="43%">
+    </td>
+  </tr>
+</table>
+
+> These are real screens from the current build, with account details, the LAN address, and local demonstration paths shown as captured. The QR code and URL in the remote-access screenshot use a nonfunctional demo credential so a potentially live terminal-access key is never published.
+
+## A terminal that understands commands
+
+Termite automatically enables or injects shell integration for zsh, bash, and fish—without editing dotfiles. OSC 133 markers identify the start, end, exit status, and output boundary of each command, so history becomes navigable, searchable, and reusable.
+
+- Use <kbd>⌘↑</kbd> / <kbd>⌘↓</kbd> to move between commands and <kbd>⇧⌘C</kbd> to copy the prior command's output.
+- The status bar shows exit code, duration, working directory, and Git branch. Background long-running commands notify you when they finish.
+- Command history is stored in SQLite. Search across sessions with <kbd>⇧⌘H</kbd> or generate a daily report to review the day.
+- Inline images, output diffs, structured output, asciinema recording and playback, copy-on-select, and risky-paste confirmation are included.
+
+## Development tools, kept in context
+
+- **Git panel:** press <kbd>⌘G</kbd> for the commit graph, word-level diffs, blame, and file history. Stage, unstage, discard, switch branches, cherry-pick, and revert in place.
+- **Workspace navigation:** <kbd>⌘P</kbd> command palette, <kbd>⌘O</kbd> directory jumper, <kbd>⇧⌘E</kbd> file browser, project sidebar, and port manager.
+- **At home on macOS:** 20 themes cover the entire window; the global drop-down terminal defaults to <kbd>⌃⌥⌘Space</kbd>; install the <code>termite</code> command or drop a folder onto the Dock icon to open it.
+
+## Remote access, only on networks you trust
+
+Remote access is off by default and is designed for private networks you trust, including LAN and Tailscale. Paired devices receive a live session view; one mobile device can take input control, and the Mac can reclaim control at any time. You can also forward a local development service that listens only on <code>127.0.0.1</code> to already-paired devices.
+
+An access link, QR code, or pairing code is equivalent to terminal access. Enable remote access only on trusted networks and regenerate the key immediately if it may have leaked.
+
+## Keyboard shortcuts
+
+| Action | Shortcut |
+| --- | --- |
+| New tab / horizontal pane / vertical pane | <kbd>⌘T</kbd> / <kbd>⌘D</kbd> / <kbd>⇧⌘D</kbd> |
+| Move focus between panes | <kbd>⌥⌘←</kbd> <kbd>⌥⌘→</kbd> <kbd>⌥⌘↑</kbd> <kbd>⌥⌘↓</kbd> |
+| Maximize pane / pane carousel | <kbd>⇧⌘↩</kbd> / <kbd>⇧⌘\</kbd> |
+| Focus a pane awaiting input | <kbd>⌘J</kbd> |
+| Command palette / directory jumper / command timeline | <kbd>⌘P</kbd> / <kbd>⌘O</kbd> / <kbd>⌘I</kbd> |
+| Git panel / file browser / history search | <kbd>⌘G</kbd> / <kbd>⇧⌘E</kbd> / <kbd>⇧⌘H</kbd> |
+| Copy prior command output / broadcast input | <kbd>⇧⌘C</kbd> / <kbd>⌥⌘B</kbd> |
+
+Find more actions with <kbd>⌘P</kbd>, or browse the app menus.
+
+## Install
+
+### Download a release
+
+Download the latest DMG from [GitHub Releases](https://github.com/xinghelee/Termite/releases/latest), then drag Termite into Applications.
+
+### Homebrew
+
+~~~sh
 brew install --cask xinghelee/tap/termite
-```
+~~~
 
-- 系统要求:macOS 15.0+
-- 技术栈:SwiftUI + AppKit,终端引擎 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)(Metal GPU 渲染)
-- 无沙箱、完整文件系统与进程权限,和你习惯的终端行为完全一致
+### Open directories from the command line
 
-## 核心特性
+Install <code>termite</code> in **Settings → General → Command-line tools**, then open a directory in Termite from anywhere:
 
-### 巡视模式 
+~~~sh
+termite ~/Developer/my-project
+~~~
 
-![巡视模式](docs/carousel-demo.gif)
+The zsh shell integration includes a same-named function. After installing to <code>/usr/local/bin</code>, bash, fish, and scripts can use the command too.
 
-- **⇧⌘\ 或双指捏合**:所有分屏等宽横排,触控板横滑逐个检阅;滑到哪个分屏,键盘焦点就在哪个,⌘←→ 键盘翻页
-- **等待输入提醒**:agent 停下来等你时,pane 橙色呼吸边框、菜单栏角标、系统通知;⌘J 一键跳到等最久的
-- **原地快速回复**:直接在系统通知上输入回复,或 pane 徽标右键「回车确认 / 发送 y」,不打断手头的事
+## Build from source
 
-### Worktree 分屏:每个 agent 一个工作树(1.15 新增)
+### Requirements
 
-并行 agent 共用一个工作树会把 diff 混成一锅——把 `git worktree` 做成一次右键:
+- macOS 26.0 or later
+- Xcode with the macOS 26 SDK
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
-- **右键 →「在新 Worktree 中分屏…」**:输入名字新建分支,或模糊搜索几千个已有分支(本地 + 远程)直接检出;已被检出的分支一键打开其现有 worktree
-- 新分支基于当前分支;目录在仓库同级(`仓库名-分支名`);**分屏名自动 = 分支名**
-- **右键 →「清理此 Worktree」**:未提交改动先拦截(可强制),分支保留供合并
+~~~sh
+git clone https://github.com/xinghelee/Termite.git
+cd Termite
 
-### 会话恢复
-
-- **多窗口完整恢复**:重新打开 App,窗口 frame、焦点、最大化状态、标签与分屏结构、scrollback 全量找回
-- 新标签继承当前目录
-
-### Shell 集成(自动注入,零配置)
-
-zsh / bash / fish 自动挂钩 OSC 133 命令标记,带来一整套命令级能力:
-
-- ⌘↑ / ⌘↓ 在命令之间跳转,⌘⇧C 一键复制上条命令输出
-- 状态栏实时显示退出码与命令耗时
-- 长命令(≥10s)后台完成时发系统通知
-- 命令历史 SQLite 落盘,⌘⇧H 全局搜索,自动生成日报
-
-### Git 集成
-
-- ⌘G Git 面板:SourceTree 式图形历史泳道、词级高亮 diff、blame、单文件修改历史
-- 暂存 / 取消暂存 / 丢弃、分支切换、cherry-pick / revert
-- 状态栏常驻当前分支(直读 `.git/HEAD`,零子进程)与提交身份,点击即可编辑
-
-### 面板与导航
-
-- ⌘P 命令面板:模糊搜索所有动作与主题
-- ⌘O 目录跳转器,⇧⌘E 文件浏览器(支持新建文件夹),侧边栏项目切换
-- Quake 下拉终端:全局热键 ⌃⌥⌘Space(可自定义),无需辅助功能权限
-- 端口管理面板;`termite` CLI;Dock 图标拖入文件夹直接开标签
-
-### 终端手感
-
-- 无限嵌套分屏:⌘⌥方向键导航、⇧⌘↩ 分屏最大化、广播输入到所有分屏
-- 标签拖拽重排、标签移到新窗口
-- 粘贴保护:多行 / `rm -rf` / `sudo` 等高危内容先确认
-- 选中即复制、中键粘贴,仅聚焦 pane 光标闪烁
-- 20 套精调主题,主题化整个窗口 chrome(不只终端区)
-- 内置 `imgcat` 终端内联看图;asciinema 格式会话录制与回放
-- 输出 Diff 对比、结构化输出查看器
-
-## 从源码构建
-
-依赖 [xcodegen](https://github.com/yonaskolb/XcodeGen):
-
-```sh
 xcodegen generate
-xcodebuild -project Termite.xcodeproj -scheme Termite -configuration Release build
-```
+xcodebuild -project Termite.xcodeproj -scheme Termite -configuration Debug build
+xcodebuild -project Termite.xcodeproj -scheme Termite -destination 'platform=macOS' test
+~~~
 
-或直接 `open Termite.xcodeproj` 用 Xcode 跑。工程包含三个 target:
+Alternatively, run <code>open Termite.xcodeproj</code>, select the <code>Termite</code> scheme in Xcode, then build and run.
 
-| Target | 说明 |
-|---|---|
-| `Termite` | 主 App |
-| `PtyHostDaemon` | `termite-ptyhost` PTY 守护进程(构建后拷入 App bundle) |
-| `TermiteTests` | 单元测试 |
+## Project layout
 
-## 项目结构
+~~~text
+Termite/          macOS app: terminal, sessions, Git, workspaces, and settings
+TermiteMobile/    iPhone and iPad remote client
+PtyHostDaemon/    PTY daemon
+PtyHostShared/    Local socket protocol shared by the app and daemon
+RemoteWeb/        Embedded remote-access Web client
+TermiteTests/     Unit tests
+docs/assets/      Sanitized product screenshots and mobile demo
+~~~
 
-```
-Termite/
-  App/         入口、主窗口、窗口 chrome
-  Core/        Terminal(渲染/主题/OSC133) · Session(会话/分屏/shell 集成) · Git · Parsing
-  Features/    Terminal · Git · CommandPalette · FileBrowser · Sidebar
-               DirectoryJumper · HistorySearch · Ports · QuickTerminal · Replay · Settings · MenuBar
-PtyHostDaemon/ 守护进程
-PtyHostShared/ App 与守护进程共享的 socket 协议
-TermiteTests/  单元测试
-```
+Termite is built with SwiftUI and AppKit, uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) for terminal and Metal-rendering capabilities, and manages the project with XcodeGen. The macOS app is not sandboxed so it can provide the full filesystem and process access a terminal requires.
 
-设计文档见 [DESIGN.md](DESIGN.md)。
+## Contributing
 
-## 许可
+Issues and pull requests are welcome. For bug reports, include reproduction steps, the Termite and macOS versions, shell type, and redacted terminal output where useful. Before submitting code, run the tests relevant to your change and do not commit <code>Termite.xcodeproj</code> or <code>DerivedData</code>, both of which are generated locally.
 
-[GPL-3.0](LICENSE)。自由使用、修改与再分发;分发修改版需以同一许可开放源码。
+See [DESIGN.md](DESIGN.md) for product goals and technical trade-offs.
+
+## License
+
+Termite is released under [GNU GPL v3.0](LICENSE). You may use, modify, and redistribute it; redistributed modified versions must provide corresponding source code under the same license.
