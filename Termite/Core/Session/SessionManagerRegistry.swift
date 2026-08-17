@@ -28,6 +28,10 @@ final class SessionManagerRegistry {
     @ObservationIgnored private let focusGuards = NSMapTable<NSWindow, SidebarFocusGuard>(
         keyOptions: .weakMemory, valueOptions: .strongMemory
     )
+    /// 窗口 → 标题栏版面守卫(首帧工具栏分段没跟上侧边栏列宽时补一次重排)
+    @ObservationIgnored private let toolbarGuards = NSMapTable<NSWindow, ToolbarLayoutGuard>(
+        keyOptions: .weakMemory, valueOptions: .strongMemory
+    )
 
     private init() {
         let center = NotificationCenter.default
@@ -141,6 +145,9 @@ final class SessionManagerRegistry {
         // bind 会被反复调用,守卫每窗口只装一次
         if focusGuards.object(forKey: window) == nil {
             focusGuards.setObject(SidebarFocusGuard(window: window), forKey: window)
+        }
+        if toolbarGuards.object(forKey: window) == nil {
+            toolbarGuards.setObject(ToolbarLayoutGuard(window: window), forKey: window)
         }
         // 会话恢复:一次性应用上次退出时的窗口位置尺寸(bind 会被反复调用,take 保证只用一次)
         if let frameString = takePendingFrame(for: manager) {
