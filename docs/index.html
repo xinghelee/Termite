@@ -1,369 +1,228 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Termite — macOS 原生终端</title>
-<meta name="description" content="Termite 是 macOS 原生终端:命令可跳转、可回看、可搜索,内置完整 Git 面板,无限分屏与 20 套主题。SwiftUI 从头写,免费开源。">
-<meta property="og:title" content="Termite — macOS 原生终端">
-<meta property="og:description" content="macOS 原生终端:命令级导航,内置 Git 面板,SwiftUI 从头写。免费开源。">
-<meta property="og:image" content="https://termite.xinghelee.com/pane-carousel.png">
-<meta property="og:url" content="https://termite.xinghelee.com">
-<meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0F0C'/%3E%3Ctext x='10' y='44' font-family='Menlo,monospace' font-size='34' font-weight='bold' fill='%232EE6A8'%3E%E2%9D%AF%3C/text%3E%3Crect x='34' y='18' width='14' height='28' fill='%232EE6A8'/%3E%3C/svg%3E">
-<style>
-:root{
-  --bg:#0A0F0C;
-  --bg-elev:#101712;
-  --bg-window:#0D1310;
-  --line:#1E2B24;
-  --ink:#DCE7E0;
-  --muted:#7E9188;
-  --faint:#55665E;
-  --emerald:#2EE6A8;
-  --emerald-deep:#0F9D6E;
-  --amber:#E5B567;
-  --red:#E0685E;
-  --mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",Consolas,"Liberation Mono",monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  background:var(--bg);
-  color:var(--ink);
-  font-family:var(--sans);
-  font-size:16px;
-  line-height:1.75;
-  -webkit-font-smoothing:antialiased;
-}
-::selection{background:var(--emerald-deep);color:#fff}
-a{color:var(--emerald);text-decoration:none}
-a:hover{text-decoration:underline;text-underline-offset:3px}
-a:focus-visible,button:focus-visible{outline:2px solid var(--emerald);outline-offset:3px;border-radius:2px}
-.wrap{max-width:920px;margin:0 auto;padding:0 24px}
-
-/* ---------- nav ---------- */
-nav{
-  position:sticky;top:0;z-index:10;
-  background:color-mix(in srgb,var(--bg) 82%,transparent);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--line);
-}
-.nav-inner{display:flex;align-items:center;justify-content:space-between;height:56px}
-.brand{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink)}
-.brand:hover{text-decoration:none}
-.brand .glyph{color:var(--emerald)}
-.brand .block{display:inline-block;width:8px;height:17px;background:var(--emerald);vertical-align:-3px;margin-left:1px}
-.nav-links{display:flex;align-items:center;gap:22px;font-size:14px}
-.nav-links a{color:var(--muted)}
-.nav-links a:hover{color:var(--ink);text-decoration:none}
-.nav-links a.dl{
-  color:#04120C;background:var(--emerald);font-weight:600;
-  padding:7px 16px;border-radius:8px;
-}
-.nav-links a.dl:hover{background:#4FF0BA}
-
-/* ---------- hero ---------- */
-header{padding:88px 0 40px;text-align:left}
-.eyebrow{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.08em;margin-bottom:22px}
-.eyebrow b{color:var(--amber);font-weight:500}
-h1{
-  font-family:var(--mono);
-  font-size:clamp(34px,6.2vw,58px);
-  font-weight:700;line-height:1.25;letter-spacing:.01em;
-  margin-bottom:28px;
-}
-h1 .glyph{color:var(--emerald);font-family:var(--mono);margin-right:.18em}
-@keyframes blink{50%{opacity:0}}
-.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:14px}
-.btn{
-  display:inline-flex;align-items:center;gap:9px;
-  background:var(--emerald);color:#04120C;font-weight:700;font-size:16px;
-  padding:13px 26px;border-radius:10px;border:none;cursor:pointer;
-  transition:transform .12s ease,background .12s ease;
-}
-.btn:hover{background:#4FF0BA;text-decoration:none;transform:translateY(-1px)}
-.brew{
-  display:inline-flex;align-items:center;gap:12px;
-  font-family:var(--mono);font-size:13.5px;color:var(--muted);
-  background:var(--bg-elev);border:1px solid var(--line);border-radius:10px;
-  padding:12px 16px;
-}
-.brew .dollar{color:var(--faint)}
-.brew code{color:var(--ink)}
-.brew button{
-  background:none;border:none;color:var(--muted);cursor:pointer;
-  font-family:var(--mono);font-size:12px;padding:2px 6px;border-radius:5px;
-}
-.brew button:hover{color:var(--emerald)}
-.hero-meta{font-family:var(--mono);font-size:12.5px;color:var(--faint)}
-.hero-meta span+span::before{content:"·";margin:0 10px;color:var(--line)}
-
-/* ---------- hero screenshot ---------- */
-.demo{padding:36px 0 30px}
-.demo .shot{margin:0}
-
-/* ---------- command-block sections ---------- */
-main{padding:40px 0 0}
-.cmdblock{margin:0 0 64px}
-.cmdline{
-  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
-  font-family:var(--mono);font-size:15px;
-  padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:8px;
-}
-.cmdline .p{color:var(--emerald);font-weight:700}
-.cmdline .c{color:var(--ink);font-weight:600}
-.cmdline .flag{color:var(--amber)}
-.cmdline .meta{margin-left:auto;font-size:12px;color:var(--faint)}
-.cmdline .meta .ok{color:var(--emerald)}
-.cmdblock h2{
-  font-size:24px;font-weight:700;letter-spacing:.01em;
-  margin:22px 0 8px;
-}
-.cmdblock .sub{color:var(--muted);max-width:640px;margin-bottom:26px}
-.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
-.feat{
-  background:var(--bg-elev);border:1px solid var(--line);border-radius:12px;
-  padding:16px 18px;
-}
-.feat h3{font-size:15px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.feat p{font-size:13.5px;color:var(--muted);line-height:1.7}
-.feat p code{font-family:var(--mono);font-size:12px;color:var(--amber)}
-kbd{
-  font-family:var(--mono);font-size:11.5px;color:var(--emerald);
-  background:var(--bg-window);border:1px solid var(--line);border-bottom-width:2px;
-  border-radius:5px;padding:2px 7px;white-space:nowrap;
-}
-
-/* ---------- screenshot ---------- */
-.shot{margin:0 0 64px}
-.shot img,.shot video{
-  width:100%;height:auto;display:block;border-radius:14px;
-  border:1px solid var(--line);
-  box-shadow:0 30px 80px -20px rgba(0,0,0,.7);
-}
-.shot figcaption{
-  font-family:var(--mono);font-size:12.5px;color:var(--faint);
-  text-align:center;margin-top:14px;
-}
-.mobile-shot{max-width:340px;margin-left:auto;margin-right:auto}
-.cmdblock .feature-shot{margin:0 0 28px}
-.worktree-shot{max-width:560px;margin-left:auto;margin-right:auto}
-.mobile-gallery{display:flex;justify-content:center;align-items:flex-start;gap:28px;flex-wrap:wrap}
-.mobile-gallery .mobile-shot{width:min(340px,100%);margin:0}
-
-/* ---------- install ---------- */
-.install{
-  background:var(--bg-elev);border:1px solid var(--line);border-radius:18px;
-  padding:44px 40px;margin-bottom:72px;text-align:center;
-}
-.install h2{font-size:26px;margin-bottom:10px}
-.install .sub{color:var(--muted);margin-bottom:28px}
-.install .cta-row{justify-content:center}
-.install .fine{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-top:20px}
-.install .fine a{color:var(--muted)}
-
-/* ---------- footer ---------- */
-footer{
-  border-top:1px solid var(--line);
-  padding:30px 0 44px;
-  font-family:var(--mono);font-size:12.5px;color:var(--faint);
-}
-.foot-inner{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
-footer a{color:var(--muted)}
-footer .spacer{flex:1}
-
-@media (max-width:680px){
-  .feat-grid{grid-template-columns:1fr}
-  header{padding-top:56px}
-  .cmdline .meta{display:none}
-  .install{padding:34px 22px}
-  .mobile-gallery{gap:22px}
-}
-@media (prefers-reduced-motion:reduce){
-  html{scroll-behavior:auto}
-  *,*::before,*::after{animation:none!important;transition:none!important}
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Termite — Native macOS Terminal for Parallel AI Work</title>
+  <meta name="description" content="Termite is a native macOS terminal and control plane for parallel AI development, with nested panes, Git workflows, session restoration, and private-network remote access.">
+  <meta name="theme-color" content="#09100c">
+  <meta property="og:title" content="Termite — Native macOS Terminal for Parallel AI Work">
+  <meta property="og:description" content="Keep terminals, AI agents, Git workflows, and private-network remote access in one native macOS workspace.">
+  <meta property="og:image" content="https://termite.xinghelee.com/assets/hero-latest.png">
+  <meta property="og:url" content="https://termite.xinghelee.com/">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://termite.xinghelee.com/">
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09100c;
+      --surface: #0d1711;
+      --surface-2: #122019;
+      --line: #26372e;
+      --line-strong: #3a5145;
+      --text: #edf5f0;
+      --muted: #9dafa5;
+      --faint: #697c72;
+      --green: #45e4a6;
+      --amber: #f2bd5c;
+      --max: 1240px;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "PingFang SC", sans-serif;
+      --mono: "SFMono-Regular", "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+    body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: linear-gradient(rgba(69,228,166,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(69,228,166,.025) 1px,transparent 1px); background-size: 56px 56px; mask-image: linear-gradient(to bottom,black,transparent 75%); }
+    img, video { max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    a:hover { color: var(--green); }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, video:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
+    ::selection { background: rgba(69,228,166,.28); color: white; }
+    .skip-link { position: fixed; left: 16px; top: -60px; z-index: 100; padding: 10px 14px; background: var(--green); color: #04120c; font-weight: 700; }
+    .skip-link:focus { top: 12px; }
+    .wrap { width: min(calc(100% - 40px),var(--max)); margin-inline: auto; }
+    .nav { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid rgba(58,81,69,.62); background: rgba(9,16,12,.86); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+    .nav-inner { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font: 700 15px/1 var(--mono); }
+    .brand img { width: 30px; height: 30px; border-radius: 7px; }
+    .nav-links { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; }
+    .language { border: 1px solid var(--line-strong); background: transparent; color: var(--text); font: 600 13px/1 var(--sans); padding: 8px 11px; cursor: pointer; }
+    .nav-download { color: #06150e; background: var(--green); padding: 8px 14px; font-weight: 750; }
+    .nav-download:hover { color: #06150e; background: #72edbc; }
+    .hero { text-align: center; padding: 88px 0 42px; }
+    .hero-icon { width: 116px; height: 116px; border-radius: 25%; margin-bottom: 25px; }
+    .version { width: fit-content; margin: 0 auto 20px; border: 1px solid var(--line-strong); color: var(--green); background: rgba(69,228,166,.06); padding: 5px 11px; font: 600 12px/1.2 var(--mono); letter-spacing: .04em; }
+    h1 { margin: 0; font: 750 clamp(54px,9vw,104px)/.95 var(--sans); letter-spacing: -.065em; }
+    .hero h1 span { color: var(--green); }
+    .hero-copy { max-width: 790px; margin: 28px auto 0; color: #c3d0c9; font-size: clamp(20px,2.5vw,30px); line-height: 1.35; letter-spacing: -.025em; }
+    .hero-detail { max-width: 700px; margin: 18px auto 0; color: var(--muted); }
+    .actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 22px; font-weight: 750; border: 1px solid var(--line-strong); }
+    .button.primary { background: var(--green); color: #05130d; border-color: var(--green); }
+    .button.primary:hover { color: #05130d; background: #72edbc; }
+    .button.secondary { background: var(--surface); color: var(--text); }
+    .support { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px; margin-top: 20px; color: var(--faint); font: 12px/1.6 var(--mono); }
+    .support span::before { content: "✓ "; color: var(--green); }
+    .hero-media { padding: 20px 0 76px; }
+    .media-frame { margin: 0; }
+    .media-frame img, .media-frame video { width: 100%; display: block; height: auto; border: 0; border-radius: 10px; background: transparent; }
+    .media-frame figcaption { margin-top: 13px; color: var(--faint); font: 12px/1.6 var(--mono); text-align: center; }
+    .signal-bar { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 104px; }
+    .signal { padding: 23px 25px; border-right: 1px solid var(--line); }
+    .signal:last-child { border-right: 0; }
+    .signal strong { display: block; color: var(--green); font: 700 17px/1.3 var(--mono); }
+    .signal span { display: block; color: var(--muted); margin-top: 5px; font-size: 13px; }
+    section { scroll-margin-top: 92px; }
+    .section { padding: 0 0 112px; }
+    .section-head { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,530px); gap: 50px; align-items: end; margin-bottom: 40px; }
+    .kicker { margin: 0 0 11px; color: var(--green); font: 650 13px/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(34px,5vw,61px); line-height: 1.02; letter-spacing: -.047em; }
+    .section-intro { margin: 0; color: var(--muted); font-size: 17px; }
+    .wide-video { aspect-ratio: 3486/2188; object-fit: contain; }
+    .feature-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 32px; }
+    .feature-card { min-height: 180px; background: var(--surface); padding: 28px; }
+    .feature-card .number { color: var(--green); font: 600 12px/1 var(--mono); }
+    .feature-card h3 { margin: 30px 0 8px; font-size: 20px; letter-spacing: -.02em; }
+    .feature-card p { margin: 0; color: var(--muted); font-size: 14px; }
+    kbd, code { font-family: var(--mono); font-size: .88em; color: var(--amber); }
+    kbd { padding: 2px 5px; border: 1px solid var(--line-strong); background: var(--surface-2); }
+    .split-showcase { display: grid; grid-template-columns: 1.35fr .65fr; gap: 30px; align-items: center; }
+    .story { border-left: 1px solid var(--line-strong); padding-left: 27px; }
+    .story h3 { margin: 0 0 12px; font-size: 29px; line-height: 1.15; letter-spacing: -.035em; }
+    .story p { margin: 0; color: var(--muted); }
+    .story ul { list-style: none; margin: 22px 0 0; padding: 0; color: #cbd6d0; }
+    .story li { position: relative; padding: 8px 0 8px 20px; }
+    .story li::before { content: "›"; position: absolute; left: 0; color: var(--green); font-family: var(--mono); }
+    .remote-layout { display: grid; grid-template-columns: minmax(0,.72fr) minmax(280px,.28fr); gap: 34px; align-items: start; }
+    .phone-stack { display: grid; gap: 22px; max-width: 390px; margin-inline: auto; }
+    .phone-stack video, .phone-stack img { width: 100%; height: auto; display: block; object-fit: contain; background: transparent; border: 0; border-radius: 10px; }
+    .compatibility { margin-top: 22px; padding: 18px 20px; border-left: 3px solid var(--green); background: var(--surface); color: var(--muted); font-size: 14px; }
+    .compatibility strong { color: var(--text); }
+    .environment { border: 1px solid var(--line); background: var(--surface); }
+    .env-row { display: grid; grid-template-columns: 210px 1fr; gap: 20px; padding: 17px 22px; border-bottom: 1px solid var(--line); }
+    .env-row:last-child { border-bottom: 0; }
+    .env-label { color: var(--faint); font: 12px/1.6 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+    .env-value { color: #cdd8d2; }
+    .install { margin-bottom: 100px; padding: 62px 28px; text-align: center; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); background: var(--surface); }
+    .install h2 { font-size: clamp(38px,6vw,68px); }
+    .install p { max-width: 620px; margin: 18px auto 0; color: var(--muted); }
+    .brew-command { width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 12px; margin: 26px auto 0; border: 1px solid var(--line-strong); background: var(--bg); padding: 13px 15px; font: 13px/1.4 var(--mono); overflow-x: auto; }
+    .brew-command .prompt { color: var(--green); }
+    .copy { border: 0; background: transparent; color: var(--faint); cursor: pointer; font: 12px/1 var(--mono); white-space: nowrap; }
+    .copy:hover { color: var(--green); }
+    footer { border-top: 1px solid var(--line); color: var(--faint); }
+    .footer-inner { min-height: 92px; display: flex; align-items: center; flex-wrap: wrap; gap: 14px 25px; font: 12px/1.5 var(--mono); }
+    .footer-inner .grow { flex: 1; }
+    @media (max-width: 900px) { .section-head { grid-template-columns: 1fr; gap: 18px; } .split-showcase,.remote-layout { grid-template-columns: 1fr; } .story { margin-top: 10px; } .phone-stack { max-width: 430px; } }
+    @media (max-width: 680px) { .wrap { width: min(calc(100% - 28px),var(--max)); } .nav-links .desktop-link,.nav-download { display: none; } .nav-links { gap: 10px; } .hero { padding-top: 62px; } .hero-icon { width: 92px; height: 92px; } h1 { white-space: nowrap; font-size: clamp(48px,14vw,58px); } .hero-copy,.hero-detail { max-width: 100%; overflow-wrap: anywhere; } .hero .actions,.install .actions { flex-direction: column; } .hero .button,.install .button { width: min(100%,320px); } .signal-bar { grid-template-columns: 1fr 1fr; margin-bottom: 82px; } .signal:nth-child(2) { border-right: 0; } .signal:nth-child(-n+2) { border-bottom: 1px solid var(--line); } .feature-grid { grid-template-columns: 1fr; } .section { padding-bottom: 84px; } .section-head { margin-bottom: 26px; } .env-row { grid-template-columns: 1fr; gap: 3px; } .footer-inner { padding-block: 24px; } .footer-inner .grow { display: none; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *,*::before,*::after { animation: none !important; transition: none !important; } }
+  </style>
 </head>
 <body>
-
-<nav>
-  <div class="wrap nav-inner">
-    <a class="brand" href="#"><span><span class="glyph">❯</span><span class="block"></span></span>Termite</a>
-    <div class="nav-links">
-      <a href="https://github.com/xinghelee/Termite">GitHub</a>
-      <a href="https://github.com/xinghelee/Termite/blob/main/README.md">English</a>
-      <a class="dl" href="https://github.com/xinghelee/Termite/releases/latest">下载</a>
+  <a class="skip-link" href="#main" data-en="Skip to content" data-zh="跳到正文">Skip to content</a>
+  <nav class="nav" aria-label="Primary navigation">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="Termite home"><img src="assets/app-icon.png" alt=""><span>Termite</span></a>
+      <div class="nav-links">
+        <a class="desktop-link" href="#tour" data-en="Product" data-zh="产品">Product</a>
+        <a class="desktop-link" href="#remote" data-en="Remote" data-zh="远程">Remote</a>
+        <a class="desktop-link" href="https://github.com/xinghelee/Termite">GitHub</a>
+        <button class="language" id="languageToggle" type="button" aria-label="切换为中文">中文</button>
+        <a class="nav-download" href="https://github.com/xinghelee/Termite/releases/latest" data-en="Download" data-zh="下载">Download</a>
+      </div>
     </div>
-  </div>
-</nav>
-
-<header class="wrap">
-  <p class="eyebrow">macOS 原生终端 · SwiftUI 从头写,不是套壳 · <b>免费开源</b></p>
-  <h1><span class="glyph">❯</span>Termite</h1>
-  <div class="cta-row">
-    <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载 Termite</a>
-    <span class="brew"><span class="dollar">$</span><code id="brewCmd">brew install --cask xinghelee/tap/termite</code><button id="brewCopy" aria-label="复制安装命令">复制</button></span>
-  </div>
-  <p class="hero-meta"><span>macOS 26.0+</span><span>Apple 公证</span><span>Apple Silicon &amp; Intel</span></p>
-</header>
-
-<section class="demo wrap">
-  <figure class="shot">
-    <img src="pane-carousel.png" alt="Termite 三栏巡视分屏：规划、构建和验证任务并排展示">
-    <figcaption>当前版本桌面端 · 同一标签中的三栏巡视分屏；终端内容为演示任务。</figcaption>
-  </figure>
-</section>
-
-<main class="wrap">
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite panes</span><span class="flag">--carousel</span><span class="meta"><span class="ok">✓ 0</span> · 5ms</span></div>
-    <h2>巡视模式</h2>
-    <p class="sub">每个分屏挂一个 agent?<kbd>⇧⌘\</kbd> 或双指捏合,所有分屏等宽横排,触控板横滑逐个巡视——滑到谁,键盘就是谁的。</p>
-    <div class="feat-grid">
-      <div class="feat"><h3>捏合进出</h3><p>双指捏合摊平总览,张开还原布局;<kbd>⌘←</kbd><kbd>⌘→</kbd> 键盘翻页。</p></div>
-      <div class="feat"><h3>翻页即聚焦</h3><p>滑到哪个分屏,键盘焦点就落在哪,顺手消掉它的等待提醒。</p></div>
-      <div class="feat"><h3>等待输入提醒</h3><p>agent 停下来等你时:橙色呼吸边框、菜单栏角标、系统通知,<kbd>⌘J</kbd> 一键跳达。</p></div>
-      <div class="feat"><h3>原地快速回复</h3><p>通知上直接输入回复,或徽标右键「回车确认 / 发送 y」,不打断当前工作。</p></div>
+  </nav>
+  <header class="hero wrap" id="top">
+    <img class="hero-icon" src="assets/app-icon.png" alt="Termite app icon" width="1024" height="1024">
+    <p class="version">TERMITE 2.0.0 · OPEN SOURCE</p>
+    <h1><span>❯</span> Termite</h1>
+    <p class="hero-copy" data-en="A native terminal for macOS—and the control plane for parallel AI development." data-zh="为 macOS 打造的原生终端，也是并行 AI 开发工作流的控制台。">A native terminal for macOS—and the control plane for parallel AI development.</p>
+    <p class="hero-detail" data-en="Keep terminals, nested panes, Git workflows, remote sessions, and multiple coding agents visible and under control in one native workspace." data-zh="把终端、嵌套分屏、Git 工作流、远程会话和多个编程 Agent 放进同一个原生工作区，始终可见、可切换、可接管。">Keep terminals, nested panes, Git workflows, remote sessions, and multiple coding agents visible and under control in one native workspace.</p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/xinghelee/Termite/releases/latest"><span data-en="Download v2.0.0" data-zh="下载 v2.0.0">Download v2.0.0</span><span aria-hidden="true">↓</span></a>
+      <a class="button secondary" href="https://github.com/xinghelee/Termite" data-en="View source on GitHub" data-zh="在 GitHub 查看源码">View source on GitHub</a>
     </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite worktree</span><span class="flag">--split</span><span class="meta"><span class="ok">✓ 0</span> · 8ms</span></div>
-    <h2>Worktree 分屏</h2>
-    <p class="sub">并行 agent 共用一个工作树,diff 会混成一锅。把 <code>git worktree</code> 做成一次右键:每个 agent 一个隔离的工作树。</p>
-    <figure class="shot feature-shot worktree-shot">
-      <img src="worktree-split.png" alt="Termite 的 Worktree 分屏选择器，显示现有分支 feature-mobile">
-      <figcaption>当前版本桌面端 · 右键即可将现有分支检出为独立 Worktree 分屏。</figcaption>
-    </figure>
-    <div class="feat-grid">
-      <div class="feat"><h3>新建或检出</h3><p>输入名字新建分支,或模糊搜索几千个已有分支(本地 + 远程)直接检出,不卡。</p></div>
-      <div class="feat"><h3>已有 Worktree 直接打开</h3><p>已被检出的分支带标识,一键分屏进它现有的目录,不撞 git 报错。</p></div>
-      <div class="feat"><h3>分屏名 = 分支名</h3><p>目录在仓库同级,pane 自动以分支命名,巡视模式里一眼认出谁是谁。</p></div>
-      <div class="feat"><h3>清理有保护</h3><p>未提交改动先拦截(可强制);分支保留,合并完再删。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite sessions</span><span class="flag">--restore</span><span class="meta"><span class="ok">✓ 0</span> · 3ms</span></div>
-    <h2>完整会话恢复</h2>
-    <p class="sub">重新打开 App,一切回到你离开时的样子。</p>
-    <div class="feat-grid">
-      <div class="feat"><h3>多窗口完整恢复</h3><p>窗口 frame、焦点、最大化状态,全量找回。</p></div>
-      <div class="feat"><h3>标签与分屏原样保留</h3><p>标签顺序、分屏结构、scrollback,一个不少。</p></div>
-      <div class="feat"><h3>新标签继承当前目录</h3><p>在哪个目录开新标签,就从哪个目录开始。</p></div>
-      <div class="feat"><h3>会话录制与回放</h3><p>asciinema 格式(.cast)录制,内置回放窗口,可拖动进度重演。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite shell</span><span class="flag">--integrate</span><span class="meta"><span class="ok">✓ 0</span> · 7ms</span></div>
-    <h2>Shell 集成,零配置</h2>
-    <p class="sub">zsh / bash / fish 自动挂钩 OSC 133 命令标记,每条命令都是一个可操作的单元。</p>
-    <div class="feat-grid">
-      <div class="feat"><h3>命令间跳转 <kbd>⌘↑</kbd><kbd>⌘↓</kbd></h3><p>在命令之间瞬移;<kbd>⌘⇧C</kbd> 一键复制上条命令的完整输出。</p></div>
-      <div class="feat"><h3>退出码与耗时</h3><p>每条命令的退出码、耗时实时显示在状态栏;长命令(≥10s)后台完成时发系统通知。</p></div>
-      <div class="feat"><h3>历史全局搜索 <kbd>⌘⇧H</kbd></h3><p>命令历史 SQLite 落盘(剥掉提示符),全局模糊搜索,自动生成日报。</p></div>
-      <div class="feat"><h3>命令时间线 <kbd>⌘I</kbd></h3><p>按时间浏览每条命令及其输出,同一命令的两次输出可直接 Diff。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite git</span><span class="flag">--panel</span><span class="meta"><span class="ok">✓ 0</span> · 12ms</span></div>
-    <h2>Git 集成</h2>
-    <p class="sub">不离开终端,把仓库看清楚、改明白。</p>
-    <figure class="shot feature-shot">
-      <img src="git-workflow.png" alt="Termite Git 图形历史：分支泳道、提交记录与内联 Diff">
-      <figcaption>当前版本桌面端 · 独立 Git 图形历史窗口，分支泳道、提交记录与内联 Diff 全在终端工作流里。</figcaption>
-    </figure>
-    <div class="feat-grid">
-      <div class="feat"><h3>Git 面板 <kbd>⌘G</kbd></h3><p>SourceTree 式图形提交历史、词级高亮 diff、blame、单文件修改历史、图片改动预览。</p></div>
-      <div class="feat"><h3>完整操作</h3><p>暂存 / 取消暂存 / 丢弃、分支切换、cherry-pick / revert,全部图形化完成。</p></div>
-      <div class="feat"><h3>状态栏常驻分支</h3><p>直读 <code>.git/HEAD</code>,零子进程;提交身份就在旁边,点击即可编辑。</p></div>
-      <div class="feat"><h3>独立历史窗口</h3><p>图形历史可开独立窗口,自由缩放,泳道不断线。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite nav</span><span class="flag">--panels</span><span class="meta"><span class="ok">✓ 0</span> · 5ms</span></div>
-    <h2>面板与导航</h2>
-    <p class="sub">键盘不离手,去哪都是一步。</p>
-    <div class="feat-grid">
-      <div class="feat"><h3>命令面板 <kbd>⌘P</kbd></h3><p>模糊搜索所有动作与主题;<kbd>⌘O</kbd> frecency 目录跳转器,<kbd>⇧⌘E</kbd> 文件浏览器。</p></div>
-      <div class="feat"><h3>Quake 下拉终端 <kbd>⌃⌥⌘Space</kbd></h3><p>全局热键随叫随到(可自定义),无需辅助功能权限。</p></div>
-      <div class="feat"><h3>侧边栏项目切换</h3><p>常用项目文件夹一列排开,点一下就切;Dock 图标拖入文件夹直接开标签。</p></div>
-      <div class="feat"><h3>端口面板与 CLI</h3><p>谁占了哪个端口一目了然;<code>termite</code> 命令行工具从任何地方打开新标签。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite feel</span><span class="flag">--details</span><span class="meta"><span class="ok">✓ 0</span> · 2ms</span></div>
-    <h2>终端手感</h2>
-    <p class="sub">该有的都有,细节不将就。终端引擎 <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,Metal GPU 渲染。</p>
-    <div class="feat-grid">
-      <div class="feat"><h3>无限分屏</h3><p><kbd>⌘⌥方向键</kbd> 在窗格间移动,<kbd>⇧⌘↩</kbd> 最大化单格,支持向所有窗格广播输入。</p></div>
-      <div class="feat"><h3>粘贴保护</h3><p>多行粘贴与危险内容(<code>rm -rf</code>、<code>sudo</code>…)先确认再执行。</p></div>
-      <div class="feat"><h3>顺手的小事</h3><p>选中即复制、中键粘贴、标签拖拽排序、标签拖出成窗、光标只在焦点窗格闪烁。</p></div>
-      <div class="feat"><h3>内置 imgcat</h3><p>终端里直接看图;结构化输出查看器自动嗅探 JSON / CSV。</p></div>
-    </div>
-  </section>
-
-  <section class="cmdblock">
-    <div class="cmdline"><span class="p">❯</span><span class="c">termite remote</span><span class="flag">--pair</span><span class="meta"><span class="ok">✓</span> · private network</span></div>
-    <h2>手机端远程接管</h2>
-    <p class="sub">在受信任的局域网或 Tailscale 网络中，用二维码或一次性六位配对码连接 iPhone、iPad 或 Web 客户端。远程访问默认关闭，Mac 可随时收回输入控制权。</p>
-    <div class="mobile-gallery">
-      <figure class="shot mobile-shot">
-        <img src="mobile-pairing.png" alt="Termite iPhone 客户端的六位配对界面">
-        <figcaption>iPhone 客户端 · 用一次性配对码安全连接 Mac 上的会话。</figcaption>
+    <div class="support" aria-label="Compatibility"><span>macOS 26.0+</span><span>Apple Silicon &amp; Intel</span><span data-en="Signed &amp; notarized" data-zh="已签名并公证">Signed &amp; notarized</span><span>GPL-3.0</span></div>
+  </header>
+  <main id="main">
+    <section class="hero-media wrap" aria-labelledby="hero-caption">
+      <figure class="media-frame">
+        <img src="assets/hero-latest.png" alt="Termite workspace with terminal panes, htop, OpenCode, and DeepSeek running side by side" width="3680" height="2392">
+        <figcaption id="hero-caption" data-en="The current Termite desktop workspace: a terminal, system monitor, and two AI coding agents share one deeply nested pane layout." data-zh="当前版本的 Termite 桌面工作区：终端、系统监控与两个 AI 编程 Agent 位于同一个深度嵌套分屏布局中。">The current Termite desktop workspace: a terminal, system monitor, and two AI coding agents share one deeply nested pane layout.</figcaption>
       </figure>
-      <figure class="shot mobile-shot">
-        <img src="mobile-simulator-mirror.png" alt="Termite iPhone 客户端的全屏模拟器镜像视图">
-        <figcaption>当前版本 iOS 客户端 · 全屏查看并操作 Mac 上的模拟器；屏内为演示数据。</figcaption>
+    </section>
+    <div class="wrap signal-bar" aria-label="Product highlights">
+      <div class="signal"><strong data-en="Native" data-zh="原生">Native</strong><span>SwiftUI + AppKit</span></div>
+      <div class="signal"><strong data-en="Deep panes" data-zh="深度分屏">Deep panes</strong><span data-en="Nested without limits" data-zh="无限嵌套布局">Nested without limits</span></div>
+      <div class="signal"><strong data-en="Git-aware" data-zh="Git 感知">Git-aware</strong><span data-en="History, diff, blame" data-zh="历史、Diff、Blame">History, diff, blame</span></div>
+      <div class="signal"><strong data-en="Private remote" data-zh="私网远程">Private remote</strong><span>LAN + Tailscale</span></div>
+    </div>
+    <section class="section wrap" id="tour">
+      <div class="section-head"><div><p class="kicker">01 / CAROUSEL MODE</p><h2 data-en="See parallel work at a glance." data-zh="一眼掌握并行工作。">See parallel work at a glance.</h2></div><p class="section-intro" data-en="Carousel mode lays every pane in the current tab out as equal-width columns. Browse with the trackpad or keyboard; focus follows the task you inspect." data-zh="巡视模式会把当前标签中的所有分屏平铺为等宽列。使用触控板或键盘逐个巡视，焦点会跟随你正在查看的任务。">Carousel mode lays every pane in the current tab out as equal-width columns. Browse with the trackpad or keyboard; focus follows the task you inspect.</p></div>
+      <figure class="media-frame">
+        <video class="wide-video" controls autoplay muted loop playsinline preload="metadata" poster="assets/hero-latest.png" aria-label="Termite carousel mode demonstration"><source src="assets/carousel-mode.mp4" type="video/mp4">Your browser does not support embedded video.</video>
+        <figcaption data-en="Current build · Use the player controls to pause, replay, or seek through the demonstration." data-zh="当前版本 · 可使用播放器控件暂停、重播或拖动进度。">Current build · Use the player controls to pause, replay, or seek through the demonstration.</figcaption>
       </figure>
-    </div>
-  </section>
-
-  <section class="install" id="install">
-    <h2>装上试试</h2>
-    <p class="sub">DMG 已过 Apple 公证,拖进 Applications 即用。</p>
-    <div class="cta-row">
-      <a class="btn" href="https://github.com/xinghelee/Termite/releases/latest">⬇︎ 下载最新版</a>
-      <span class="brew"><span class="dollar">$</span><code>brew install --cask xinghelee/tap/termite</code><button id="brewCopy2" aria-label="复制安装命令">复制</button></span>
-    </div>
-    <p class="fine">macOS 26.0+ · 开源免费 · <a href="https://github.com/xinghelee/Termite/blob/main/README.zh-CN.md#%E4%BB%8E%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA">从源码构建</a></p>
-  </section>
-
-</main>
-
-<footer>
-  <div class="wrap foot-inner">
-    <span><span style="color:var(--emerald)">❯</span> Termite</span>
-    <a href="https://github.com/xinghelee/Termite">GitHub</a>
-    <a href="https://github.com/xinghelee/Termite/releases">Releases</a>
-    <a href="https://github.com/xinghelee/Termite/blob/main/README.md">English</a>
-    <span class="spacer"></span>
-    <span>© 2026 xinghe · 引擎 <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a></span>
-  </div>
-</footer>
-
-<script>
-(function(){
-  function bindCopy(id){
-    var btn = document.getElementById(id);
-    if (!btn) return;
-    btn.addEventListener('click', function(){
-      navigator.clipboard.writeText('brew install --cask xinghelee/tap/termite').then(function(){
-        btn.textContent = '已复制';
-        setTimeout(function(){ btn.textContent = '复制'; }, 1600);
-      });
-    });
-  }
-  bindCopy('brewCopy'); bindCopy('brewCopy2');
-})();
-</script>
+      <div class="feature-grid">
+        <article class="feature-card"><span class="number">01</span><h3 data-en="Focus follows inspection" data-zh="巡视即聚焦">Focus follows inspection</h3><p data-en="Swipe to a pane and keyboard focus lands there automatically. Use ⌘← / ⌘→ for precise navigation." data-zh="滑到哪个分屏，键盘焦点就落到哪里；也可以用 ⌘← / ⌘→ 精确翻页。">Swipe to a pane and keyboard focus lands there automatically. Use ⌘← / ⌘→ for precise navigation.</p></article>
+        <article class="feature-card"><span class="number">02</span><h3 data-en="Input-needed alerts" data-zh="等待输入提醒">Input-needed alerts</h3><p data-en="A breathing pane border, menu-bar badge, and notification surface agents waiting for you; ⌘J jumps to the oldest one." data-zh="呼吸边框、菜单栏角标和系统通知会提示等待输入的 Agent；⌘J 直接跳到等待最久的任务。">A breathing pane border, menu-bar badge, and notification surface agents waiting for you; ⌘J jumps to the oldest one.</p></article>
+        <article class="feature-card"><span class="number">03</span><h3 data-en="Worktree isolation" data-zh="Worktree 隔离">Worktree isolation</h3><p data-en="Create or open a dedicated git worktree from a pane menu so parallel agents never share the same working tree." data-zh="从分屏菜单创建或打开独立 git worktree，让并行 Agent 不再共用同一个工作目录。">Create or open a dedicated git worktree from a pane menu so parallel agents never share the same working tree.</p></article>
+        <article class="feature-card"><span class="number">04</span><h3 data-en="Full session restoration" data-zh="完整会话恢复">Full session restoration</h3><p data-en="Windows, tabs, pane layout, focus, working directories, and scrollback return after relaunch." data-zh="重新启动后，窗口、标签、分屏布局、焦点、工作目录与滚动历史都会恢复。">Windows, tabs, pane layout, focus, working directories, and scrollback return after relaunch.</p></article>
+      </div>
+    </section>
+    <section class="section wrap" id="git">
+      <div class="section-head"><div><p class="kicker">02 / GIT WORKFLOW</p><h2 data-en="Git work stays beside the task." data-zh="Git 工作始终贴着任务。">Git work stays beside the task.</h2></div><p class="section-intro" data-en="Inspect the repository without leaving the terminal workspace. The panel and detached history window cover daily Git work from changes to commit archaeology." data-zh="不离开终端工作区就能看清仓库。侧边 Git 面板与独立历史窗口覆盖从未提交改动到提交考古的日常工作。">Inspect the repository without leaving the terminal workspace. The panel and detached history window cover daily Git work from changes to commit archaeology.</p></div>
+      <div class="split-showcase">
+        <figure class="media-frame"><img src="assets/git-panel-latest.png" alt="Termite Git panel and detached commit history window" width="3622" height="2178" loading="lazy"><figcaption data-en="Current build · Uncommitted changes, history, branch lanes, commits, and file diffs." data-zh="当前版本 · 未提交改动、历史、分支泳道、提交记录与文件 Diff。">Current build · Uncommitted changes, history, branch lanes, commits, and file diffs.</figcaption></figure>
+        <div class="story"><h3 data-en="Review, stage, switch, recover." data-zh="审查、暂存、切换、恢复。">Review, stage, switch, recover.</h3><p data-en="A native Git surface built around the context already open in your terminal." data-zh="围绕终端当前上下文打造的原生 Git 操作界面。">A native Git surface built around the context already open in your terminal.</p><ul><li data-en="Stage, unstage, and safely discard changes" data-zh="暂存、取消暂存与安全丢弃改动">Stage, unstage, and safely discard changes</li><li data-en="Branch graph and commit filtering" data-zh="分支图与提交筛选">Branch graph and commit filtering</li><li data-en="Word-level diff, blame, and file history" data-zh="词级 Diff、Blame 与文件历史">Word-level diff, blame, and file history</li><li data-en="Switch, cherry-pick, and revert in place" data-zh="原地切换、Cherry-pick 与 Revert">Switch, cherry-pick, and revert in place</li></ul></div>
+      </div>
+    </section>
+    <section class="section wrap" id="remote">
+      <div class="section-head"><div><p class="kicker">03 / PRIVATE-NETWORK REMOTE</p><h2 data-en="Your Mac workspace, from your phone." data-zh="在手机上接管 Mac 工作区。">Your Mac workspace, from your phone.</h2></div><p class="section-intro" data-en="Pair an iPhone, iPad, or browser over a trusted LAN or Tailscale network. Browse sessions, take input control, and preview or operate an iOS Simulator running on the Mac in real time." data-zh="通过受信任的局域网或 Tailscale 网络配对 iPhone、iPad 或浏览器。你可以浏览会话、接管输入，并实时预览或操作 Mac 上运行的 iOS 模拟器。">Pair an iPhone, iPad, or browser over a trusted LAN or Tailscale network. Browse sessions, take input control, and preview or operate an iOS Simulator running on the Mac in real time.</p></div>
+      <figure class="media-frame"><img src="assets/remote-access-latest.png" alt="Termite Remote Access settings with LAN address, QR code, pairing, and local port forwarding" width="3620" height="2174" loading="lazy"><figcaption data-en="Remote access is off by default. Enable it only on trusted private networks; an access link or pairing code grants terminal access." data-zh="远程访问默认关闭。请只在受信任的私有网络中开启；访问链接或配对码等同于终端访问权限。">Remote access is off by default. Enable it only on trusted private networks; an access link or pairing code grants terminal access.</figcaption></figure>
+      <div class="remote-layout" style="margin-top:38px">
+        <div class="story"><h3 data-en="Live terminal and Simulator control." data-zh="实时终端与模拟器控制。">Live terminal and Simulator control.</h3><p data-en="The mobile client keeps terminal control keys, a full software keyboard, session handoff, and Simulator interaction close at hand. Local port forwarding can also expose a development service bound to 127.0.0.1 to an already paired device." data-zh="移动客户端提供终端控制键、完整软键盘、会话交接和模拟器交互。还可以通过本地端口转发，把仅监听 127.0.0.1 的开发服务提供给已配对设备。">The mobile client keeps terminal control keys, a full software keyboard, session handoff, and Simulator interaction close at hand. Local port forwarding can also expose a development service bound to 127.0.0.1 to an already paired device.</p><div class="compatibility"><strong data-en="Compatibility" data-zh="兼容性">Compatibility</strong><br><span data-en="Mac: macOS 26.0 or later. Mobile client: iOS / iPadOS 17.0 or later on iPhone and iPad. Connectivity: trusted LAN or Tailscale private network." data-zh="Mac：macOS 26.0 或更高版本。移动客户端：iPhone 与 iPad 上的 iOS / iPadOS 17.0 或更高版本。连接方式：受信任的局域网或 Tailscale 私有网络。">Mac: macOS 26.0 or later. Mobile client: iOS / iPadOS 17.0 or later on iPhone and iPad. Connectivity: trusted LAN or Tailscale private network.</span></div></div>
+        <div class="phone-stack"><video controls playsinline preload="metadata" poster="assets/mobile-video-poster.jpg" aria-label="iPhone remotely controlling a Mac terminal and iOS Simulator"><source src="assets/mobile-simulator-demo.mp4" type="video/mp4">Your browser does not support embedded video.</video><img src="assets/mobile-pairing-latest.png" alt="Termite iPhone client pairing screen" width="1320" height="2868" loading="lazy"></div>
+      </div>
+    </section>
+    <section class="section wrap" id="terminal">
+      <div class="section-head"><div><p class="kicker">04 / SHELL INTELLIGENCE</p><h2 data-en="A terminal that understands commands." data-zh="真正理解命令的终端。">A terminal that understands commands.</h2></div><p class="section-intro" data-en="Termite automatically integrates with zsh, bash, and fish. OSC 133 markers turn command boundaries, output, exit status, and duration into navigable workspace data." data-zh="Termite 会自动集成 zsh、bash 和 fish。OSC 133 标记把命令边界、输出、退出码与耗时变成可导航的工作区数据。">Termite automatically integrates with zsh, bash, and fish. OSC 133 markers turn command boundaries, output, exit status, and duration into navigable workspace data.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card"><span class="number">01</span><h3 data-en="Command-level navigation" data-zh="命令级导航">Command-level navigation</h3><p data-en="Jump between commands, copy the previous command's complete output, and compare two outputs with an inline diff." data-zh="在命令间跳转、复制上一条命令的完整输出，并用内联 Diff 比较两次输出。">Jump between commands, copy the previous command's complete output, and compare two outputs with an inline diff.</p></article>
+        <article class="feature-card"><span class="number">02</span><h3 data-en="Searchable history" data-zh="可搜索历史">Searchable history</h3><p data-en="SQLite-backed history supports cross-session fuzzy search, command timelines, and daily reports." data-zh="基于 SQLite 的历史支持跨会话模糊搜索、命令时间线和日报。">SQLite-backed history supports cross-session fuzzy search, command timelines, and daily reports.</p></article>
+        <article class="feature-card"><span class="number">03</span><h3 data-en="Native macOS workflow" data-zh="原生 macOS 工作流">Native macOS workflow</h3><p data-en="Twenty full-window themes, a global drop-down terminal, Dock folder opening, and the termite command-line tool." data-zh="20 套全窗口主题、全局下拉终端、Dock 文件夹打开与 termite 命令行工具。">Twenty full-window themes, a global drop-down terminal, Dock folder opening, and the termite command-line tool.</p></article>
+        <article class="feature-card"><span class="number">04</span><h3 data-en="Terminal details included" data-zh="终端细节齐全">Terminal details included</h3><p data-en="Inline images, structured JSON / CSV output, asciinema recording and playback, copy-on-select, and risky-paste protection." data-zh="内联图片、结构化 JSON / CSV、asciinema 录制回放、选中即复制与高风险粘贴保护。">Inline images, structured JSON / CSV output, asciinema recording and playback, copy-on-select, and risky-paste protection.</p></article>
+      </div>
+    </section>
+    <section class="section wrap" id="environment">
+      <div class="section-head"><div><p class="kicker">05 / DEVELOPMENT ENVIRONMENT</p><h2 data-en="Built and verified on the edge." data-zh="在前沿环境中构建与验证。">Built and verified on the edge.</h2></div><p class="section-intro" data-en="This is the maintainer's primary development workstation, not the minimum system requirement." data-zh="以下是维护者的主要开发工作站，并非最低系统要求。">This is the maintainer's primary development workstation, not the minimum system requirement.</p></div>
+      <div class="environment"><div class="env-row"><span class="env-label" data-en="Hardware" data-zh="硬件">Hardware</span><span class="env-value">MacBook Pro · Apple M5 Max (18-core) · 48 GB unified memory</span></div><div class="env-row"><span class="env-label">macOS</span><span class="env-value">macOS 27.0 · build 26A5406e</span></div><div class="env-row"><span class="env-label" data-en="Toolchain" data-zh="工具链">Toolchain</span><span class="env-value">Xcode 26.6 · Swift 6.3.3 · XcodeGen 2.46.0</span></div><div class="env-row"><span class="env-label">Shell</span><span class="env-value">zsh 5.9</span></div><div class="env-row"><span class="env-label" data-en="Mobile verification" data-zh="移动端验证">Mobile verification</span><span class="env-value">iOS 27.0 Simulator</span></div><div class="env-row"><span class="env-label" data-en="Supported baseline" data-zh="兼容基线">Supported baseline</span><span class="env-value">macOS 26.0+ · iOS / iPadOS 17.0+</span></div></div>
+    </section>
+    <section class="install" id="install"><div class="wrap"><p class="kicker">TERMITE 2.0.0</p><h2 data-en="Put your parallel work in one place." data-zh="把并行工作放回同一个地方。">Put your parallel work in one place.</h2><p data-en="Download the signed and Apple-notarized DMG, or install with Homebrew. Termite is free and open source under GPL-3.0." data-zh="下载已签名并通过 Apple 公证的 DMG，或使用 Homebrew 安装。Termite 以 GPL-3.0 免费开源。">Download the signed and Apple-notarized DMG, or install with Homebrew. Termite is free and open source under GPL-3.0.</p><div class="actions"><a class="button primary" href="https://github.com/xinghelee/Termite/releases/latest" data-en="Download latest release" data-zh="下载最新版本">Download latest release</a><a class="button secondary" href="https://github.com/xinghelee/Termite#build-from-source" data-en="Build from source" data-zh="从源码构建">Build from source</a></div><div class="brew-command"><span class="prompt">$</span><span>brew install --cask xinghelee/tap/termite</span><button class="copy" id="copyBrew" type="button" data-en="Copy" data-zh="复制">Copy</button></div></div></section>
+  </main>
+  <footer><div class="wrap footer-inner"><span><span style="color:var(--green)">❯</span> Termite</span><a href="https://github.com/xinghelee/Termite">GitHub</a><a href="https://github.com/xinghelee/Termite/releases">Releases</a><a href="https://github.com/xinghelee/Termite/blob/main/README.md">README</a><div class="grow"></div><span>© 2026 xinghelee · GPL-3.0</span></div></footer>
+  <script>
+    (function () {
+      var toggle = document.getElementById('languageToggle');
+      var copy = document.getElementById('copyBrew');
+      var language = new URLSearchParams(window.location.search).get('lang') === 'zh-CN' ? 'zh' : (localStorage.getItem('termite-language') || 'en');
+      function applyLanguage(next) {
+        language = next === 'zh' ? 'zh' : 'en';
+        document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+        document.querySelectorAll('[data-en]').forEach(function (element) { element.textContent = element.getAttribute(language === 'zh' ? 'data-zh' : 'data-en'); });
+        toggle.textContent = language === 'zh' ? 'EN' : '中文';
+        toggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换为中文');
+        document.title = language === 'zh' ? 'Termite — 面向并行 AI 开发的 macOS 原生终端' : 'Termite — Native macOS Terminal for Parallel AI Work';
+        document.querySelector('meta[name="description"]').content = language === 'zh' ? 'Termite 是面向并行 AI 开发的 macOS 原生终端，支持深度分屏、Git 工作流、会话恢复与可信私网远程访问。' : 'Termite is a native macOS terminal and control plane for parallel AI development, with nested panes, Git workflows, session restoration, and private-network remote access.';
+        localStorage.setItem('termite-language', language);
+      }
+      toggle.addEventListener('click', function () { applyLanguage(language === 'zh' ? 'en' : 'zh'); });
+      copy.addEventListener('click', function () { navigator.clipboard.writeText('brew install --cask xinghelee/tap/termite').then(function () { copy.textContent = language === 'zh' ? '已复制' : 'Copied'; setTimeout(function () { copy.textContent = language === 'zh' ? '复制' : 'Copy'; }, 1500); }); });
+      applyLanguage(language);
+    })();
+  </script>
 </body>
 </html>
