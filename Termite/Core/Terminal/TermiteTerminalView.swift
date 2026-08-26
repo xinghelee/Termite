@@ -65,7 +65,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         // 标签切换时视图此刻才挂进窗口:selectTab 里的 makeFirstResponder 那时 window 还是 nil,
         // 在这里把键盘焦点接过来(修「恢复后切标签无法输入」)
         if window != nil, let session, session.manager?.selected === session {
-            window?.makeFirstResponder(self)
+            session.focusTerminal()
         }
         observeWindowKeyState()
         syncPtyWindowSize()
@@ -560,6 +560,40 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         applyFocusCursorStyle(focused: hasFocus)
     }
 
+    /// 把光标形状/闪烁交还给用户偏好,再按当前焦点态整形(失焦 pane 仍是同形状常亮)。
+    /// vim/fzf/nvim 退出时常留下一枚 DECSCUSR 常亮方块,回到提示符也不还,聚焦后
+    /// 就是个不闪的死方块——明明能打字,看着像没激活。
+    /// 有程序在驱动终端(备用屏 / 内联 TUI / 鼠标上报)时不抢:那时的光标形状
+    /// 是程序的语义(vi 模式指示等)。返回是否由本方法接管了整形。
+    @discardableResult
+    func restoreCursorPreference() -> Bool {
+        guard session?.requiresSharedTUILayout != true else { return false }
+        let preferred = CursorPrefs.resolved()
+        let steady = Self.steadyVariant(of: preferred)
+        // 两套「临时常亮」记账一并结清,免得回头把旧样式再顶回来
+        blinkRestoreWork?.cancel()
+        blinkRestoreWork = nil
+        blinkStyleToRestore = nil
+        let target: CursorStyle
+        if hasFocus {
+            focusStyleToRestore = nil
+            target = preferred
+        } else {
+            focusStyleToRestore = steady == nil ? nil : preferred
+            target = steady ?? preferred
+        }
+        let terminal = getTerminal()
+        if terminal.options.cursorStyle != target { terminal.setCursorStyle(target) }
+        return true
+    }
+
+    /// 焦点进出的统一整形入口:聚焦到闲着的 pane(没有 TUI 在管)时顺手把光标
+    /// 交还用户偏好,「点中分屏 = 可编辑的闪烁光标」永远成立
+    private func syncCursorOnFocusChange() {
+        if hasFocus, restoreCursorPreference() { return }
+        applyFocusCursorStyle(focused: hasFocus)
+    }
+
     /// 窗口失去/夺回 key 时同样只让聚焦 pane 闪(hasFocus 已含 isKeyWindow 判断)
     private var windowKeyObservers: [NSObjectProtocol] = []
 
@@ -572,14 +606,14 @@ final class TermiteTerminalView: LocalProcessTerminalView {
             let token = NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
-                    self.applyFocusCursorStyle(focused: self.hasFocus)
+                    self.syncCursorOnFocusChange()
                 }
             }
             windowKeyObservers.append(token)
         }
         // 挂窗时先按当前焦点态整形一次:视图在容器间搬家(分屏/巡视/最大化切换)
         // 期间观察停摆,错过的焦点进出会留下「失焦还在闪 / 聚焦不闪」的僵尸状态
-        applyFocusCursorStyle(focused: hasFocus)
+        syncCursorOnFocusChange()
         firstResponderObservation = window.observe(\.firstResponder, options: [.old, .new]) { [weak self] _, change in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -587,7 +621,7 @@ final class TermiteTerminalView: LocalProcessTerminalView {
                 let old = change.oldValue ?? nil
                 let new = change.newValue ?? nil
                 guard old === self || new === self else { return }
-                self.applyFocusCursorStyle(focused: self.hasFocus)
+                self.syncCursorOnFocusChange()
             }
         }
     }
@@ -642,6 +676,20 @@ final class TermiteTerminalView: LocalProcessTerminalView {
             cleanupItem.target = self
             cleanupItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
             menu.addItem(cleanupItem)
+        }
+
+        // 多 pane 才有意义:放大 = 占满终端区,再点一次还原
+        if let session, let tab = session.manager?.selectedTab, tab.root.leafIDs().count > 1 {
+            let maximized = tab.maximizedID != nil
+            let zoomItem = NSMenuItem(
+                title: maximized ? String(localized: "还原分屏布局") : String(localized: "最大化此分屏"),
+                action: #selector(termiteToggleMaximize), keyEquivalent: "\r")
+            zoomItem.keyEquivalentModifierMask = [.command, .shift]
+            zoomItem.target = self
+            zoomItem.image = NSImage(
+                systemSymbolName: maximized ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                accessibilityDescription: nil)
+            menu.addItem(zoomItem)
         }
 
         let renameItem = NSMenuItem(title: String(localized: "重命名分屏…"), action: #selector(termiteRenamePane), keyEquivalent: "")
@@ -701,6 +749,14 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     @objc private func termiteClosePane() {
         MainActor.assumeIsolated { SessionManager.shared.requestCloseCurrent() }
+    }
+
+    /// 右键「最大化此分屏 / 还原」:带上自己的 id,右键点在哪个 pane 就放大哪个
+    @objc private func termiteToggleMaximize() {
+        MainActor.assumeIsolated {
+            guard let session else { return }
+            (session.manager ?? SessionManager.shared).toggleMaximizePane(session.id)
+        }
     }
 
     /// 在新 worktree 中分屏:呼出 pane 内浮层(输入分支名 + 方向,回车即建)

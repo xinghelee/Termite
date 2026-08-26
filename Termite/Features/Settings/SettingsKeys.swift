@@ -35,6 +35,8 @@ enum SettingsKeys {
     static let restoreSessions = "session.restoreOnLaunch"
     /// 退出后保留会话:shell 活在 termite-ptyhost 守护进程里,重启无缝接回(依赖启动恢复开启)
     static let sessionPersistence = "session.keepAlive"
+    /// 登录时预热 shell(装 LaunchAgent 让守护进程提前起来孵好)
+    static let prewarmAtLogin = "session.prewarmAtLogin"
     /// 菜单栏常驻图标
     static let menuBarExtra = "app.menuBarExtra"
     /// 下拉终端(全局热键)

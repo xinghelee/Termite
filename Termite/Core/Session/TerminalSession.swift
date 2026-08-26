@@ -182,11 +182,11 @@ final class TerminalSession: Identifiable {
     /// manager 必须在 init 传入(而非事后赋值):start() 里靠它区分
     /// 普通会话(可保活)与下拉终端(始终本地直连)
     init(workingDirectory directory: String? = nil, restoreScrollback: String? = nil,
-         reattach: PtyReattach? = nil, spawnDelay: TimeInterval = 0, manager: SessionManager? = nil) {
+         reattach: PtyReattach? = nil, spawnForeground: Bool = true, manager: SessionManager? = nil) {
         id = reattach?.id ?? UUID()
         shellPath = ShellResolver.loginShell()
         isSerial = false
-        self.spawnDelay = spawnDelay
+        self.spawnForeground = spawnForeground
         pendingReattach = reattach
         self.manager = manager
         let view = Self.makeConfiguredView()
@@ -213,7 +213,7 @@ final class TerminalSession: Identifiable {
         shellPath = serialDevice // shellName / 标签标题借此显示设备名
         isSerial = true
         serialLocalEcho = localEcho
-        spawnDelay = 0
+        spawnForeground = true
         pendingReattach = nil
         self.manager = manager
         let view = Self.makeConfiguredView()
@@ -280,38 +280,43 @@ final class TerminalSession: Identifiable {
         terminalView.feed(text: "\r\n\u{1b}[31m─── \(String(localized: "串口连接已断开")) ───\u{1b}[0m\r\n")
     }
 
-    private func start(in directory: String?) {
+    /// 子进程环境(按设置注入 shell 集成)。start() 与登录预热计划共用同一处,
+    /// 免得两边漂移——环境对不上,预热好的 shell 就白孵了
+    static func spawnEnvironment(shellPath: String) -> [String: String] {
         var env = ShellResolver.environmentDict()
         let integrationEnabled = UserDefaults.standard.object(forKey: SettingsKeys.shellIntegration) as? Bool ?? true
         if integrationEnabled {
             ShellIntegration.apply(to: &env, shellPath: shellPath)
         }
+        return env
+    }
+
+    private func start(in directory: String?) {
+        let env = Self.spawnEnvironment(shellPath: shellPath)
         let cwd = directory ?? FileManager.default.homeDirectoryForCurrentUser.path
         workingDirectory = cwd
         probeGitBranch(cwd)
         // 保活依赖启动恢复:恢复关了没人接回会话,守护进程只会攒僵尸。
         // 单测宿主 app 里禁用:测试不该拉起真守护进程、留下真 shell 会话
-        let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
-            && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
-            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
-        if keepAlive, manager != nil { // 下拉终端(manager nil)不参与保活
+        if PtyHostClient.keepAliveEnabled, manager != nil { // 下拉终端(manager nil)不参与保活
             let reattach = pendingReattach
             pendingReattach = nil
             Task { await startViaHost(env: env, cwd: cwd, reattach: reattach) }
-        } else if spawnDelay > 0 {
-            // 恢复错峰(本地直连路径):批量冷启动排队,削掉并发尖峰
-            Task {
-                try? await Task.sleep(for: .seconds(spawnDelay))
-                guard !didShutdown else { return }
-                launchLocal(env: env, cwd: cwd)
-            }
-        } else {
+        } else if spawnForeground {
+            // 用户正等着这个 pane:占下前台名额(后台 pane 为它让路)后直接起
+            ShellSpawnQueue.shared.claimForeground(id)
+            spawnSlotHeld = true
             launchLocal(env: env, cwd: cwd)
+        } else {
+            Task { await launchLocalQueued(env: env, cwd: cwd) }
         }
     }
 
-    /// 恢复错峰:>0 时冷启动 spawn 推迟这么久再发(接回活会话的 attach 不延迟)
-    private let spawnDelay: TimeInterval
+    /// 冷孵化优先级:true = 用户正看着的 pane(立即起),false = 后台标签(排队)。
+    /// 接回活会话的 attach 不受此约束——那条路不花钱
+    private let spawnForeground: Bool
+    /// 是否正占着孵化名额(出首屏/关闭时归还)
+    private var spawnSlotHeld = false
     /// 已关闭标记:错峰等待期间 pane 被关掉的话,别再把 shell 拉起来留孤儿
     private var didShutdown = false
 
@@ -327,15 +332,37 @@ final class TerminalSession: Identifiable {
         markTransportReady()
     }
 
-    /// 保活接不上时的回落:沿用恢复错峰。原来直奔 launchLocal,批量恢复一旦回落
+    /// 保活接不上时的回落:同样走孵化排队。原来直奔 launchLocal,批量恢复一旦回落
     /// 就是上百个 zsh 挤在同一秒起爆——首屏空白好几分钟,和卡死没法区分
     private func launchLocalFallback(env: [String: String], cwd: String) async {
-        if spawnDelay > 0 {
-            try? await Task.sleep(for: .seconds(spawnDelay))
-            guard !didShutdown else { return }
-        }
+        guard await acquireSpawnSlot() else { return }
         feedFallbackNotice()
         launchLocal(env: env, cwd: cwd)
+    }
+
+    /// 保活关闭时的本地直连:批量恢复一样会起几十个 shell,照走队列
+    private func launchLocalQueued(env: [String: String], cwd: String) async {
+        guard await acquireSpawnSlot() else { return }
+        launchLocal(env: env, cwd: cwd)
+    }
+
+    /// 排队等一个孵化名额。等待期间 pane 被关掉则归还名额并返回 false
+    private func acquireSpawnSlot() async -> Bool {
+        guard !spawnSlotHeld else { return !didShutdown }
+        await ShellSpawnQueue.shared.acquire(id, foreground: spawnForeground)
+        guard !didShutdown else {
+            ShellSpawnQueue.shared.release(id)
+            return false
+        }
+        spawnSlotHeld = true
+        return true
+    }
+
+    /// shell 出了第一段输出(≈提示符),把孵化名额让给下一个
+    private func releaseSpawnSlot() {
+        guard spawnSlotHeld else { return }
+        spawnSlotHeld = false
+        ShellSpawnQueue.shared.release(id)
     }
 
     /// 回落是静默降级(保活没了却看不出来):在屏上留一行,退出前就知道这会话不保留
@@ -359,6 +386,7 @@ final class TerminalSession: Identifiable {
 
     /// 保活路径:shell 进程活在 termite-ptyhost 里,app 只是显示器
     private func startViaHost(env: [String: String], cwd: String, reattach: PtyReattach?) async {
+        LaunchTrace.mark("pty.request", reattach == nil ? "create" : "reattach")
         let client = PtyHostClient.shared
         let hint = longWaitHint()
         let ready = await client.ensureReady()
@@ -374,12 +402,9 @@ final class TerminalSession: Identifiable {
             // 票据照常落盘,下次启动仍能接回真身
             orphanedReattach = reattach
         }
-        // 恢复错峰:接不回才需要冷启动 spawn,批量恢复时排队发出,
-        // 别十几个 zsh 同一秒挤爆 CPU(空屏干等提示符的元凶);选中标签延迟为 0
-        if spawnDelay > 0 {
-            try? await Task.sleep(for: .seconds(spawnDelay))
-            guard !didShutdown else { return }
-        }
+        // 接不回才需要冷启动 spawn:排队领名额,别几十个 zsh 同一秒挤爆内核
+        //(空屏干等提示符的元凶);可见 pane 立即拿到
+        guard await acquireSpawnSlot() else { return }
         let terminal = terminalView.getTerminal()
         let request = PtyCreateRequest(
             id: id, shellPath: shellPath, argv0: "-" + shellName,
@@ -405,7 +430,8 @@ final class TerminalSession: Identifiable {
 
     /// 重连活会话:LIST 验活 → 按已消费偏移续传 backlog → 尺寸轻推触发重绘
     private func tryReattach(_ reattach: PtyReattach, client: PtyHostClient) async -> Bool {
-        guard let listing = await client.list(),
+        // 名单走合流版:启动恢复时几十个 pane 同时问一模一样的问题
+        guard let listing = await client.listShared(),
               let info = listing.first(where: { $0.id == reattach.id }) else { return false }
         guard info.alive else {
             client.kill(id: reattach.id) // 死会话:清掉守护进程里的记录,走全新启动
@@ -494,6 +520,7 @@ final class TerminalSession: Identifiable {
     /// 这里像 Terminal.app 一样先对整个进程组发 SIGHUP,连同前台命令一起挂断。
     func shutdown() {
         didShutdown = true
+        releaseSpawnSlot()
         stopLogging()
         stopCasting()
         gitProbeTask?.cancel()
@@ -535,8 +562,16 @@ final class TerminalSession: Identifiable {
         }
     }
 
+    /// 当前终端网格(登录预热计划按它孵 shell:尺寸对不上就不交付)
+    var grid: (cols: Int, rows: Int) {
+        let terminal = terminalView.getTerminal()
+        return (terminal.cols, terminal.rows)
+    }
+
     func focusTerminal() {
-        terminalView.window?.makeFirstResponder(terminalView)
+        guard let window = terminalView.window else { return }
+        window.makeFirstResponder(terminalView)
+        LaunchTrace.mark("focus")
     }
 
     /// Mac 侧的一切主动输入(键入以外的目录跳转、历史命令、文件浏览器等)都走这里:
@@ -589,6 +624,7 @@ final class TerminalSession: Identifiable {
     /// 传输落定(保活接通 / 本地 shell 启动)后调用:补发就绪前攒下的键入
     private func markTransportReady() {
         transportReady = true
+        LaunchTrace.mark("pty.ready", hostPtyID == nil ? "local" : "host")
         // 重连的 backlog 在此之后立刻回灌,其中的历史 BEL 不算注意力
         bellArmedAt = max(bellArmedAt, Date().addingTimeInterval(2))
         // 视图常在 create 应答前就挂载到真实尺寸,那次 winsize 同步因传输未就绪被丢弃,
@@ -703,6 +739,12 @@ final class TerminalSession: Identifiable {
 
     /// 处理原始 PTY 输出:录制、扫描 OSC 133 事件,分段喂给终端,使标记与光标状态对齐
     func processOutput(_ bytes: ArraySlice<UInt8>) {
+        // 出了第一段输出 ≈ 提示符已就位:让出孵化名额,下一个 pane 可以起了
+        releaseSpawnSlot()
+        // 启动埋点:选中 pane 的第一段输出 ≈ 用户看到提示符的时刻
+        if LaunchTrace.isActive, manager?.selected === self {
+            LaunchTrace.mark("output.first")
+        }
         let synchronizedOutputOffset = synchronizedOutputScanner.scan(bytes)
         defer {
             RemoteSessionHub.shared.observeTerminalMode(
@@ -755,6 +797,9 @@ final class TerminalSession: Identifiable {
             inlineTUIActive = false
             runningCommand = false
             recordCommandMark()
+            // 回到提示符 = 没有程序在管光标了:把上一条命令(vim/fzf/nvim)留下的
+            // DECSCUSR 形状交还用户偏好,不让一枚不闪的死方块赖在提示符上
+            terminalView.restoreCursorPreference()
         case .commandStart:
             // 提示符画完、命令输入区起点:⌘E 捕获已键入内容的锚
             commandOrigin = (currentScrollInvariantRow(), terminalView.getTerminal().buffer.x)

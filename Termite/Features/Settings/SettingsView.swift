@@ -357,6 +357,7 @@ private struct SessionSettingsPage: View {
     @AppStorage(SettingsKeys.confirmBeforeClosingTab) private var confirmBeforeClosingTab = true
     @AppStorage(SettingsKeys.restoreSessions) private var restoreSessions = true
     @AppStorage(SettingsKeys.sessionPersistence) private var sessionPersistence = true
+    @AppStorage(SettingsKeys.prewarmAtLogin) private var prewarmAtLogin = false
     @AppStorage(SettingsKeys.notifyLongCommand) private var notifyLongCommand = true
     @AppStorage(SettingsKeys.attentionDetection) private var attentionDetection = true
     @AppStorage(SettingsKeys.notifyAttention) private var notifyAttention = true
@@ -384,6 +385,20 @@ private struct SessionSettingsPage: View {
                     isOn: $sessionPersistence
                 )
                 .disabled(!restoreSessions)
+                SettingsToggleRow(
+                    title: "登录时预热会话",
+                    caption: "开机登录就把上次那些标签的 shell 提前起好;重启电脑后首次打开不必干等",
+                    isOn: $prewarmAtLogin
+                )
+                .disabled(!restoreSessions || !sessionPersistence)
+                .onChange(of: prewarmAtLogin) { _, enabled in
+                    if enabled {
+                        LoginPrewarm.install()
+                        SessionManagerRegistry.shared.persistPrewarmPlan()
+                    } else {
+                        LoginPrewarm.uninstall()
+                    }
+                }
             }
 
             SettingsGroup("通知") {

@@ -406,6 +406,42 @@ final class SessionManagerRegistry {
         guard let data = try? JSONEncoder().encode(state) else { return }
         UserDefaults.standard.set(data, forKey: Self.savedStateKey)
         UserDefaults.standard.removeObject(forKey: Self.legacyOpenTabsKey)
+        if includeScrollback { persistPrewarmPlan() } // 退出/关窗即最终状态,顺手更新预热计划
+    }
+
+    /// 落一份登录预热计划:下次登录时守护进程照着提前孵 shell。
+    /// 顺序 = 恢复顺序(当前窗口的选中标签排最前),守护进程只取前若干个
+    func persistPrewarmPlan() {
+        guard UserDefaults.standard.bool(forKey: SettingsKeys.prewarmAtLogin),
+              PtyHostClient.keepAliveEnabled else {
+            LoginPrewarm.removePlan()
+            return
+        }
+        let shellPath = ShellResolver.loginShell()
+        var entries: [PtyPrewarmPlan.Entry] = []
+        // 活跃窗口在前,窗口内选中标签在前——与恢复时的 CREATE 顺序对齐
+        let orderedManagers = managers.sorted { lhs, _ in lhs === activeManager }
+        for manager in orderedManagers {
+            let tabs = manager.snapshotTabs.sorted { lhs, _ in lhs.id == manager.selectedTabID }
+            for tab in tabs {
+                for id in tab.root.leafIDs() {
+                    guard let session = manager.session(id), !session.isSerial,
+                          let cwd = session.workingDirectory else { continue }
+                    let grid = session.grid
+                    entries.append(PtyPrewarmPlan.Entry(cwd: cwd, cols: grid.cols, rows: grid.rows))
+                }
+            }
+        }
+        guard !entries.isEmpty else {
+            LoginPrewarm.removePlan()
+            return
+        }
+        LoginPrewarm.writePlan(PtyPrewarmPlan(
+            shellPath: shellPath,
+            argv0: "-" + (shellPath as NSString).lastPathComponent,
+            env: TerminalSession.spawnEnvironment(shellPath: shellPath),
+            entries: Array(entries.prefix(16))
+        ))
     }
 
     static func loadSavedState() -> SavedAppState? {
@@ -449,13 +485,29 @@ final class SessionManagerRegistry {
         return pendingFrames[ObjectIdentifier(manager)]
     }
 
-    /// 恢复完成后把上次的 key 窗口找回来(等后续窗口都开出来再聚焦,600ms 足够本机开窗)
+    /// 恢复完成后把上次的 key 窗口找回来:后续窗口一开齐就归位
+    ///(windowRestoreFinished 触发),600ms 兜底给「窗口没能全部开出来」的情况
     func scheduleActiveWindowFocus(managerIndex: Int) {
+        pendingActiveWindowIndex = managerIndex
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            guard let self, self.managers.indices.contains(managerIndex) else { return }
-            let manager = self.managers[managerIndex]
-            self.window(of: manager)?.makeKeyAndOrderFront(nil)
-            manager.selected?.focusTerminal()
+            self?.applyPendingActiveWindowFocus()
         }
     }
+
+    /// 某个恢复窗口的标签重建完毕。最后一个到齐时立刻归位,不必干等兜底延迟
+    func windowRestoreFinished() {
+        guard pendingActiveWindowIndex != nil, pendingWindowStates.isEmpty else { return }
+        DispatchQueue.main.async { [weak self] in self?.applyPendingActiveWindowFocus() }
+    }
+
+    /// 目标窗口还没出现就按兵不动(兜底延迟会再来一遍)
+    private func applyPendingActiveWindowFocus() {
+        guard let index = pendingActiveWindowIndex, managers.indices.contains(index),
+              let window = window(of: managers[index]) else { return }
+        pendingActiveWindowIndex = nil
+        window.makeKeyAndOrderFront(nil)
+        managers[index].selected?.focusTerminal()
+    }
+
+    @ObservationIgnored private var pendingActiveWindowIndex: Int?
 }

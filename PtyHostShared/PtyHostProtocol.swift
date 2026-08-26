@@ -149,6 +149,23 @@ struct PtyError: Codable {
     var message: String
 }
 
+/// 登录预热计划:app 落盘,守护进程被 LaunchAgent 在登录时拉起后照着提前孵化 shell。
+/// 「重启电脑后第一次启动」是唯一一次所有 shell 都得冷孵化的场景(实测 33 个 zsh
+/// 同时起,连选中标签都要 2s、整波 10s),把这份成本挪到登录时——那会儿没人在等。
+struct PtyPrewarmPlan: Codable {
+    struct Entry: Codable {
+        var cwd: String
+        var cols: Int
+        var rows: Int
+    }
+    var shellPath: String
+    var argv0: String
+    /// shell 的环境变量:必须与 app 之后 CREATE 时送来的一致,否则预热的 shell 作废
+    var env: [String: String]
+    /// 按 app 的恢复顺序排(选中标签在前)
+    var entries: [Entry]
+}
+
 enum PtyHostPaths {
     /// 版本号编进文件名:协议演进即换新 socket,老守护进程不受打扰。
     /// 构建身份(非正式 bundle id / Debug)也编进来:demo 录制、开发构建各用各的
@@ -165,6 +182,11 @@ enum PtyHostPaths {
         #endif
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Termite/\(name)-v\(ptyHostProtocolVersion).sock")
+    }
+
+    /// 预热计划文件:与 socket 同一套构建隔离规则
+    static var prewarmPlanURL: URL {
+        socketURL.deletingPathExtension().appendingPathExtension("prewarm.json")
     }
 }
 

@@ -65,11 +65,15 @@ struct TermiteApp: App {
     @NSApplicationDelegateAdaptor(TermiteAppDelegate.self) private var appDelegate
 
     init() {
+        LaunchTrace.mark("app.init")
         // 启动即强制整个 app 跟随主题深浅,避免打开时先闪一下系统浅色
         ThemeStore.shared.applyWindowChrome()
         ShellIntegration.ensureInstalled()
         QuickTerminalController.shared.registerHotKeyIfEnabled()
         RemoteAccessServer.shared.startIfEnabled()
+        // 守护进程握手与首帧并发跑:原来最早的 connect 要等首帧之后的会话恢复,
+        // 白白串在 UI 启动后面(冷拉起守护进程时更贵)
+        PtyHostClient.prewarmForLaunch()
         // 更新检查让位启动恢复:延后几秒再发网络请求
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))

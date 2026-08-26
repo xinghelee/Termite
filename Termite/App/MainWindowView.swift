@@ -18,6 +18,7 @@ struct MainWindowView: View {
     var body: some View {
         content(manager)
             .task {
+                LaunchTrace.mark("window.ready")
                 theme.applyWindowChrome()
                 // 首窗口恢复多窗口存档时,把其余窗口逐个开出来(各自认领挂起状态)
                 for key in manager.restoreOrCreateInitialTabs(windowKey: windowKey) {

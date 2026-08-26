@@ -5,7 +5,8 @@ import Foundation
 /// 输出进环形缓冲,客户端在线时同步转发。
 /// 所有方法都在 HostServer 的串行队列上调用。
 final class HostSession {
-    let id: UUID
+    /// 预热池里的 shell 被交付时会改挂成客户端请求的 id(见 HostServer.claimPooled)
+    private(set) var id: UUID
     let pid: pid_t
     let cwd: String
     let startedAt = Date()
@@ -21,6 +22,11 @@ final class HostSession {
     private let writer: FDWriter
     /// 输出到达时回调(已在队列上);exited 由 HostServer 的 SIGCHLD 统一分发
     var onOutput: ((UUID, UInt64, Data) -> Void)?
+
+    /// 预热 shell 交付给一个真会话:改挂 id(输出帧按它寻址)
+    func adopt(id newID: UUID) {
+        id = newID
+    }
 
     init(request: PtyCreateRequest, queue: DispatchQueue) throws {
         id = request.id

@@ -1381,6 +1381,26 @@
         }
       }
     },
+    "最大化当前分屏:占满终端区(⇧⌘↩)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximize current pane: fill the terminal area (⇧⌘↩)"
+          }
+        }
+      }
+    },
+    "最大化此分屏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximize This Pane"
+          }
+        }
+      }
+    },
     "分屏在等待你的输入" : {
       "localizations" : {
         "en" : {
@@ -2572,6 +2592,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Application"
+          }
+        }
+      }
+    },
+    "开机登录就把上次那些标签的 shell 提前起好;重启电脑后首次打开不必干等" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start your last session's shells right at login, so the first launch after a reboot doesn't keep you waiting"
           }
         }
       }
@@ -3860,6 +3890,16 @@
         }
       }
     },
+    "登录时预热会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prewarm sessions at login"
+          }
+        }
+      }
+    },
     "监听失败:%@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -4768,6 +4808,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back to File Tree"
+          }
+        }
+      }
+    },
+    "还原分屏布局" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Split Layout"
+          }
+        }
+      }
+    },
+    "还原分屏布局(⇧⌘↩)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore split layout (⇧⌘↩)"
           }
         }
       }

@@ -28,4 +28,12 @@ do {
 server.run()
 log("termite-ptyhost 启动,协议 v\(ptyHostProtocolVersion),socket=\(socketURL.path)")
 
+// LaunchAgent 模式:登录时被拉起,常驻等用户打开 app;带 --prewarm 时
+// 照着 app 落下的计划提前把 shell 孵好(重启电脑后的首启不用再等几十个冷 shell)
+if CommandLine.arguments.contains("--resident") {
+    let plan = CommandLine.arguments.contains("--prewarm") ? PtyHostPaths.prewarmPlanURL : nil
+    server.enableResident(prewarmPlan: plan)
+    log("常驻模式\(plan == nil ? "" : ",预热计划=\(plan!.path)")")
+}
+
 dispatchMain()

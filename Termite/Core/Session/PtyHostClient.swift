@@ -35,6 +35,23 @@ final class PtyHostClient {
 
     var isConnected: Bool { fd >= 0 }
 
+    /// 保活是否启用:设置里的两个开关都开着,且不在单测宿主里
+    ///(测试不该拉起真守护进程、留下真 shell)。会话启动、孤儿收养、启动预热共用
+    static var keepAliveEnabled: Bool {
+        (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
+            && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    /// 启动预热:恢复流程一定会用到守护进程时,握手与首帧并发跑。
+    /// 原来最早的 connect 发生在首帧之后的会话恢复里,握手(冷拉起守护进程更甚)
+    /// 整段串在 UI 启动后面;存档为空(欢迎页)则不预热,免得白拉一个守护进程
+    static func prewarmForLaunch() {
+        guard keepAliveEnabled,
+              let state = SessionManagerRegistry.loadSavedState(), !state.windows.isEmpty else { return }
+        Task { @MainActor in _ = await shared.ensureReady() }
+    }
+
     // MARK: - 连接与握手
 
     /// 确保已连接且版本握手通过;必要时拉起守护进程(spawnIfNeeded=false 只连不拉,
@@ -81,8 +98,12 @@ final class PtyHostClient {
         var deadline = Date().addingTimeInterval(Self.listeningBudget)
         while Date() < deadline {
             switch await handshake(path: path) {
-            case .ready: return true
-            case .rejected: return false // 版本不符 / 握手无应答:放弃保活
+            case .ready:
+                LaunchTrace.mark("daemon.ready", daemon == nil ? "warm" : "spawned")
+                return true
+            case .rejected:
+                LaunchTrace.mark("daemon.ready", "rejected")
+                return false // 版本不符 / 握手无应答:放弃保活
             case .notListening: break
             }
             if daemon == nil {
@@ -102,6 +123,7 @@ final class PtyHostClient {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         Self.log.error("等守护进程就绪超时,回落本地直连(本次会话不保活)")
+        LaunchTrace.mark("daemon.ready", "timeout")
         return false
     }
 
@@ -348,6 +370,27 @@ final class PtyHostClient {
               reply.0 == .listing else { return nil }
         return PtyFrameCodec.decodeJSON(reply.1)
     }
+
+    /// 启动恢复期的 LIST 合流:几十个会话各发一次 LIST 就是几十个往返,
+    /// 每次还要在主线程解一整份名单(会话数的平方级白工)。窗口期内共享同一次应答——
+    /// 名单只用来判「还活着吗 / 从哪个偏移续传」,过期一点点只意味着多回放几字节
+    func listShared(maxAge: TimeInterval = 1.5) async -> [PtySessionInfo]? {
+        if let cached = cachedListing, Date().timeIntervalSince(cached.at) < maxAge {
+            return cached.sessions
+        }
+        if let inFlight = listingTask { return await inFlight.value }
+        let task = Task { @MainActor () -> [PtySessionInfo]? in
+            let listing = await self.list()
+            self.listingTask = nil
+            if let listing { self.cachedListing = (Date(), listing) }
+            return listing
+        }
+        listingTask = task
+        return await task.value
+    }
+
+    private var cachedListing: (at: Date, sessions: [PtySessionInfo])?
+    private var listingTask: Task<[PtySessionInfo]?, Never>?
 
     func input(id: UUID, _ bytes: [UInt8]) {
         guard !bytes.isEmpty else { return }

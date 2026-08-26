@@ -269,14 +269,14 @@ final class SessionManager {
         return ProjectStore.shared.projects.first { SpaceStore.shared.isVisible($0) }?.path
     }
 
-    /// 恢复错峰基准:>0 时新会话冷启动排队(每建一个自增 0.15s),恢复完归零
-    @ObservationIgnored private var pendingSpawnDelay: TimeInterval = 0
+    /// 正在重建的是不是「用户马上要看到的」标签:false 时新会话的冷孵化进队列排队
+    ///(恢复期由 restoreWindow 逐个标签设置,平时新建标签恒为 true)
+    @ObservationIgnored private var pendingSpawnForeground = true
 
     private func makeSession(directory: String?, scrollback: String? = nil, reattach: PtyReattach? = nil) -> TerminalSession {
-        let delay = pendingSpawnDelay
-        if delay > 0 { pendingSpawnDelay += 0.15 }
         let session = TerminalSession(workingDirectory: directory, restoreScrollback: scrollback,
-                                      reattach: reattach, spawnDelay: delay, manager: self)
+                                      reattach: reattach, spawnForeground: pendingSpawnForeground,
+                                      manager: self)
         session.onProcessExit = { [weak self, weak session] in
             guard let self, let session else { return }
             self.closePane(session)
@@ -309,6 +309,14 @@ final class SessionManager {
                 self.relayoutVeilVisible = false
             }
         }
+    }
+
+    /// 指定 pane 的最大化(工具栏按钮 / 右键菜单):先把焦点交给它再放大,
+    /// 免得点了 A 却放大了别处的 B
+    func toggleMaximizePane(_ sessionID: UUID) {
+        guard let tab = selectedTab, tab.root.leafIDs().contains(sessionID) else { return }
+        if tab.maximizedID == nil, tab.focusedID != sessionID { focusPane(sessionID) }
+        toggleMaximizePane()
     }
 
     /// ⇧⌘↩:临时最大化当前 pane / 还原分屏布局
@@ -496,6 +504,7 @@ final class SessionManager {
     /// 点击某个 pane 聚焦它
     func focusPane(_ sessionID: UUID) {
         guard let tab = tabs.first(where: { $0.root.leafIDs().contains(sessionID) }) else { return }
+        ShellSpawnQueue.shared.promote([sessionID])
         selectedTabID = tab.id
         tab.focusedID = sessionID
         session(sessionID)?.focusTerminal()
@@ -595,7 +604,9 @@ final class SessionManager {
     // MARK: - 选择
 
     func selectTab(_ id: PaneTab.ID) {
-        guard tabs.contains(where: { $0.id == id }) else { return }
+        guard let tab = tabs.first(where: { $0.id == id }) else { return }
+        // 还在排队等冷孵化的 pane:用户点开了就插队(人在等)
+        ShellSpawnQueue.shared.promote(tab.root.leafIDs())
         selectedTabID = id
         rememberSpaceTab()
         selected?.focusTerminal()
@@ -817,6 +828,7 @@ final class SessionManager {
         // 多窗口恢复:本窗口是首窗口 openWindow 开出来的后续窗口,认领自己那份状态
         if let windowKey, let pending = registry.takePendingWindowState(for: windowKey) {
             restoreWindow(from: pending)
+            registry.windowRestoreFinished()
             return []
         }
         // 单测宿主不读用户存档:避免把真实会话在测试现场重建一遍(也不该收养孤儿)
@@ -865,24 +877,34 @@ final class SessionManager {
 
     /// 按单个窗口的存档重建:标签 + 选中标签 + 窗口 frame(frame 挂起到 bind 时应用)
     private func restoreWindow(from state: SavedWindowState) {
+        LaunchTrace.mark("restore.begin", "tabs=\(state.tabs.count)")
         SessionManagerRegistry.shared.setPendingFrame(state.frame, for: self)
         let selectedIndex = state.selectedIndex ?? 0
-        for (index, tabState) in state.tabs.enumerated() {
-            // 冷启动错峰:选中标签(用户正盯着的)不延迟,其余从 0.3s 起排队
-            // ——批量恢复时十几个 zsh 同一秒并发冷启动,提示符要空等好几秒
-            pendingSpawnDelay = index == selectedIndex ? 0 : max(pendingSpawnDelay, 0.3)
-            openTab(from: tabState)
+        // 选中标签先重建:它的 attach/create 要抢在其余标签之前发出。按存档顺序
+        // 一路建下来的话,选中标签排第 24 位就得等前 23 个标签的视图与回灌做完
+        let buildOrder = [selectedIndex] + state.tabs.indices.filter { $0 != selectedIndex }
+        var builtTabs: [Int: UUID] = [:]
+        for index in buildOrder where state.tabs.indices.contains(index) {
+            // 冷孵化排队:只有选中标签(用户正盯着的)立即起,其余进队列
+            // ——批量恢复时几十个 zsh 同时冷启动,连选中标签都被拖慢一倍
+            pendingSpawnForeground = index == selectedIndex
+            let countBefore = tabs.count
+            openTab(from: state.tabs[index])
+            if tabs.count > countBefore, let tab = tabs.last { builtTabs[index] = tab.id }
         }
-        pendingSpawnDelay = 0
-        if let index = state.selectedIndex, tabs.indices.contains(index) {
-            selectedTabID = tabs[index].id
-        } else {
-            selectedTabID = tabs.first?.id
-        }
-        // 视图挂载后把键盘焦点交给选中终端(恢复路径没有点击事件可依赖)
+        pendingSpawnForeground = true
+        // 上面是「选中优先」的构造顺序,标签栏该按存档顺序排,这里归位
+        let savedPosition = Dictionary(uniqueKeysWithValues: builtTabs.map { ($0.value, $0.key) })
+        tabs.sort { (savedPosition[$0.id] ?? .max) < (savedPosition[$1.id] ?? .max) }
+        selectedTabID = builtTabs[selectedIndex] ?? tabs.first?.id
+        // 视图挂载后把键盘焦点交给选中终端(恢复路径没有点击事件可依赖)。
+        // 挂载时机由 TermiteTerminalView.viewDidMoveToWindow 兜住,这里补两拍:
+        // 视图已就位就立刻拿到焦点,再留一次延迟重试防挂载晚于这一拍
+        DispatchQueue.main.async { [weak self] in self?.selected?.focusTerminal() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.selected?.focusTerminal()
         }
+        LaunchTrace.mark("restore.end", "panes=\(sessions.count)")
         // 重建完成的完整布局(分屏/焦点/最大化)立即落盘:
         // newTab 触发的中途快照只有首 pane,恢复完就崩溃的话存档会退化
         persistOpenTabs()
@@ -891,10 +913,7 @@ final class SessionManager {
     /// 孤儿保活会话收养:LIST 守护进程 → 不在恢复名单里的活会话开新标签接回,
     /// 死会话清掉记录。守护进程没在跑就不拉起(没有守护进程自然没有孤儿)。
     private func adoptOrphanHostSessions(claimed: Set<UUID>) async {
-        let keepAlive = (UserDefaults.standard.object(forKey: SettingsKeys.sessionPersistence) as? Bool ?? true)
-            && (UserDefaults.standard.object(forKey: SettingsKeys.restoreSessions) as? Bool ?? true)
-            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
-        guard keepAlive else { return }
+        guard PtyHostClient.keepAliveEnabled else { return }
         let client = PtyHostClient.shared
         guard await client.ensureReady(spawnIfNeeded: false),
               let listing = await client.list() else { return }

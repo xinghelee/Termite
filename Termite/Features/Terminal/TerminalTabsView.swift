@@ -406,6 +406,20 @@ struct TerminalTabsView: View {
                 }
             }
             if let tab = sessionManager.selectedTab, tab.root.leafIDs().count > 1 {
+                // 最大化的可见入口:⇧⌘↩ 藏在菜单里没人找得到(用户反馈)
+                PanelIconButton(
+                    symbol: tab.maximizedID == nil
+                        ? "arrow.up.left.and.arrow.down.right"
+                        : "arrow.down.right.and.arrow.up.left",
+                    help: tab.maximizedID == nil
+                        ? String(localized: "最大化当前分屏:占满终端区(⇧⌘↩)")
+                        : String(localized: "还原分屏布局(⇧⌘↩)"),
+                    tint: tab.maximizedID == nil ? nil : ThemeStore.shared.current.accentColor
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        sessionManager.toggleMaximizePane()
+                    }
+                }
                 PanelIconButton(
                     symbol: "rectangle.split.3x1",
                     help: String(localized: "巡视分屏:等宽横排滑动(⇧⌘\\)"),
