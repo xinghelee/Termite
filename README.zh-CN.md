@@ -128,6 +128,7 @@ Termite 自动启用或注入 zsh、bash、fish 的 Shell 集成，无需修改 
 
 - **Git 面板**：按 <kbd>⌘G</kbd> 打开提交图、词级 Diff、Blame 和单文件历史；支持暂存、取消暂存、丢弃、切换分支、Cherry-pick 与 Revert。
 - **工作区导航**：<kbd>⌘P</kbd> 命令面板、<kbd>⌘O</kbd> 目录跳转、<kbd>⇧⌘E</kbd> 文件浏览器、项目侧边栏和端口管理。
+- **开箱即用的 Nerd Font**：默认字体内置 JetBrains Mono Nerd Font，powerlevel10k、starship、eza 的图标零配置直出；自选字体缺图标时自动回退补齐。
 - **原生 macOS 体验**：20 套主题覆盖整个窗口；全局下拉终端默认使用 <kbd>⌃⌥⌘Space</kbd>；可安装 `termite` 命令或把文件夹拖到 Dock 图标上打开。
 
 ## 远程访问：仅限你信任的网络

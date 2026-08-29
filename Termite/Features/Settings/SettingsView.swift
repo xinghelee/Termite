@@ -193,9 +193,9 @@ private struct TerminalSettingsPage: View {
     var body: some View {
         SettingsPage {
             SettingsGroup("字体") {
-                SettingsRow(title: "字体族") {
+                SettingsRow(title: "字体族", caption: "默认字体内置 Nerd Font 图标;自选字体缺图标时自动回退补齐") {
                     Picker("", selection: $fontFamily) {
-                        Text("系统等宽(SF Mono)").tag("")
+                        Text("默认(JetBrains Mono)").tag("")
                         ForEach(families, id: \.self) { family in
                             Text(family).tag(family)
                         }

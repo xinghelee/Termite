@@ -128,6 +128,7 @@ Termite automatically enables or injects shell integration for zsh, bash, and fi
 
 - **Git panel:** press <kbd>⌘G</kbd> for the commit graph, word-level diffs, blame, and file history. Stage, unstage, discard, switch branches, cherry-pick, and revert in place.
 - **Workspace navigation:** <kbd>⌘P</kbd> command palette, <kbd>⌘O</kbd> directory jumper, <kbd>⇧⌘E</kbd> file browser, project sidebar, and port manager.
+- **Nerd Font out of the box:** JetBrains Mono Nerd Font ships as the default, so powerlevel10k, starship, and eza icons render with zero setup; custom fonts fall back automatically for missing icons.
 - **At home on macOS:** 20 themes cover the entire window; the global drop-down terminal defaults to <kbd>⌃⌥⌘Space</kbd>; install the <code>termite</code> command or drop a folder onto the Dock icon to open it.
 
 ## Remote access, only on networks you trust

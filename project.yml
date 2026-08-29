@@ -33,6 +33,12 @@ targets:
       - path: RemoteWeb
         type: folder
         buildPhase: resources
+      # 内置字体(folder reference 拷进 Resources/Fonts,由 ATSApplicationFontsPath 注册):
+      # JetBrainsMono Nerd Font Mono 四面 = 默认字体(图标严格单格宽,粗斜体真字面);
+      # Symbols Nerd Font Mono = 自选字体的图标级联回退
+      - path: Fonts
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: SwiftTerm
       # 只要构建顺序,不链接;产物由 postBuildScripts 拷进 bundle
@@ -59,6 +65,8 @@ targets:
         CFBundleVersion: "32"
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHighResolutionCapable: true
+        # 内置 Nerd Font(Resources/Fonts)进程内注册,app 启动时由 AppKit 自动加载
+        ATSApplicationFontsPath: Fonts
         # 允许 Finder/Dock 把文件夹拖到图标上(在该目录开新标签)
         CFBundleDocumentTypes:
           - CFBundleTypeName: Folder
