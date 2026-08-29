@@ -42,21 +42,21 @@ final class FontPrefsTests: XCTestCase {
     func testBundledFontsRegisteredInAppBundle() {
         // ATSApplicationFontsPath 注册成功的直接证据
         XCTAssertNotNil(NSFont(name: FontPrefs.bundledFamily, size: 13))
-        XCTAssertNotNil(NSFont(name: "SymbolsNFM", size: 13))
+        XCTAssertNotNil(NSFont(name: "SymbolsNF", size: 13))
     }
 
     func testDefaultFontIsBundledNerdFont() {
-        XCTAssertEqual(FontPrefs.font().fontName, "JetBrainsMonoNFM-Regular")
+        XCTAssertEqual(FontPrefs.font().fontName, "JetBrainsMonoNF-Regular")
     }
 
     func testDefaultFontRendersNerdGlyphsNatively() {
         let resolved = runFonts(sample, font: FontPrefs.font())
         for scalar in ["\u{E0B0}", "\u{E62B}", "\u{F09B}", "\u{F0868}"] {
-            XCTAssertEqual(fontName(for: scalar, in: resolved), "JetBrainsMonoNFM-Regular")
+            XCTAssertEqual(fontName(for: scalar, in: resolved), "JetBrainsMonoNF-Regular")
         }
         // 级联不能砸掉系统回退:中文照走苹方,ASCII 留在正文字体
         XCTAssertTrue(fontName(for: "汉", in: resolved)?.contains("PingFang") ?? false)
-        XCTAssertEqual(fontName(for: "A", in: resolved), "JetBrainsMonoNFM-Regular")
+        XCTAssertEqual(fontName(for: "A", in: resolved), "JetBrainsMonoNF-Regular")
     }
 
     func testCustomFontFallsBackToSymbolsForNerdGlyphs() {
@@ -65,7 +65,7 @@ final class FontPrefsTests: XCTestCase {
         XCTAssertEqual(font.fontName, "Menlo-Regular")
         let resolved = runFonts(sample, font: font)
         for scalar in ["\u{E0B0}", "\u{E62B}", "\u{F09B}", "\u{F0868}"] {
-            XCTAssertEqual(fontName(for: scalar, in: resolved), "SymbolsNFM")
+            XCTAssertEqual(fontName(for: scalar, in: resolved), "SymbolsNF")
         }
         XCTAssertTrue(fontName(for: "汉", in: resolved)?.contains("PingFang") ?? false)
     }
@@ -73,15 +73,15 @@ final class FontPrefsTests: XCTestCase {
     func testBoldDerivationKeepsNerdGlyphs() {
         // SwiftTerm FontSet 同款派生:必须命中内置真字面,图标不丢
         let bold = NSFontManager.shared.convert(FontPrefs.font(), toHaveTrait: [.boldFontMask])
-        XCTAssertEqual(bold.fontName, "JetBrainsMonoNFM-Bold")
+        XCTAssertEqual(bold.fontName, "JetBrainsMonoNF-Bold")
         let resolved = runFonts(sample, font: bold)
-        XCTAssertEqual(fontName(for: "\u{E0B0}", in: resolved), "JetBrainsMonoNFM-Bold")
+        XCTAssertEqual(fontName(for: "\u{E0B0}", in: resolved), "JetBrainsMonoNF-Bold")
     }
 
     func testFamilyPickerExcludesInternalFonts() {
         let families = FontPrefs.monospacedFamilies()
         // 图标字体没有正文字形;内置默认族由「默认」项承载,不重复出现
-        XCTAssertFalse(families.contains("Symbols Nerd Font Mono"))
+        XCTAssertFalse(families.contains("Symbols Nerd Font"))
         XCTAssertFalse(families.contains(FontPrefs.bundledFamily))
     }
 }
