@@ -920,6 +920,19 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
+        // kitty 键盘协议下(Claude Code 申请 disambiguate|reportAlternates),SwiftTerm 把输入法
+        // 上屏的字按物理键编成 CSI-u,上屏文字被丢:中文模式下 ，被吞、Shift 标点变半角。
+        // 规范里不带 Ctrl/Alt 的出字键在非 report-all-keys 模式下本就该发原文,这里直接发
+        let flags = getTerminal().keyboardEnhancementFlags
+        if !flags.isEmpty, !flags.contains(.reportAllKeys),
+           let text = (string as? String) ?? (string as? NSAttributedString)?.string,
+           !text.isEmpty,
+           !text.unicodeScalars.contains(where: { $0.properties.generalCategory == .control }),
+           NSApp.currentEvent?.modifierFlags.contains(.control) != true {
+            unmarkText()
+            send(txt: text)
+            return
+        }
         super.insertText(string, replacementRange: replacementRange)
         imeComposing = false
         applyCompositionCaretState()
