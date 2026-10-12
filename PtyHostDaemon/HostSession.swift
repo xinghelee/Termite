@@ -120,6 +120,10 @@ final class HostSession {
         alive = false
         exitCode = code
         drainOutput()
+        // 残留输出已冲进环形缓冲;读源是电平触发,master 对端关闭后永远可读(EOF/EIO),
+        // 不停掉的话未 attach 的已退出会话会在 purge 前把守护进程空转到 100% CPU
+        readSource?.cancel()
+        readSource = nil
     }
 
     /// 关闭 pane(⌘W)= 挂断整个进程组,与 TerminalSession.shutdown 行为一致
