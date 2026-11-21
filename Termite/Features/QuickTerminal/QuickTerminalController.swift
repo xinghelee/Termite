@@ -37,6 +37,15 @@ enum QuickTerminalHotkey: String, CaseIterable, Identifiable {
         UserDefaults.standard.string(forKey: SettingsKeys.quickTerminalHotkey)
             .flatMap(QuickTerminalHotkey.init(rawValue:)) ?? .ctrlOptCmdSpace
     }
+
+    /// 主菜单「下拉终端」项显示用的快捷键
+    var menuShortcut: KeyboardShortcut {
+        switch self {
+        case .ctrlOptCmdSpace: return KeyboardShortcut(.space, modifiers: [.control, .option, .command])
+        case .optSpace: return KeyboardShortcut(.space, modifiers: .option)
+        case .f12: return KeyboardShortcut(KeyEquivalent(Character(UnicodeScalar(UInt32(NSF12FunctionKey))!)), modifiers: [])
+        }
+    }
 }
 
 /// Quake 式下拉终端:全局热键(Carbon RegisterEventHotKey,无需辅助功能权限)

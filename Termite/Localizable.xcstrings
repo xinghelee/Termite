@@ -1610,6 +1610,16 @@
         }
       }
     },
+    "前往": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go"
+          }
+        }
+      }
+    },
     "剪贴板": {
       "localizations": {
         "en": {
@@ -2635,6 +2645,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copied"
+          }
+        }
+      }
+    },
+    "已复制上条命令输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied last command output"
           }
         }
       }
@@ -3806,6 +3826,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No blame data (file never committed?)"
+          }
+        }
+      }
+    },
+    "没有可复制的命令输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No command output to copy"
           }
         }
       }

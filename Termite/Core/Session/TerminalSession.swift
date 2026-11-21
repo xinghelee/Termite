@@ -64,8 +64,14 @@ final class TerminalSession: Identifiable {
     private(set) var attentionSince: Date?
     /// 失焦 pane 命令刚结束的一次性边框闪烁信号(叶子视图消费)
     private(set) var finishFlash: FinishFlash?
-    /// 选中即复制成功的一次性 toast 信号(pane 视图消费;每次复制换新时间戳触发 onChange)
+    /// 复制类操作的一次性 toast 信号(pane 视图消费;每次换新时间戳触发 onChange)
     private(set) var copyToast: Date?
+    /// toast 内容:选中即复制 / ⌘⇧C 成功是「已复制」,⌘⇧C 没有可复制输出时给出原因
+    private(set) var copyToastMessage = CopyToastMessage.copied
+
+    enum CopyToastMessage {
+        case copied, copiedOutput, noOutput
+    }
     @ObservationIgnored private var silenceHeuristic = SilenceHeuristic()
     @ObservationIgnored private var silenceWatch: Task<Void, Never>?
     @ObservationIgnored private var lastAttentionNotice = Date.distantPast
@@ -1018,7 +1024,8 @@ final class TerminalSession: Identifiable {
     }
 
     /// 选中即复制写入剪贴板后调用:隐式操作没有系统反馈,pane 弹一枚小 toast 兜底
-    func flashCopyToast() {
+    func flashCopyToast(_ message: CopyToastMessage = .copied) {
+        copyToastMessage = message
         copyToast = Date()
     }
 
@@ -1179,8 +1186,14 @@ final class TerminalSession: Identifiable {
     /// 复制上一条有输出的命令的输出到剪贴板
     @discardableResult
     func copyLastCommandOutput() -> Bool {
-        guard let last = commandHistory.last(where: { $0.outputEnd > $0.outputStart }) else { return false }
-        return copyOutput(of: last)
+        // 成功失败都给反馈:没有 shell 集成或上条命令无输出时,剪贴板其实没变
+        guard let last = commandHistory.last(where: { $0.outputEnd > $0.outputStart }),
+              copyOutput(of: last) else {
+            flashCopyToast(.noOutput)
+            return false
+        }
+        flashCopyToast(.copiedOutput)
+        return true
     }
 
     /// 时间线点击:滚动到该命令的提示符处

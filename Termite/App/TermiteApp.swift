@@ -149,6 +149,32 @@ struct TerminalCommands: Commands {
             .keyboardShortcut(",", modifiers: .command)
         }
 
+        // 「前往」:命令面板、跳转、历史、日报、端口——原来全挤在「文件」菜单里
+        CommandMenu("前往") {
+            Button("命令面板…") {
+                SessionManager.shared.palette.toggle()
+            }
+            .keyboardShortcut("p", modifiers: .command)
+
+            Button("跳转目录…") {
+                SessionManager.shared.directoryJumper.toggle()
+            }
+            .keyboardShortcut("o", modifiers: .command)
+
+            Button("搜索命令历史…") {
+                SessionManager.shared.historySearch.toggle()
+            }
+            .keyboardShortcut("h", modifiers: [.command, .shift])
+
+            Button("生成今日工作日报…") {
+                SessionManager.shared.dailyReportPresented = true
+            }
+
+            Button("端口管理…") {
+                SessionManager.shared.portsPresented = true
+            }
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("新建窗口") {
                 openWindow(id: "main", value: UUID())
@@ -176,29 +202,6 @@ struct TerminalCommands: Commands {
                 } else {
                     SerialPrompt.present()
                 }
-            }
-
-            Button("命令面板…") {
-                SessionManager.shared.palette.toggle()
-            }
-            .keyboardShortcut("p", modifiers: .command)
-
-            Button("跳转目录…") {
-                SessionManager.shared.directoryJumper.toggle()
-            }
-            .keyboardShortcut("o", modifiers: .command)
-
-            Button("搜索命令历史…") {
-                SessionManager.shared.historySearch.toggle()
-            }
-            .keyboardShortcut("h", modifiers: [.command, .shift])
-
-            Button("生成今日工作日报…") {
-                SessionManager.shared.dailyReportPresented = true
-            }
-
-            Button("端口管理…") {
-                SessionManager.shared.portsPresented = true
             }
 
             Button("关闭分屏 / 标签页") {
@@ -355,10 +358,12 @@ struct TerminalCommands: Commands {
 
             Divider()
 
+            // 菜单里显示的快捷键与全局热键一致(菜单栏、命令面板写的都是全局热键);
+            // 全局热键先于菜单拦截,这里只是标注,不会重复触发
             Button("下拉终端") {
                 QuickTerminalController.shared.toggle()
             }
-            .keyboardShortcut("`", modifiers: [.command, .option])
+            .keyboardShortcut(QuickTerminalHotkey.current.menuShortcut)
 
             Divider()
 

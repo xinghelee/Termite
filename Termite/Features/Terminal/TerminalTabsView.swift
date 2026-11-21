@@ -1581,7 +1581,13 @@ struct TerminalPaneView: View {
         .animation(.easeOut(duration: 0.18), value: session.remoteController)
         .overlay(alignment: .bottom) {
             if copyToastVisible {
-                Label("已复制", systemImage: "doc.on.doc")
+                Group {
+                    switch session.copyToastMessage {
+                    case .copied: Label("已复制", systemImage: "doc.on.doc")
+                    case .copiedOutput: Label("已复制上条命令输出", systemImage: "text.viewfinder")
+                    case .noOutput: Label("没有可复制的命令输出", systemImage: "exclamationmark.circle")
+                    }
+                }
                     .font(.system(size: 10.5, weight: .medium))
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)

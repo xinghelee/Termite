@@ -265,11 +265,11 @@ struct GitHistoryGraphView: View {
         .font(.system(size: 10).monospacedDigit())
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(selectedFile?.id == change.id ? theme.accentSoft : .clear)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 6))
+        // 「选中 = 浮起」,不用强调色铺底
+        .background {
+            if selectedFile?.id == change.id { RaisedCapsule() }
+        }
+        .contentShape(Capsule())
         .onTapGesture {
             Task { await showDiff(change) }
         }
@@ -349,7 +349,8 @@ private struct GitGraphRowView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: Self.rowHeight)
-        .background(isSelected ? theme.accentSoft : .clear)
+        // 图形历史的行要顶满整宽(泳道竖线上下贯通),不能换成胶囊;改中性浅底,不用强调色
+        .background(isSelected ? Color.primary.opacity(0.09) : .clear)
     }
 }
 

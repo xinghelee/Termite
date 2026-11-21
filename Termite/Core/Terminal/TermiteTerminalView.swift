@@ -704,7 +704,10 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         _ = add(String(localized: "重命名分屏…"), #selector(termiteRenamePane), symbol: "pencil")
         _ = add(String(localized: "在 Finder 中显示"), #selector(termiteRevealInFinder), symbol: "folder")
         menu.addItem(.separator())
-        _ = add(String(localized: "关闭此分屏"), #selector(termiteClosePane), symbol: "xmark", key: "w")
+        // 标签里只有这一个 pane 时,关掉它等于关掉整个标签:措辞跟着说实话
+        let soleLeaf = MainActor.assumeIsolated { (session?.manager?.selectedTab?.root.leafIDs().count ?? 1) <= 1 }
+        _ = add(soleLeaf ? String(localized: "关闭标签页") : String(localized: "关闭此分屏"),
+                #selector(termiteClosePane), symbol: "xmark", key: "w")
 
         menu.items.forEach { $0.isEnabled = true }
         copyItem.isEnabled = !(getSelection() ?? "").isEmpty

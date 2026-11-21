@@ -113,11 +113,11 @@ struct FileHistoryView: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(selected ? theme.accentSoft : theme.elevatedBackground.opacity(0.6))
+                    .fill(selected ? Color.primary.opacity(0.12) : theme.elevatedBackground.opacity(0.6))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
-                    .stroke(selected ? theme.accentColor.opacity(0.4) : theme.borderColor, lineWidth: 1)
+                    .stroke(selected ? Color.primary.opacity(0.28) : theme.borderColor, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

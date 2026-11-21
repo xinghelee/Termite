@@ -805,6 +805,14 @@ private struct ProjectRow: View {
 
     private var rowAccent: Color { projectColor ?? theme.accentColor }
 
+    /// 有其他项目同名时返回本项目的上级目录名,否则 nil
+    private var duplicateDisambiguator: String? {
+        let others = ProjectStore.shared.projects.filter { $0.id != project.id && $0.name == project.name }
+        guard !others.isEmpty else { return nil }
+        let parent = ((project.path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+        return parent.isEmpty ? nil : parent
+    }
+
     private func commitRename() {
         guard isRenaming else { return }
         ProjectStore.shared.rename(project.id, to: editText)
@@ -844,9 +852,18 @@ private struct ProjectRow: View {
                             if !focused { commitRename() } // 点别处失焦即提交
                         }
                 } else {
-                    Text(project.name)
-                        .font(.system(size: 13, weight: isActive ? .semibold : .medium))
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Text(project.name)
+                            .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                            .lineLimit(1)
+                        // 单行后路径只在悬停提示里:同名项目(两个仓库都叫 ios)带上上级目录区分
+                        if let parent = duplicateDisambiguator {
+                            Text(parent)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                    }
                 }
             }
             Spacer(minLength: 0)
