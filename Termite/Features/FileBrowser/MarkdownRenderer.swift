@@ -496,34 +496,74 @@ private struct MarkdownTableView: View {
     }
 }
 
-/// Markdown / HTML 图片:本地文件直接读(含 SVG);网络图异步加载;读不到时显示 alt 文本
+/// Markdown / HTML 图片。
+/// - 本地:只读普通文件(排除 FIFO / 设备文件)、≤ 8 MB,后台线程读取解码,不卡主线程
+/// - 网络:**不自动加载**——打开文档就发请求等于给文档作者埋追踪像素(泄露 IP 与打开时间)。
+///   点一下才拉取,只认 https,走无 cookie / 无缓存的临时会话,≤ 8 MB
+/// 读不到或未加载时显示 alt 文本
 private struct MarkdownImageView: View {
     let image: MarkdownRenderer.ImageRef
 
+    @State private var loaded: NSImage?
+    @State private var failed = false
+    @State private var remoteRequested = false
+
+    private static let maxBytes = 8 * 1024 * 1024
+
     var body: some View {
         Group {
-            if image.isRemote, let url = URL(string: image.source) {
-                AsyncImage(url: url) { phase in
-                    if let loaded = phase.image {
-                        loaded.resizable().scaledToFit()
-                    } else if phase.error != nil {
-                        placeholder
-                    } else {
-                        ProgressView().controlSize(.small)
-                    }
+            if let loaded {
+                Image(nsImage: loaded).resizable().scaledToFit()
+            } else if image.isRemote && !remoteRequested {
+                Button { remoteRequested = true } label: {
+                    placeholder(String(localized: "点按加载网络图片"), symbol: "network")
                 }
-            } else if let nsImage = NSImage(contentsOfFile: image.source) {
-                Image(nsImage: nsImage).resizable().scaledToFit()
+                .buttonStyle(.plain)
+                .help(image.source)
+            } else if failed {
+                placeholder(nil, symbol: "photo")
             } else {
-                placeholder
+                ProgressView().controlSize(.small)
             }
         }
         .frame(maxWidth: image.width)
         .help(image.alt)
+        .task(id: "\(image.source)#\(remoteRequested)") { await load() }
     }
 
-    private var placeholder: some View {
-        Label(image.alt.isEmpty ? String(localized: "图片") : image.alt, systemImage: "photo")
+    private func load() async {
+        if image.isRemote {
+            guard remoteRequested else { return }
+            loaded = await Self.fetchRemote(image.source)
+        } else {
+            loaded = await Self.readLocal(image.source)
+        }
+        failed = loaded == nil
+    }
+
+    private static func readLocal(_ path: String) async -> NSImage? {
+        await Task.detached(priority: .utility) { () -> NSImage? in
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+                  attributes[.type] as? FileAttributeType == .typeRegular,
+                  let size = attributes[.size] as? Int, size <= maxBytes,
+                  let data = FileManager.default.contents(atPath: path) else { return nil }
+            return NSImage(data: data)
+        }.value
+    }
+
+    private static func fetchRemote(_ source: String) async -> NSImage? {
+        guard let url = URL(string: source), url.scheme == "https" else { return nil }
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.finishTasksAndInvalidate() }
+        guard let (data, response) = try? await session.data(from: url),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              data.count <= maxBytes else { return nil }
+        return await Task.detached(priority: .utility) { NSImage(data: data) }.value
+    }
+
+    private func placeholder(_ hint: String?, symbol: String) -> some View {
+        let alt = image.alt.isEmpty ? String(localized: "图片") : image.alt
+        return Label(hint.map { "\(alt) · \($0)" } ?? alt, systemImage: symbol)
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 8)
