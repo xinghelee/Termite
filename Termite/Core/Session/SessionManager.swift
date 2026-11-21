@@ -31,29 +31,48 @@ final class SessionManager {
     /// 右侧文件浏览器面板
     var isFileBrowserVisible = false
 
-    func toggleTimeline() {
-        isTimelineVisible.toggle()
-        if isTimelineVisible {
-            isGitPanelVisible = false
-            isFileBrowserVisible = false
+    /// 右侧检查器抽屉里的配色面板
+    var isThemePanelVisible = false
+
+    /// 右侧检查器抽屉(Xcode inspector 式):四个面板互斥,nil = 抽屉收起
+    enum SidePanel: String, CaseIterable {
+        case timeline, git, files, theme
+    }
+
+    var activeSidePanel: SidePanel? {
+        get {
+            if isTimelineVisible { return .timeline }
+            if isGitPanelVisible { return .git }
+            if isFileBrowserVisible { return .files }
+            if isThemePanelVisible { return .theme }
+            return nil
+        }
+        set {
+            isTimelineVisible = newValue == .timeline
+            isGitPanelVisible = newValue == .git
+            isFileBrowserVisible = newValue == .files
+            isThemePanelVisible = newValue == .theme
+            if let newValue { lastSidePanel = newValue }
         }
     }
 
-    func toggleGitPanel() {
-        isGitPanelVisible.toggle()
-        if isGitPanelVisible {
-            isTimelineVisible = false
-            isFileBrowserVisible = false
-        }
+    /// 收起前最后停留的面板:标题栏开关重新展开时回到它
+    @ObservationIgnored private var lastSidePanel: SidePanel = .git
+
+    /// 标题栏抽屉开关:展开(回到上次面板)/ 整体收起
+    func toggleInspector() {
+        activeSidePanel = activeSidePanel == nil ? lastSidePanel : nil
     }
 
-    func toggleFileBrowser() {
-        isFileBrowserVisible.toggle()
-        if isFileBrowserVisible {
-            isTimelineVisible = false
-            isGitPanelVisible = false
-        }
+    /// ⌘I / ⌘G / ⇧⌘E:未打开则直达该面板,已在该面板则收起抽屉
+    private func togglePanel(_ panel: SidePanel) {
+        activeSidePanel = activeSidePanel == panel ? nil : panel
     }
+
+    func toggleTimeline() { togglePanel(.timeline) }
+    func toggleGitPanel() { togglePanel(.git) }
+    func toggleFileBrowser() { togglePanel(.files) }
+
     /// 本窗口的 ⌘P 命令面板状态
     let palette = CommandPaletteController()
     /// 本窗口的 ⌘O 目录跳转器状态

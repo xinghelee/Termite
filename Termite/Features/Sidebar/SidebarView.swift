@@ -848,11 +848,6 @@ private struct ProjectRow: View {
                         .font(.system(size: 13, weight: isActive ? .semibold : .medium))
                         .lineLimit(1)
                 }
-                Text((project.path as NSString).abbreviatingWithTildeInPath)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
             }
             Spacer(minLength: 0)
             // 注意力提醒点盖过活动态点:等待输入橙点 > 命令完成强调色点 > 当前项目点
@@ -873,7 +868,9 @@ private struct ProjectRow: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        // 单行 ≈30pt(原名字 + 路径双行 ≈40pt):同一屏多放三成项目;路径挪到悬停提示
+        .padding(.vertical, 6)
+        .help((project.path as NSString).abbreviatingWithTildeInPath)
         // 选中态与标题栏的选中标签同一块材质(浮起 + 顶部高光),
         // 强调色只留在文件夹图标与状态点上——全窗「选中 = 浮起」是一条规则
         .background {

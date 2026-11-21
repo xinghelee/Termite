@@ -13,15 +13,7 @@ struct GitPanelView: View {
     @State private var branches: [String] = []
     @State private var branchMessage: String?
     @AppStorage(SettingsKeys.diffWrapLines) private var diffWrap = true
-    /// 面板宽度(拖左缘调整,持久化)
-    @AppStorage("git.panelWidth") private var storedWidth = 330.0
-    @State private var dragStartWidth: Double?
     @Environment(\.openWindow) private var openWindow
-
-    /// diff 层保证最少 520pt
-    private var effectiveWidth: CGFloat {
-        CGFloat(model.diffTarget != nil ? max(storedWidth, 520) : storedWidth)
-    }
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
@@ -47,29 +39,11 @@ struct GitPanelView: View {
                 listScreen
             }
         }
-        .frame(width: effectiveWidth)
+        // 宽度归右侧抽屉统一管理;diff 层要求至少 520pt,通过偏好上报给抽屉
+        .frame(maxWidth: .infinity)
+        .preference(key: InspectorMinWidthKey.self, value: model.diffTarget != nil ? 520 : 0)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: model.diffTarget != nil)
         .background(theme.panelBackground)
-        // 左缘拖拽调宽
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(.clear)
-                .frame(width: 7)
-                .contentShape(Rectangle())
-                .onHover { inside in
-                    if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-                }
-                .gesture(
-                    // 全局坐标系:局部坐标会随面板变宽而移动原点,形成抖动反馈循环
-                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                        .onChanged { value in
-                            if dragStartWidth == nil { dragStartWidth = Double(effectiveWidth) }
-                            let proposed = (dragStartWidth ?? 330) - Double(value.translation.width)
-                            storedWidth = min(max(proposed, 280), 980)
-                        }
-                        .onEnded { _ in dragStartWidth = nil }
-                )
-        }
         .task(id: session.workingDirectory) {
             await model.refresh(cwd: session.workingDirectory)
         }

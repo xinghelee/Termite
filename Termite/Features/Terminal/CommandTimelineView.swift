@@ -58,7 +58,7 @@ struct CommandTimelineView: View {
                 }
             }
         }
-        .frame(width: 288)
+        .frame(maxWidth: .infinity)
         .background(theme.panelBackground)
         .sheet(item: $diffTarget) { pair in
             OutputDiffView(session: session, current: pair.current, previous: pair.previous) {

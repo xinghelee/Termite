@@ -77,29 +77,11 @@ struct TerminalTabsView: View {
                         }
                     )
                     }
-                    if sessionManager.isTimelineVisible, let session = sessionManager.selected {
+                    // 右侧检查器抽屉:顶部分段条选面板,整条随标题栏开关进出
+                    if let session = sessionManager.selected, let panel = sessionManager.activeSidePanel {
                         Divider().overlay(ThemeStore.shared.current.borderColor)
-                        CommandTimelineView(session: session) {
-                            sessionManager.isTimelineVisible = false
-                        }
-                        .id(session.id)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                    }
-                    if sessionManager.isGitPanelVisible, let session = sessionManager.selected {
-                        Divider().overlay(ThemeStore.shared.current.borderColor)
-                        GitPanelView(session: session) {
-                            sessionManager.isGitPanelVisible = false
-                        }
-                        .id(session.id)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                    }
-                    if sessionManager.isFileBrowserVisible, let session = sessionManager.selected {
-                        Divider().overlay(ThemeStore.shared.current.borderColor)
-                        FileBrowserView(session: session) {
-                            sessionManager.isFileBrowserVisible = false
-                        }
-                        .id(session.id)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        InspectorDrawer(session: session, panel: panel)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
                 // 巡视/最大化切换的幕布:与终端同底色,盖住幕后的折行重排,
@@ -420,44 +402,24 @@ struct TerminalTabsView: View {
                         sessionManager.toggleMaximizePane()
                     }
                 }
-                PanelIconButton(
-                    symbol: "rectangle.split.3x1",
-                    help: String(localized: "巡视分屏:等宽横排滑动(⇧⌘\\)"),
-                    tint: tab.isCarousel ? ThemeStore.shared.current.accentColor : nil
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        sessionManager.toggleCarousel()
+                if tab.isCarousel {
+                    PanelIconButton(
+                        symbol: "rectangle.split.3x1",
+                        help: String(localized: "退出巡视(⇧⌘\\)"),
+                        tint: ThemeStore.shared.current.accentColor
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                            sessionManager.toggleCarousel()
+                        }
                     }
                 }
             }
-            PanelIconButton(
-                symbol: "clock.arrow.circlepath",
-                help: String(localized: "命令时间线(⌘I)"),
-                tint: sessionManager.isTimelineVisible ? ThemeStore.shared.current.accentColor : nil
-            ) {
+            // 时间线 / Git / 文件 / 配色都收进右侧抽屉,标题栏只留一个开关(Xcode inspector 式)
+            InspectorToggleButton(isOpen: sessionManager.activeSidePanel != nil) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    sessionManager.toggleTimeline()
+                    sessionManager.toggleInspector()
                 }
             }
-            PanelIconButton(
-                symbol: "arrow.trianglehead.branch",
-                help: String(localized: "Git 面板(⌘G)"),
-                tint: sessionManager.isGitPanelVisible ? ThemeStore.shared.current.accentColor : nil
-            ) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    sessionManager.toggleGitPanel()
-                }
-            }
-            PanelIconButton(
-                symbol: "folder",
-                help: String(localized: "文件浏览器(⇧⌘E)"),
-                tint: sessionManager.isFileBrowserVisible ? ThemeStore.shared.current.accentColor : nil
-            ) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    sessionManager.toggleFileBrowser()
-                }
-            }
-            ThemePanelButton()
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
@@ -590,20 +552,6 @@ private struct PressableIconStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.88 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
-
-/// 主题面板按钮(popover 色卡网格)
-private struct ThemePanelButton: View {
-    @State private var showing = false
-
-    var body: some View {
-        PanelIconButton(symbol: "paintpalette", help: String(localized: "终端配色")) {
-            showing.toggle()
-        }
-        .popover(isPresented: $showing, arrowEdge: .bottom) {
-            ThemePanelView()
-        }
     }
 }
 

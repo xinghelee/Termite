@@ -1251,6 +1251,17 @@
         }
       }
     },
+    "关闭 Git 面板(⌘G)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close Git Panel (⌘G)"
+          }
+        }
+      }
+    },
     "关闭分屏 / 标签页": {
       "localizations": {
         "en": {
@@ -1302,6 +1313,17 @@
         }
       }
     },
+    "关闭命令时间线(⌘I)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close Command Timeline (⌘I)"
+          }
+        }
+      }
+    },
     "关闭当前分屏": {
       "localizations": {
         "en": {
@@ -1318,6 +1340,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Close File Browser"
+          }
+        }
+      }
+    },
+    "关闭文件浏览器(⇧⌘E)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close File Browser (⇧⌘E)"
           }
         }
       }
@@ -1864,16 +1897,16 @@
     },
     "命令:%lld 条(失败 %lld)": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "命令:%1$lld 条(失败 %2$lld)"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Commands: %lld (%lld failed)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "命令:%1$lld 条(失败 %2$lld)"
           }
         }
       }
@@ -3361,16 +3394,16 @@
     },
     "时间段:%@ – %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "时间段:%1$@ – %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Time span: %@ – %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "时间段:%1$@ – %2$@"
           }
         }
       }
@@ -3441,6 +3474,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stage"
+          }
+        }
+      }
+    },
+    "更多": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
           }
         }
       }
@@ -3661,6 +3705,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check Out"
+          }
+        }
+      }
+    },
+    "检查器:时间线 / Git / 文件 / 配色": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspector: Timeline / Git / Files / Colors"
           }
         }
       }
@@ -4535,6 +4589,17 @@
         }
       }
     },
+    "终端配色…": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal Colors…"
+          }
+        }
+      }
+    },
     "结束?": {
       "localizations": {
         "en": {
@@ -4958,7 +5023,19 @@
         }
       }
     },
+    "巡视分屏": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pane Carousel"
+          }
+        }
+      }
+    },
     "巡视分屏:等宽横排滑动(⇧⌘\\)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5235,6 +5312,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keep sessions after quitting (reattach seamlessly on relaunch, commands keep running)"
+          }
+        }
+      }
+    },
+    "退出巡视(⇧⌘\\)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exit Carousel (⇧⌘\\)"
           }
         }
       }

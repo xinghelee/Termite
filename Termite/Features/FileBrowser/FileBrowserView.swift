@@ -12,9 +12,6 @@ struct FileBrowserView: View {
     let onClose: () -> Void
 
     @AppStorage("fileBrowser.showHidden") private var showHidden = false
-    /// 面板宽度(拖左缘调整,持久化)
-    @AppStorage("fileBrowser.panelWidth") private var storedWidth = 260.0
-    @State private var dragStartWidth: Double?
     /// 自增触发整树重建(刷新按钮 / 显示隐藏文件切换)
     @State private var reloadToken = 0
     /// 面板内预览的文件(nil = 显示文件树)
@@ -23,11 +20,6 @@ struct FileBrowserView: View {
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
     private var rootPath: String? { session.workingDirectory }
-
-    /// 预览代码时保证可读宽度
-    private var effectiveWidth: CGFloat {
-        CGFloat(previewed != nil ? max(storedWidth, 520) : storedWidth)
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,29 +65,12 @@ struct FileBrowserView: View {
                 .padding()
             }
         }
-        .frame(width: effectiveWidth)
+        // 宽度归右侧抽屉统一管理;预览代码要求至少 520pt,通过偏好上报给抽屉
+        .frame(maxWidth: .infinity)
+        .preference(key: InspectorMinWidthKey.self, value: previewed != nil ? 520 : 0)
         .background(theme.panelBackground)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: previewed != nil)
         .onChange(of: session.workingDirectory) { _, _ in previewed = nil }
-        // 左缘拖拽调宽(同 Git 面板:全局坐标系避免抖动)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(.clear)
-                .frame(width: 7)
-                .contentShape(Rectangle())
-                .onHover { inside in
-                    if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-                }
-                .gesture(
-                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                        .onChanged { value in
-                            if dragStartWidth == nil { dragStartWidth = Double(effectiveWidth) }
-                            let proposed = (dragStartWidth ?? 260) - Double(value.translation.width)
-                            storedWidth = min(max(proposed, 200), 980)
-                        }
-                        .onEnded { _ in dragStartWidth = nil }
-                )
-        }
     }
 
     /// 弹名字输入框,在 parent 下创建文件夹,成功后重载文件树
