@@ -964,7 +964,8 @@ final class TerminalSession: Identifiable {
 
     /// 独立 BEL(OSC 终止符不算):TUI 主动请求注意,如 Claude Code 等确认时摇铃
     func bellReceived() {
-        guard attentionEnabled, Date() >= bellArmedAt, !isFocusedByUser else { return }
+        // 别用 Date 的 >= / <=:27.2 SDK 把它们标成 27.2 新符号弱链接,27.2 beta 系统里没有 → 空指针崩溃
+        guard attentionEnabled, !(Date() < bellArmedAt), !isFocusedByUser else { return }
         setAttention(.needsInput(fromBell: true))
     }
 
