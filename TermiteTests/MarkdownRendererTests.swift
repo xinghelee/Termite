@@ -73,4 +73,28 @@ final class MarkdownRendererTests: XCTestCase {
         guard case .images(let remote, _) = kinds("![x](https://example.com/p.png)").first else { return XCTFail() }
         XCTAssertTrue(remote[0].needsConsent)
     }
+
+    func testConfinedRealPathRejectsSymlinksLeavingTree() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("md-confine-\(UUID().uuidString)").path
+        let outside = fm.temporaryDirectory.appendingPathComponent("md-outside-\(UUID().uuidString)").path
+        try fm.createDirectory(atPath: root + "/docs", withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: outside, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: root); try? fm.removeItem(atPath: outside) }
+        fm.createFile(atPath: root + "/docs/a.png", contents: Data([1]))
+        fm.createFile(atPath: outside + "/b.png", contents: Data([1]))
+        // 树内目录符号链接指到树外(模拟指向 /net/某主机):拒绝
+        try fm.createSymbolicLink(atPath: root + "/escape", withDestinationPath: outside)
+        // 树内指向树内:放行
+        try fm.createSymbolicLink(atPath: root + "/alias", withDestinationPath: "docs")
+        // 相对路径用 .. 逃出:拒绝
+        try fm.createSymbolicLink(atPath: root + "/docs/up", withDestinationPath: "../../")
+
+        XCTAssertNotNil(MarkdownRenderer.confinedRealPath(root + "/docs/a.png", root: root))
+        XCTAssertNotNil(MarkdownRenderer.confinedRealPath(root + "/alias/a.png", root: root))
+        XCTAssertNil(MarkdownRenderer.confinedRealPath(root + "/escape/b.png", root: root))
+        XCTAssertNil(MarkdownRenderer.confinedRealPath(root + "/docs/up/x.png", root: root))
+        XCTAssertNil(MarkdownRenderer.confinedRealPath(root + "/docs/missing.png", root: root))
+        XCTAssertNil(MarkdownRenderer.confinedRealPath("/net/evil/p.png", root: root))
+    }
 }

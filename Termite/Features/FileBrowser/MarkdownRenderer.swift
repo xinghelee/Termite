@@ -15,6 +15,8 @@ enum MarkdownRenderer {
         /// 本地路径在文档所在目录树(仓库根)之外:与网络图片一样点按才读。
         /// 文档可以写 /net/某主机/x.png 这类绝对路径,一读就触发自动挂载连到外部主机(变相追踪像素)
         var outsideDocumentTree = false
+        /// 文档树根(仓库根或文档目录);自动读取时逐级校验真实路径不出这棵树
+        var documentRoot: String?
 
         var isRemote: Bool { source.hasPrefix("http://") || source.hasPrefix("https://") }
         var needsConsent: Bool { isRemote || outsideDocumentTree }
@@ -53,6 +55,7 @@ enum MarkdownRenderer {
         func imageRef(_ src: String, alt: String, width: CGFloat?) -> ImageRef {
             let resolved = resolve(src)
             var ref = ImageRef(source: resolved, alt: alt, width: width)
+            ref.documentRoot = allowedRoot
             if !ref.isRemote {
                 let standardized = (resolved as NSString).standardizingPath
                 ref.outsideDocumentTree = allowedRoot.map { !(standardized == $0 || standardized.hasPrefix($0 + "/")) } ?? true
@@ -190,6 +193,50 @@ enum MarkdownRenderer {
         flushParagraph()
         flushTable()
         return blocks
+    }
+
+    /// 在文档树内逐级解析真实路径:从树根出发每一级只 lstat「已确认在树内的真实目录」的直接子项,
+    /// 遇到符号链接先按字符串算出目标,出树即拒绝——全程不去 stat 树外任何路径
+    /// (否则目录里一个指向 /net/某主机 的符号链接就能触发自动挂载外连)。返回 nil = 不安全或不存在
+    nonisolated static func confinedRealPath(_ path: String, root: String) -> String? {
+        let realRoot = URL(fileURLWithPath: root).resolvingSymlinksInPath().path
+        func inside(_ p: String) -> Bool { p == realRoot || p.hasPrefix(realRoot + "/") }
+        func relativeComponents(_ p: String) -> [String]? {
+            let standardized = (p as NSString).standardizingPath
+            if standardized == root || standardized == realRoot { return [] }
+            for base in [realRoot, (root as NSString).standardizingPath] where standardized.hasPrefix(base + "/") {
+                return String(standardized.dropFirst(base.count + 1)).split(separator: "/").map(String.init)
+            }
+            return nil
+        }
+        guard var remaining = relativeComponents(path) else { return nil }
+        var current = realRoot
+        var hops = 0
+        while !remaining.isEmpty {
+            let component = remaining.removeFirst()
+            if component == "." || component.isEmpty { continue }
+            if component == ".." {
+                current = (current as NSString).deletingLastPathComponent
+                guard inside(current) else { return nil }
+                continue
+            }
+            let next = current + "/" + component
+            var info = stat()
+            guard lstat(next, &info) == 0 else { return nil }
+            if info.st_mode & S_IFMT == S_IFLNK {
+                hops += 1
+                guard hops <= 16,
+                      let target = try? FileManager.default.destinationOfSymbolicLink(atPath: next) else { return nil }
+                let joined = target.hasPrefix("/") ? target : current + "/" + target
+                let standardized = (joined as NSString).standardizingPath
+                guard inside(standardized), let rest = relativeComponents(standardized) else { return nil }
+                remaining = rest + remaining
+                current = realRoot
+            } else {
+                current = next
+            }
+        }
+        return current
     }
 
     /// 向上找 .git(最多 12 层);README 里 ../docs/x.png 这类引用落在仓库内都算文档树
@@ -566,13 +613,23 @@ private struct MarkdownImageView: View {
         if image.isRemote {
             loaded = await Self.fetchRemote(image.source)
         } else {
-            loaded = await Self.readLocal(image.source)
+            // 树内图片自动读,但要过逐级真实路径校验;树外图片用户已点按同意,按原路径读
+            let path = image.source
+            let root = image.outsideDocumentTree ? nil : image.documentRoot
+            loaded = await Self.readLocal(path, confinedTo: root)
         }
         failed = loaded == nil
     }
 
-    private static func readLocal(_ path: String) async -> NSImage? {
+    private static func readLocal(_ requested: String, confinedTo root: String?) async -> NSImage? {
         await Task.detached(priority: .utility) { () -> NSImage? in
+            let path: String
+            if let root {
+                guard let real = MarkdownRenderer.confinedRealPath(requested, root: root) else { return nil }
+                path = real
+            } else {
+                path = requested
+            }
             guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
                   attributes[.type] as? FileAttributeType == .typeRegular,
                   let size = attributes[.size] as? Int, size <= maxBytes,
