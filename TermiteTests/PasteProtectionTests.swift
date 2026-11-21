@@ -108,3 +108,24 @@ final class CompactTitleTests: XCTestCase {
         XCTAssertNil(TerminalSession.programName(fromCommandLine: "   "))
     }
 }
+
+final class OutputWatchTests: XCTestCase {
+    func testParsePatterns() {
+        XCTAssertEqual(TerminalSession.parseWatchPatterns(" error, Build succeeded ，error,, /fail(ed)?/ "),
+                       ["error", "Build succeeded", "/fail(ed)?/"])
+        XCTAssertEqual(TerminalSession.parseWatchPatterns("   "), [])
+    }
+
+    func testSubstringIsCaseInsensitive() {
+        let m = TerminalSession.WatchMatcher("error")
+        XCTAssertTrue(m.matches("npm ERR! Error: cannot find module"))
+        XCTAssertFalse(m.matches("all good"))
+    }
+
+    func testRegexAndBrokenRegexFallback() {
+        XCTAssertTrue(TerminalSession.WatchMatcher("/fail(ed|ure)/").matches("Build FAILED"))
+        XCTAssertFalse(TerminalSession.WatchMatcher("/fail(ed|ure)/").matches("fail"))
+        // 正则写错时按子串匹配,不静默失效
+        XCTAssertTrue(TerminalSession.WatchMatcher("/[oops/").matches("got [oops here"))
+    }
+}

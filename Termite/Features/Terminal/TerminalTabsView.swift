@@ -752,7 +752,7 @@ private struct PaneTreeView: View {
                             width: axis == .horizontal ? firstLength : nil,
                             height: axis == .vertical ? firstLength : nil
                         )
-                    PaneDivider(axis: axis) { location in
+                    PaneDivider(axis: axis, onReset: { onResize(branchID, 0.5) }) { location in
                         let position = axis == .horizontal ? location.x : location.y
                         guard total > 0 else { return }
                         onResize(branchID, position / total)
@@ -1243,6 +1243,8 @@ private struct QuickReplyPopover: View {
 /// 可拖拽分隔条:1pt 可见线 + 7pt 命中区,悬停变宽度光标,拖动回报在父分支坐标系中的位置
 private struct PaneDivider: View {
     let axis: SplitAxis
+    /// 双击分隔条:两侧均分
+    var onReset: () -> Void = {}
     /// 拖动中回调:location 为分支容器坐标系中的当前位置
     let onDrag: (CGPoint) -> Void
 
@@ -1280,6 +1282,10 @@ private struct PaneDivider: View {
                 }
                 .onEnded { _ in dragging = false }
         )
+        .onTapGesture(count: 2) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { onReset() }
+        }
+        .help(String(localized: "拖动调整大小,双击均分(⌃⌥⌘ 方向键微调)"))
         .animation(.easeOut(duration: 0.12), value: hovering)
     }
 
@@ -1549,6 +1555,9 @@ struct TerminalPaneView: View {
     /// 选中即复制的 toast 显隐(自动隐藏任务可被下一次复制续期)
     @State private var copyToastVisible = false
     @State private var copyToastHide: Task<Void, Never>?
+    /// 输出哨兵命中横幅的显隐(4 秒自动收起,下一次命中续期)
+    @State private var watchBannerVisible = false
+    @State private var watchBannerHide: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1595,6 +1604,41 @@ struct TerminalPaneView: View {
                     .padding(.bottom, 10)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                     .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if watchBannerVisible, let hit = session.watchHit {
+                HStack(spacing: 6) {
+                    Image(systemName: "eye.fill")
+                        .foregroundStyle(Color.orange)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("命中「\(hit.pattern)」")
+                            .font(.system(size: 10.5, weight: .semibold))
+                        Text(hit.line)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: 360, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(.regularMaterial))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.5), lineWidth: 1))
+                .padding(10)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { watchBannerVisible = false } }
+            }
+        }
+        .onChange(of: session.watchHit) { _, hit in
+            guard hit != nil else { return }
+            withAnimation(.easeOut(duration: 0.18)) { watchBannerVisible = true }
+            watchBannerHide?.cancel()
+            watchBannerHide = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.3)) { watchBannerVisible = false }
             }
         }
         .onChange(of: session.copyToast) { _, stamp in

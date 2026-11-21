@@ -812,6 +812,7 @@ final class TerminalSession: Identifiable {
         appendToCast(bytes)
         RemoteSessionHub.shared.mirror(sessionID: id, bytes: bytes)
         scanForLocalURL(bytes)
+        scanForWatchPatterns(bytes)
         let events = osc133.scan(bytes)
         if events.isEmpty {
             terminalView.feed(byteArray: bytes)
@@ -1373,6 +1374,89 @@ final class TerminalSession: Identifiable {
             return [foreground ? "38" : "48", "5", String(code)]
         case .trueColor(let red, let green, let blue):
             return [foreground ? "38" : "48", "2", String(red), String(green), String(blue)]
+        }
+    }
+
+    // MARK: - 输出哨兵(右键「监听输出…」:关键词 / 正则命中就提醒)
+
+    /// 用户输入的原始规则(逗号或换行分隔;/…/ 为正则),仅内存,不跨重启
+    private(set) var watchPatterns: [String] = []
+    /// 最近一次命中(pane 视图消费,弹横幅)
+    private(set) var watchHit: WatchHit?
+    @ObservationIgnored private var watchMatchers: [WatchMatcher] = []
+    @ObservationIgnored private var watchScanBuffer = ""
+    @ObservationIgnored private var lastWatchHitAt: [String: Date] = [:]
+
+    struct WatchHit: Equatable {
+        let pattern: String
+        let line: String
+        let at: Date
+    }
+
+    struct WatchMatcher {
+        let raw: String
+        let regex: NSRegularExpression?
+
+        /// 「/…/」按正则;否则按不区分大小写的子串。正则写错时退回子串匹配,不静默失效
+        init(_ raw: String) {
+            self.raw = raw
+            if raw.count > 2, raw.hasPrefix("/"), raw.hasSuffix("/") {
+                regex = try? NSRegularExpression(pattern: String(raw.dropFirst().dropLast()), options: .caseInsensitive)
+            } else {
+                regex = nil
+            }
+        }
+
+        func matches(_ line: String) -> Bool {
+            if let regex {
+                return regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) != nil
+            }
+            let needle = raw.hasPrefix("/") && raw.hasSuffix("/") && raw.count > 2 ? String(raw.dropFirst().dropLast()) : raw
+            return line.range(of: needle, options: .caseInsensitive) != nil
+        }
+    }
+
+    /// 解析规则文本:逗号 / 换行分隔,去空白去重
+    nonisolated static func parseWatchPatterns(_ text: String) -> [String] {
+        var seen = Set<String>()
+        return text.split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "\n" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    func setWatchPatterns(_ text: String) {
+        watchPatterns = Self.parseWatchPatterns(text)
+        watchMatchers = watchPatterns.map(WatchMatcher.init)
+        watchScanBuffer = ""
+        lastWatchHitAt = [:]
+    }
+
+    private func scanForWatchPatterns(_ bytes: ArraySlice<UInt8>) {
+        guard !watchMatchers.isEmpty else { return }
+        watchScanBuffer += String(decoding: bytes, as: UTF8.self)
+        while let newline = watchScanBuffer.firstIndex(where: { $0 == "\n" || $0 == "\r\n" }) {
+            let line = ANSI.strip(String(watchScanBuffer[..<newline]))
+            watchScanBuffer.removeSubrange(watchScanBuffer.startIndex...newline)
+            checkWatch(line)
+        }
+        if watchScanBuffer.count > 4096 {
+            watchScanBuffer = String(watchScanBuffer.suffix(2048))
+        }
+    }
+
+    private func checkWatch(_ line: String) {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        for matcher in watchMatchers where matcher.matches(trimmed) {
+            // 同一规则 10 秒内只提醒一次:报错刷屏时不连环弹
+            if let last = lastWatchHitAt[matcher.raw], Date().timeIntervalSince(last) < 10 { continue }
+            lastWatchHitAt[matcher.raw] = Date()
+            watchHit = WatchHit(pattern: matcher.raw, line: String(trimmed.prefix(160)), at: Date())
+            if manager?.isSessionVisible(id) != true {
+                NotificationService.postWatchHit(pattern: matcher.raw, line: String(trimmed.prefix(160)),
+                                                 title: displayTitle, sessionID: id)
+            }
+            return
         }
     }
 

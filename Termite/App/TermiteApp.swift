@@ -331,6 +331,19 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut(.downArrow, modifiers: [.command, .option])
 
+            Divider()
+
+            Button("分隔条左移") { SessionManager.shared.resizeFocusedPane(.left) }
+                .keyboardShortcut(.leftArrow, modifiers: [.control, .option, .command])
+            Button("分隔条右移") { SessionManager.shared.resizeFocusedPane(.right) }
+                .keyboardShortcut(.rightArrow, modifiers: [.control, .option, .command])
+            Button("分隔条上移") { SessionManager.shared.resizeFocusedPane(.up) }
+                .keyboardShortcut(.upArrow, modifiers: [.control, .option, .command])
+            Button("分隔条下移") { SessionManager.shared.resizeFocusedPane(.down) }
+                .keyboardShortcut(.downArrow, modifiers: [.control, .option, .command])
+
+            Divider()
+
             Button("聚焦等待输入的分屏") {
                 SessionManagerRegistry.shared.focusNextAttention()
             }

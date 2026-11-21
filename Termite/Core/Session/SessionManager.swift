@@ -463,6 +463,14 @@ final class SessionManager {
     }
 
     /// ⌘⌥方向键:按几何位置把焦点移到相邻 pane;巡视模式下左右即翻页(横排序)
+    /// ⌃⌥⌘方向键:把离焦点最近的同轴分隔条朝方向键移动 5%(巡视/最大化时不动布局)
+    func resizeFocusedPane(_ direction: PaneDirection) {
+        guard let tab = selectedTab, !tab.isCarousel, tab.maximizedID == nil,
+              let resized = tab.root.resizing(leaf: tab.focusedID, direction: direction) else { return }
+        withAnimation(.easeOut(duration: 0.12)) { tab.root = resized }
+        layoutChangedSoon()
+    }
+
     func focusNeighborPane(_ direction: PaneDirection) {
         guard let tab = selectedTab else { return }
         let next: UUID?

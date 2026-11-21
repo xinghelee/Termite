@@ -123,3 +123,40 @@ final class PaneDirectionTests: XCTestCase {
         XCTAssertEqual(rects[b]!.width, 0.7, accuracy: 0.0001)
     }
 }
+
+final class PaneKeyboardResizeTests: XCTestCase {
+    private func ratio(_ node: PaneNode, _ id: UUID) -> Double? {
+        switch node {
+        case .leaf: return nil
+        case .branch(let bid, _, let r, let a, let b):
+            if bid == id { return r }
+            return ratio(a, id) ?? ratio(b, id)
+        }
+    }
+
+    func testArrowMovesDividerInArrowDirection() {
+        let a = UUID(), b = UUID(), branch = UUID()
+        let root = PaneNode.branch(id: branch, axis: .horizontal, ratio: 0.5, first: .leaf(a), second: .leaf(b))
+        // 不论焦点在哪一侧,→ 都把分隔条往右推
+        XCTAssertEqual(ratio(root.resizing(leaf: a, direction: .right)!, branch)!, 0.55, accuracy: 0.0001)
+        XCTAssertEqual(ratio(root.resizing(leaf: b, direction: .right)!, branch)!, 0.55, accuracy: 0.0001)
+        XCTAssertEqual(ratio(root.resizing(leaf: a, direction: .left)!, branch)!, 0.45, accuracy: 0.0001)
+        // 没有上下分隔条
+        XCTAssertNil(root.resizing(leaf: a, direction: .up))
+    }
+
+    func testNearestMatchingAxisBranchWins() {
+        let a = UUID(), b = UUID(), c = UUID(), outer = UUID(), inner = UUID()
+        // 左右分屏,右侧再上下分:焦点在 c 上按 ↓ 动内层,按 → 动外层
+        let root = PaneNode.branch(id: outer, axis: .horizontal, ratio: 0.5, first: .leaf(a),
+                                   second: .branch(id: inner, axis: .vertical, ratio: 0.5, first: .leaf(b), second: .leaf(c)))
+        XCTAssertEqual(ratio(root.resizing(leaf: c, direction: .down)!, inner)!, 0.55, accuracy: 0.0001)
+        XCTAssertEqual(ratio(root.resizing(leaf: c, direction: .left)!, outer)!, 0.45, accuracy: 0.0001)
+    }
+
+    func testClampedToRange() {
+        let a = UUID(), b = UUID(), branch = UUID()
+        let root = PaneNode.branch(id: branch, axis: .vertical, ratio: 0.86, first: .leaf(a), second: .leaf(b))
+        XCTAssertEqual(ratio(root.resizing(leaf: a, direction: .down)!, branch)!, PaneNode.ratioRange.upperBound, accuracy: 0.0001)
+    }
+}

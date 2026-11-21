@@ -702,6 +702,9 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
         // 这个 pane
         _ = add(String(localized: "重命名分屏…"), #selector(termiteRenamePane), symbol: "pencil")
+        let watchCount = MainActor.assumeIsolated { session?.watchPatterns.count ?? 0 }
+        _ = add(watchCount > 0 ? String(localized: "监听输出(\(watchCount) 条)…") : String(localized: "监听输出…"),
+                #selector(termiteEditWatch), symbol: watchCount > 0 ? "eye.fill" : "eye")
         _ = add(String(localized: "在 Finder 中显示"), #selector(termiteRevealInFinder), symbol: "folder")
         menu.addItem(.separator())
         // 标签里只有这一个 pane 时,关掉它等于关掉整个标签:措辞跟着说实话
@@ -771,6 +774,29 @@ final class TermiteTerminalView: LocalProcessTerminalView {
             } else {
                 SessionManager.shared.requestCloseCurrent()
             }
+        }
+    }
+
+    /// 输出哨兵:关键词 / 正则命中就提醒(横幅 + 看不见时系统通知)
+    @objc private func termiteEditWatch() {
+        MainActor.assumeIsolated {
+            guard let session else { return }
+            let alert = NSAlert()
+            alert.messageText = String(localized: "监听这个分屏的输出")
+            alert.informativeText = String(localized: "输出里出现这些内容就提醒你。多个用逗号分隔,/…/ 写正则,不区分大小写。留空即停止监听。")
+            let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+            field.cell?.usesSingleLineMode = true
+            field.cell?.isScrollable = true
+            field.placeholderString = String(localized: "如:error, Build succeeded, /fail(ed|ure)/")
+            field.stringValue = session.watchPatterns.joined(separator: ", ")
+            alert.accessoryView = field
+            alert.addButton(withTitle: String(localized: "确定"))
+            alert.addButton(withTitle: String(localized: "取消"))
+            alert.window.initialFirstResponder = field
+            if alert.runModal() == .alertFirstButtonReturn {
+                session.setWatchPatterns(field.stringValue)
+            }
+            window?.makeFirstResponder(self)
         }
     }
 

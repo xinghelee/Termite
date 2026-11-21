@@ -80,6 +80,23 @@ indirect enum PaneNode: Identifiable, Equatable {
         }
     }
 
+    /// 包含 target、轴向为 axis 的最内层分支(键盘调大小:动离焦点最近的那条分隔条)
+    func nearestBranch(containing target: UUID, axis: SplitAxis) -> (id: UUID, ratio: Double)? {
+        guard case .branch(let id, let ax, let r, let a, let b) = self else { return nil }
+        let inFirst = a.leafIDs().contains(target)
+        guard inFirst || b.leafIDs().contains(target) else { return nil }
+        if let deeper = (inFirst ? a : b).nearestBranch(containing: target, axis: axis) { return deeper }
+        return ax == axis ? (id, r) : nil
+    }
+
+    /// 按方向键移动分隔条:方向即分隔条移动方向(同 tmux),每次 step;无对应轴向的分隔条返回 nil
+    func resizing(leaf target: UUID, direction: PaneDirection, step: Double = 0.05) -> PaneNode? {
+        let axis: SplitAxis = (direction == .left || direction == .right) ? .horizontal : .vertical
+        guard let branch = nearestBranch(containing: target, axis: axis) else { return nil }
+        let delta = (direction == .right || direction == .down) ? step : -step
+        return settingRatio(branch: branch.id, ratio: branch.ratio + delta)
+    }
+
     /// 找到某叶子的相邻叶子(关闭后把焦点交给它)
     func neighborLeaf(of target: UUID) -> UUID? {
         let leaves = leafIDs()

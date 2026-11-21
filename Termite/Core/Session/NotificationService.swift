@@ -46,6 +46,18 @@ enum NotificationService {
         center.add(request)
     }
 
+    /// 输出哨兵命中(右键「监听输出…」设的关键词 / 正则)
+    static func postWatchHit(pattern: String, line: String, title: String, sessionID: UUID) {
+        let center = center()
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "输出命中「\(pattern)」· \(title)")
+        content.body = line
+        content.sound = .default
+        content.userInfo = ["sessionID": sessionID.uuidString]
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        center.add(request)
+    }
+
     /// 分屏(agent/TUI)停下来等用户输入
     static func postAwaitingInput(title: String, sessionID: UUID) {
         let center = center()
