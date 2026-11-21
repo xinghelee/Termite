@@ -164,11 +164,15 @@ private struct SettingsSidebarItem: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? theme.accentSoft : (hovering ? Color.primary.opacity(0.06) : .clear))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
+            // 「选中 = 浮起」:与主窗口侧边栏项目行同一块材质,强调色只留在图标上
+            .background {
+                if isSelected {
+                    RaisedCapsule()
+                } else if hovering {
+                    Capsule().fill(Color.primary.opacity(0.06))
+                }
+            }
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.12), value: hovering)

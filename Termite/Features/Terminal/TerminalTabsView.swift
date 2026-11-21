@@ -1165,10 +1165,9 @@ private struct WorktreePromptView: View {
         .lineLimit(1)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(selected ? ThemeStore.shared.current.accentColor.opacity(0.22) : .clear)
-        )
+        .background {
+            if selected { RaisedCapsule() }
+        }
         .contentShape(Rectangle())
     }
 

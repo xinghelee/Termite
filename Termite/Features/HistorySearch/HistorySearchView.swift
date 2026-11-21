@@ -99,7 +99,9 @@ struct HistorySearchView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? Color.accentColor.opacity(0.22) : .clear))
+        .background {
+            if isSelected { RaisedCapsule() }
+        }
         .contentShape(Rectangle())
     }
 

@@ -221,7 +221,9 @@ struct CommandPaletteView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Capsule().fill(isSelected ? Color.accentColor.opacity(0.22) : .clear))
+        .background {
+            if isSelected { RaisedCapsule() }
+        }
         .contentShape(Rectangle())
     }
 

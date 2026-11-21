@@ -216,7 +216,7 @@ struct GitPanelView: View {
     }
 
     @ViewBuilder
-    private func changeSection(_ title: String, _ changes: [GitFileChange]) -> some View {
+    private func changeSection(_ title: LocalizedStringKey, _ changes: [GitFileChange]) -> some View {
         if !changes.isEmpty {
             Text(title)
                 .font(.system(size: 10.5, weight: .semibold))
@@ -366,7 +366,7 @@ struct GitPanelView: View {
         NSPasteboard.general.setString(model.diffRawText, forType: .string)
     }
 
-    private func emptyHint(_ text: String) -> some View {
+    private func emptyHint(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.system(size: 12))
             .foregroundStyle(.tertiary)

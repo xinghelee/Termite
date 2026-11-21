@@ -357,7 +357,15 @@ final class SessionManager {
 
     /// 巡视模式 ⌘←→ 翻页;非巡视时不动作(菜单项吞掉按键也无副作用,终端本就不用 ⌘方向键)
     func carouselPage(_ direction: PaneDirection) {
-        guard selectedTab?.isCarousel == true else { return }
+        guard selectedTab?.isCarousel == true else {
+            // 不在巡视时 ⌘←/⌘→ 还给终端:按 Ghostty/iTerm2 惯例发 ^A / ^E(行首 / 行尾)
+            switch direction {
+            case .left: selected?.sendText("\u{01}")
+            case .right: selected?.sendText("\u{05}")
+            default: break
+            }
+            return
+        }
         focusNeighborPane(direction)
     }
 

@@ -55,6 +55,10 @@ final class CommandHistoryStoreTests: XCTestCase {
         XCTAssertEqual(CommandHistoryStore.stripPrompt("zc@host ~ % echo hi"), "echo hi")
         XCTAssertEqual(CommandHistoryStore.stripPrompt("❯ make build"), "make build")
         XCTAssertEqual(CommandHistoryStore.stripPrompt("plaincmd"), "plaincmd")
+        // 两行式提示符:首行是路径 + 中文分支,命令在第二行
+        XCTAssertEqual(CommandHistoryStore.stripPrompt("╭─zc@mbp ~/repo ‹feature/重构-2933›\n╰─➤  git status"), "git status")
+        // 首行已有命令时,续行照常拼接,续行里的 % 不被当成提示符
+        XCTAssertEqual(CommandHistoryStore.stripPrompt("❯ echo a \\\n  && echo 5% done"), "echo a \\ && echo 5% done")
     }
 }
 

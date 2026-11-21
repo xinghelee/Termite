@@ -64,37 +64,37 @@ enum DailyReport {
     static func generate() async -> String {
         let entries = CommandHistoryStore.shared.today()
         let dateText = Date().formatted(date: .abbreviated, time: .omitted)
-        var lines: [String] = ["# 工作日报 · \(dateText)", ""]
+        var lines: [String] = ["# " + String(localized: "工作日报 · \(dateText)"), ""]
 
         if entries.isEmpty {
-            lines.append("(今天还没有命令记录)")
+            lines.append(String(localized: "(今天还没有命令记录)"))
             return lines.joined(separator: "\n")
         }
 
         // 概览
         let failures = entries.filter { ($0.exitCode ?? 0) != 0 }
         let dirs = Dictionary(grouping: entries, by: \.cwd)
-        lines.append("## 概览")
-        lines.append("- 命令:\(entries.count) 条(失败 \(failures.count))")
-        lines.append("- 覆盖目录:\(dirs.count) 个")
+        lines.append("## " + String(localized: "概览"))
+        lines.append("- " + String(localized: "命令:\(entries.count) 条(失败 \(failures.count))"))
+        lines.append("- " + String(localized: "覆盖目录:\(dirs.count) 个"))
         if let first = entries.first, let last = entries.last {
             let clock: (Date) -> String = { $0.formatted(date: .omitted, time: .shortened) }
-            lines.append("- 时间段:\(clock(first.timestamp)) – \(clock(last.timestamp))")
+            lines.append("- " + String(localized: "时间段:\(clock(first.timestamp)) – \(clock(last.timestamp))"))
         }
         lines.append("")
 
         // 活跃目录(按命令数)
-        lines.append("## 活跃目录")
+        lines.append("## " + String(localized: "活跃目录"))
         for (dir, list) in dirs.sorted(by: { $0.value.count > $1.value.count }).prefix(8) {
             let branch = list.compactMap(\.branch).last.map { " ⎇ \($0)" } ?? ""
-            lines.append("- \((dir as NSString).abbreviatingWithTildeInPath)\(branch) — \(list.count) 条命令")
+            lines.append("- \((dir as NSString).abbreviatingWithTildeInPath)\(branch) — " + String(localized: "\(list.count) 条命令"))
         }
         lines.append("")
 
         // 各仓库今日提交
         let repoRoots = await resolveRepoRoots(from: Array(dirs.keys))
         if !repoRoots.isEmpty {
-            lines.append("## 今日提交")
+            lines.append("## " + String(localized: "今日提交"))
             for root in repoRoots {
                 let log = await GitService.run(
                     ["log", "--since=midnight", "--oneline", "--no-decorate", "-20"],
@@ -111,7 +111,7 @@ enum DailyReport {
 
         // 失败命令(排查线索)
         if !failures.isEmpty {
-            lines.append("## 失败命令")
+            lines.append("## " + String(localized: "失败命令"))
             for failure in failures.suffix(8) {
                 lines.append("- `\(failure.command.prefix(80))`(exit \(failure.exitCode ?? -1))")
             }

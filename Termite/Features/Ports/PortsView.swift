@@ -73,6 +73,8 @@ private struct PortRow: View {
     let forceKill: () -> Void
 
     @State private var hovering = false
+    /// 结束进程要点两下:第一下变成红色「结束?」,3 秒内再点才发 SIGTERM
+    @State private var killArmed = false
 
     private var theme: TerminalTheme { ThemeStore.shared.current }
 
@@ -100,12 +102,32 @@ private struct PortRow: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("在浏览器打开 localhost:\(String(entry.port))")
-            Button(action: kill) {
-                Image(systemName: "xmark.circle")
+            Button {
+                if killArmed {
+                    killArmed = false
+                    kill()
+                } else {
+                    withAnimation(.easeOut(duration: 0.12)) { killArmed = true }
+                    Task {
+                        try? await Task.sleep(for: .seconds(3))
+                        withAnimation(.easeOut(duration: 0.12)) { killArmed = false }
+                    }
+                }
+            } label: {
+                if killArmed {
+                    Text("结束?")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.red))
+                } else {
+                    Image(systemName: "xmark.circle")
+                        .foregroundStyle(.red.opacity(0.85))
+                }
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.red.opacity(0.85))
-            .help("结束进程(SIGTERM;右键可强制)")
+            .help(killArmed ? "再点一次结束进程" : "结束进程(SIGTERM;右键可强制)")
             .contextMenu {
                 Button("强制结束(SIGKILL)", role: .destructive, action: forceKill)
             }

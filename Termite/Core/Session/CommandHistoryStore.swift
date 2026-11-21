@@ -147,21 +147,39 @@ final class CommandHistoryStore: @unchecked Sendable {
         sqlite3_exec(db, sql, nil, nil, nil)
     }
 
-    /// 剥提示符前缀:命令文本来自缓冲区提示符行,取最后一个提示符号后的内容
+    /// 剥提示符前缀:命令文本来自缓冲区提示符行,取最后一个提示符号后的内容。
+    /// 多行提示符(如 `╭─ 路径 ‹分支›` / `╰─➤ 命令`)取最后一行带提示符号的那行起算
     static func stripPrompt(_ text: String) -> String {
-        let firstLine = text.components(separatedBy: "\n").first ?? text
-        var best: String?
-        for marker in ["❯ ", "➜ ", "» ", "✗ ", "$ ", "% ", "# "] {
-            if let range = firstLine.range(of: marker, options: .backwards) {
-                let candidate = String(firstLine[range.upperBound...]).trimmingCharacters(in: .whitespaces)
-                if !candidate.isEmpty, best == nil || candidate.count < best!.count {
-                    best = candidate
+        let lines = text.components(separatedBy: "\n")
+        let markers = ["❯ ", "➜ ", "➤ ", "» ", "✗ ", "$ ", "% ", "# "]
+        func command(in line: String) -> String? {
+            var best: String?
+            for marker in markers {
+                if let range = line.range(of: marker, options: .backwards) {
+                    let candidate = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    if !candidate.isEmpty, best == nil || candidate.count < best!.count {
+                        best = candidate
+                    }
                 }
             }
+            return best
         }
-        let rest = text.components(separatedBy: "\n").dropFirst().joined(separator: " ")
-        let head = best ?? firstLine.trimmingCharacters(in: .whitespaces)
-        let combined = rest.isEmpty ? head : head + " " + rest.trimmingCharacters(in: .whitespaces)
+        // 第一行或第二行(两行式提示符)里找命令起点;再往后的行是命令本身的续行
+        var startIndex = 0
+        var head: String?
+        for (index, line) in lines.prefix(2).enumerated() {
+            if let found = command(in: line) {
+                startIndex = index
+                head = found
+                break  // 第一行已有提示符号时,第二行是命令续行,不再往下找
+            }
+        }
+        let rest = lines.dropFirst(startIndex + 1)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let first = head ?? lines[startIndex].trimmingCharacters(in: .whitespaces)
+        let combined = rest.isEmpty ? first : first + " " + rest
         return String(combined.prefix(500))
     }
 }

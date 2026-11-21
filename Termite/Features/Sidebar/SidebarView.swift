@@ -38,7 +38,8 @@ struct SidebarView: View {
             Button("新建工作区…") { SpacePrompt.create() }
             if let space = spaceStore.selected {
                 Divider()
-                Button("删除工作区「\(space.name)」", role: .destructive) {
+                Button("删除工作区「\(space.name)」…", role: .destructive) {
+                    guard SpacePrompt.confirmRemove(space) else { return }
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                         spaceStore.remove(space.id)
                     }
@@ -132,6 +133,7 @@ struct SidebarView: View {
                                 }
                             },
                             remove: {
+                                guard SpacePrompt.confirmRemove(space) else { return }
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                                     spaceStore.remove(space.id)
                                 }
@@ -561,7 +563,7 @@ private struct SpaceDot: View {
                 Button("重命名") { SpacePrompt.rename(space) }
                 Button("新建工作区…") { SpacePrompt.create() }
                 Divider()
-                Button("删除工作区(项目归入第一个工作区)", role: .destructive) { remove() }
+                Button("删除工作区「\(space.name)」…", role: .destructive) { remove() }
             }
             .help(space.name)
     }
@@ -599,6 +601,18 @@ enum SpacePrompt {
             created = SpaceStore.shared.add(name: name)
         }
         return created
+    }
+
+    /// 删除工作区不可撤销:先确认,并说清项目去哪了(不会被删,只是归入第一个工作区)
+    static func confirmRemove(_ space: SidebarSpace) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "删除工作区「\(space.name)」?")
+        alert.informativeText = String(localized: "其中的项目不会被删除,会归入第一个工作区。此操作无法撤销。")
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: String(localized: "删除"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        alert.buttons.first?.hasDestructiveAction = true
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     static func rename(_ space: SidebarSpace) {

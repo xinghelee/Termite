@@ -138,15 +138,15 @@ struct GitHistoryGraphView: View {
                         Divider()
                         Button("Cherry-pick 到当前分支…") {
                             confirmOperation(
-                                title: "Cherry-pick \(row.commit.shortHash)?",
-                                message: "把「\(row.commit.subject)」应用到当前分支。",
+                                title: String(localized: "Cherry-pick \(row.commit.shortHash)?"),
+                                message: String(localized: "把「\(row.commit.subject)」应用到当前分支。"),
                                 args: ["cherry-pick", row.commit.hash]
                             )
                         }
                         Button("Revert 此提交…") {
                             confirmOperation(
-                                title: "Revert \(row.commit.shortHash)?",
-                                message: "生成一个反向提交撤销「\(row.commit.subject)」。",
+                                title: String(localized: "Revert \(row.commit.shortHash)?"),
+                                message: String(localized: "生成一个反向提交撤销「\(row.commit.subject)」。"),
                                 args: ["revert", "--no-edit", row.commit.hash]
                             )
                         }

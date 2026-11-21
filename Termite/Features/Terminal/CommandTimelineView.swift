@@ -81,7 +81,7 @@ private struct CommandRecordRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(record.commandText.isEmpty ? "(空命令)" : record.commandText)
+            Text(record.commandText.isEmpty ? String(localized: "(空命令)") : record.commandText)
                 .font(.system(size: 11, design: .monospaced))
                 .lineLimit(2)
                 .truncationMode(.head)

@@ -378,6 +378,8 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         }
         if event.modifierFlags.contains(.option), event.clickCount == 1,
            inputEnabled, session != nil, moveCursorToClick(event) {
+            // 不走 super 就不会清旧选区,mouseUp 的选中即复制会把旧选区再写一次剪贴板
+            selectNone()
             return
         }
         super.mouseDown(with: event)
@@ -634,108 +636,114 @@ final class TermiteTerminalView: LocalProcessTerminalView {
         keyDown(with: event)
     }
 
+    /// 右键菜单里由我们自己建的项;willOpenMenu 时据此剔除系统塞进来的「Ask Siri / AutoFill」等
+    private var ownMenuItems: Set<ObjectIdentifier> = []
+
     override func menu(for event: NSEvent) -> NSMenu? {
+        // 右键点在哪个 pane,菜单就作用于哪个 pane:先把它设为焦点
+        // (右键不走 mouseDown,不聚焦的话「关闭此分屏」会关掉别的 pane)
+        MainActor.assumeIsolated {
+            if let session, inputEnabled, session.manager?.selectedID != session.id {
+                session.manager?.focusPane(session.id)
+            }
+        }
+
         let menu = NSMenu()
         // SwiftTerm 未实现菜单校验,自动校验会把自定义项判为禁用;这里手动管理启用态
         menu.autoenablesItems = false
+        if #available(macOS 15.2, *) { menu.automaticallyInsertsWritingToolsItems = false }
+
+        func add(_ title: String, _ action: Selector, symbol: String,
+                 key: String = "", modifiers: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            item.target = self
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            menu.addItem(item)
+            return item
+        }
 
         // 右键点在 file:line 引用上:首项直达编辑器
         if let (path, match) = fileLink(at: event) {
             pendingFileLink = (path, match.line, match.column)
             let display = (path as NSString).lastPathComponent + (match.line.map { ":\($0)" } ?? "")
-            let openItem = NSMenuItem(title: String(localized: "在编辑器中打开 \(display)"), action: #selector(termiteOpenFileLink), keyEquivalent: "")
-            openItem.target = self
-            openItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
-            menu.addItem(openItem)
+            _ = add(String(localized: "在编辑器中打开 \(display)"), #selector(termiteOpenFileLink), symbol: "arrow.up.forward.app")
             menu.addItem(.separator())
         }
 
-        let copyItem = NSMenuItem(title: String(localized: "复制"), action: #selector(copy(_:)), keyEquivalent: "c")
-        copyItem.target = self
-        menu.addItem(copyItem)
-
-        let pasteItem = NSMenuItem(title: String(localized: "粘贴"), action: #selector(paste(_:)), keyEquivalent: "v")
-        pasteItem.target = self
-        menu.addItem(pasteItem)
-
+        // 编辑
+        let copyItem = add(String(localized: "复制"), #selector(copy(_:)), symbol: "doc.on.doc", key: "c")
+        _ = add(String(localized: "粘贴"), #selector(paste(_:)), symbol: "doc.on.clipboard", key: "v")
+        let copyOutputItem = add(String(localized: "复制上条命令输出"), #selector(termiteCopyLastOutput),
+                                 symbol: "text.viewfinder", key: "c", modifiers: [.command, .shift])
+        menu.addItem(.separator())
+        _ = add(String(localized: "查找…"), #selector(termiteFind), symbol: "magnifyingglass", key: "f")
+        _ = add(String(localized: "清空回滚缓冲"), #selector(termiteClearBuffer), symbol: "eraser", key: "k")
         menu.addItem(.separator())
 
-        let hItem = NSMenuItem(title: String(localized: "左右分屏"), action: #selector(termiteSplitHorizontal), keyEquivalent: "d")
-        hItem.target = self
-        hItem.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: nil)
-        menu.addItem(hItem)
-
-        let vItem = NSMenuItem(title: String(localized: "上下分屏"), action: #selector(termiteSplitVertical), keyEquivalent: "d")
-        vItem.keyEquivalentModifierMask = [.command, .shift]
-        vItem.target = self
-        vItem.image = NSImage(systemSymbolName: "rectangle.split.1x2", accessibilityDescription: nil)
-        menu.addItem(vItem)
-
-        let worktreeItem = NSMenuItem(title: String(localized: "在新 Worktree 中分屏…"), action: #selector(termiteSplitWorktree), keyEquivalent: "")
-        worktreeItem.target = self
-        worktreeItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
-        menu.addItem(worktreeItem)
-
+        // 分屏
+        _ = add(String(localized: "左右分屏"), #selector(termiteSplitHorizontal), symbol: "rectangle.split.2x1", key: "d")
+        _ = add(String(localized: "上下分屏"), #selector(termiteSplitVertical), symbol: "rectangle.split.1x2",
+                key: "d", modifiers: [.command, .shift])
+        let worktreeItem = add(String(localized: "在新 Worktree 中分屏…"), #selector(termiteSplitWorktree), symbol: "arrow.triangle.branch")
         // cwd 在链接 worktree 里才出现清理项
         if let cwd = session?.workingDirectory, WorktreeService.linkedWorktreeRoot(of: cwd) != nil {
-            let cleanupItem = NSMenuItem(title: String(localized: "清理此 Worktree(移除并关闭)…"), action: #selector(termiteCleanupWorktree), keyEquivalent: "")
-            cleanupItem.target = self
-            cleanupItem.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: nil)
-            menu.addItem(cleanupItem)
+            _ = add(String(localized: "清理此 Worktree(移除并关闭)…"), #selector(termiteCleanupWorktree), symbol: "trash")
         }
-
         // 多 pane 才有意义:放大 = 占满终端区,再点一次还原
         if let session, let tab = session.manager?.selectedTab, tab.root.leafIDs().count > 1 {
             let maximized = tab.maximizedID != nil
-            let zoomItem = NSMenuItem(
-                title: maximized ? String(localized: "还原分屏布局") : String(localized: "最大化此分屏"),
-                action: #selector(termiteToggleMaximize), keyEquivalent: "\r")
-            zoomItem.keyEquivalentModifierMask = [.command, .shift]
-            zoomItem.target = self
-            zoomItem.image = NSImage(
-                systemSymbolName: maximized ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                accessibilityDescription: nil)
-            menu.addItem(zoomItem)
+            _ = add(maximized ? String(localized: "还原分屏布局") : String(localized: "最大化此分屏"),
+                    #selector(termiteToggleMaximize),
+                    symbol: maximized ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                    key: "\r", modifiers: [.command, .shift])
         }
-
-        let renameItem = NSMenuItem(title: String(localized: "重命名分屏…"), action: #selector(termiteRenamePane), keyEquivalent: "")
-        renameItem.target = self
-        renameItem.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
-        menu.addItem(renameItem)
-
-        let closePaneItem = NSMenuItem(title: String(localized: "关闭此分屏"), action: #selector(termiteClosePane), keyEquivalent: "")
-        closePaneItem.target = self
-        closePaneItem.image = NSImage(systemSymbolName: "xmark.rectangle", accessibilityDescription: nil)
-        menu.addItem(closePaneItem)
-
         menu.addItem(.separator())
 
-        let copyOutputItem = NSMenuItem(title: String(localized: "复制上条命令输出"), action: #selector(termiteCopyLastOutput), keyEquivalent: "")
-        copyOutputItem.target = self
-        copyOutputItem.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: nil)
-        menu.addItem(copyOutputItem)
-
-        let revealItem = NSMenuItem(title: String(localized: "在 Finder 中显示"), action: #selector(termiteRevealInFinder), keyEquivalent: "")
-        revealItem.target = self
-        revealItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-        menu.addItem(revealItem)
-
-        let findItem = NSMenuItem(title: String(localized: "查找…"), action: #selector(termiteFind), keyEquivalent: "f")
-        findItem.target = self
-        menu.addItem(findItem)
+        // 这个 pane
+        _ = add(String(localized: "重命名分屏…"), #selector(termiteRenamePane), symbol: "pencil")
+        _ = add(String(localized: "在 Finder 中显示"), #selector(termiteRevealInFinder), symbol: "folder")
+        menu.addItem(.separator())
+        _ = add(String(localized: "关闭此分屏"), #selector(termiteClosePane), symbol: "xmark", key: "w")
 
         menu.items.forEach { $0.isEnabled = true }
-        // 无可复制输出时禁用该项
+        copyItem.isEnabled = !(getSelection() ?? "").isEmpty
         MainActor.assumeIsolated {
-            copyOutputItem.isEnabled = SessionManager.shared.selected?.hasCommandOutput ?? false
+            // 无可复制输出时禁用该项
+            copyOutputItem.isEnabled = session?.hasCommandOutput ?? false
             // 不在 git 仓库里没有 worktree 可分
             worktreeItem.isEnabled = session?.gitBranch != nil
         }
+        ownMenuItems = Set(menu.items.map(ObjectIdentifier.init))
         return menu
     }
 
+    /// AppKit 在 menu(for:) 之后给文本输入类视图追加「Ask Siri」「AutoFill」等系统项,
+    /// 跟终端无关且没有公开开关;打开前剔掉非自建项,再收拾首尾/连续分隔线
+    override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        guard !ownMenuItems.isEmpty else { return }
+        for item in menu.items.reversed() where !ownMenuItems.contains(ObjectIdentifier(item)) {
+            menu.removeItem(item)
+        }
+        var previousWasSeparator = true
+        for item in menu.items {
+            if item.isSeparatorItem, previousWasSeparator { menu.removeItem(item); continue }
+            previousWasSeparator = item.isSeparatorItem
+        }
+        while let last = menu.items.last, last.isSeparatorItem { menu.removeItem(last) }
+    }
+
+    private var menuTargetSession: TerminalSession? {
+        MainActor.assumeIsolated { session ?? SessionManager.shared.selected }
+    }
+
     @objc private func termiteCopyLastOutput() {
-        MainActor.assumeIsolated { _ = SessionManager.shared.selected?.copyLastCommandOutput() }
+        MainActor.assumeIsolated { _ = menuTargetSession?.copyLastCommandOutput() }
+    }
+
+    @objc private func termiteClearBuffer() {
+        MainActor.assumeIsolated { menuTargetSession?.clearBuffer() }
     }
 
     @objc private func termiteRevealInFinder() {
@@ -746,15 +754,21 @@ final class TermiteTerminalView: LocalProcessTerminalView {
     }
 
     @objc private func termiteSplitHorizontal() {
-        MainActor.assumeIsolated { SessionManager.shared.splitFocused(axis: .horizontal) }
+        MainActor.assumeIsolated { (session?.manager ?? SessionManager.shared).splitFocused(axis: .horizontal) }
     }
 
     @objc private func termiteSplitVertical() {
-        MainActor.assumeIsolated { SessionManager.shared.splitFocused(axis: .vertical) }
+        MainActor.assumeIsolated { (session?.manager ?? SessionManager.shared).splitFocused(axis: .vertical) }
     }
 
     @objc private func termiteClosePane() {
-        MainActor.assumeIsolated { SessionManager.shared.requestCloseCurrent() }
+        MainActor.assumeIsolated {
+            if let session {
+                (session.manager ?? SessionManager.shared).requestClose(session)
+            } else {
+                SessionManager.shared.requestCloseCurrent()
+            }
+        }
     }
 
     /// 右键「最大化此分屏 / 还原」:带上自己的 id,右键点在哪个 pane 就放大哪个

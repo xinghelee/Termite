@@ -197,7 +197,7 @@ final class TerminalSession: Identifiable {
         if let restoreScrollback, !restoreScrollback.isEmpty {
             let normalized = restoreScrollback.replacingOccurrences(of: "\n", with: "\r\n")
             let stamp = Date().formatted(date: .omitted, time: .shortened)
-            view.feed(text: "\u{1b}[2m" + normalized + "\r\n─── 以上为上次会话内容 · \(stamp) 恢复 ───\u{1b}[0m\r\n")
+            view.feed(text: "\u{1b}[2m" + normalized + "\r\n─── " + String(localized: "以上为上次会话内容 · \(stamp) 恢复") + " ───\u{1b}[0m\r\n")
             // 回灌的旧内容不参与下次快照
             refreshScrollInvariantBounds()
             snapshotFloor = siUpper
@@ -723,8 +723,8 @@ final class TerminalSession: Identifiable {
             }
             lines.append(text)
         }
-        // 屏幕折行是同一逻辑行,直接拼接
-        let text = lines.joined()
+        // 屏幕折行是同一逻辑行,直接拼接;按列切片要保留宽字符后的占位格,切完再剔掉 NUL
+        let text = lines.joined().replacingOccurrences(of: "\u{0}", with: "")
         return text.trimmingCharacters(in: .whitespaces).isEmpty ? "" : text
     }
 
@@ -1044,7 +1044,7 @@ final class TerminalSession: Identifiable {
         guard end > start else { return nil }
         let terminal = terminalView.getTerminal()
         func text(_ row: Int) -> String {
-            terminal.getScrollInvariantLine(row: row)?.translateToString(trimRight: true) ?? ""
+            terminal.getScrollInvariantLine(row: row)?.translateToString(trimRight: true, skipNullCellsFollowingWide: true) ?? ""
         }
         var firstIndex = start
         while firstIndex < end, text(firstIndex).isEmpty { firstIndex += 1 }
@@ -1083,9 +1083,18 @@ final class TerminalSession: Identifiable {
         guard start < end else { return "" }
         let terminal = terminalView.getTerminal()
         var lines: [String] = []
+        var previousRowFull = false
         for row in start..<end {
-            guard let line = terminal.getScrollInvariantLine(row: row) else { continue }
-            lines.append(line.translateToString(trimRight: true))
+            guard let line = terminal.getScrollInvariantLine(row: row) else { previousRowFull = false; continue }
+            // 宽字符(中日韩)后的占位格默认被转成 NUL,落 SQLite 时 C 字符串在此截断
+            let text = line.translateToString(trimRight: true, skipNullCellsFollowingWide: true)
+            // 软折行是同一逻辑行:SwiftTerm 不公开 isWrapped,上一行写满到最后一列即视为折行续接
+            if previousRowFull, !lines.isEmpty {
+                lines[lines.count - 1] += text
+            } else {
+                lines.append(text)
+            }
+            previousRowFull = line.getTrimmedLength() >= terminal.cols
         }
         while lines.last?.isEmpty == true { lines.removeLast() }
         return lines.joined(separator: "\n")
