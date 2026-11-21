@@ -628,6 +628,12 @@ final class TermiteTerminalView: LocalProcessTerminalView {
 
     // MARK: - 右键菜单
 
+    // macOS 15 起系统把 ⌃↩(用户可改)定义为「键盘呼出右键菜单」,在 keyDown 之前截走;
+    // 终端里这个键要交给 TUI(Claude Code 里 ⌃↩ 发送/换行),不走系统菜单,鼠标右键不受影响
+    override func contextMenuKeyDown(_ event: NSEvent) {
+        keyDown(with: event)
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
         // SwiftTerm 未实现菜单校验,自动校验会把自定义项判为禁用;这里手动管理启用态
