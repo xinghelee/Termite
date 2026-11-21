@@ -57,4 +57,20 @@ final class MarkdownRendererTests: XCTestCase {
         // 夹在文字中间的图片仍是段落
         guard case .paragraph = kinds("see ![x](a.png) here").first else { return XCTFail() }
     }
+
+    func testImagesOutsideDocumentTreeNeedConsent() {
+        // /net 绝对路径会触发自动挂载连外部主机:不得自动读
+        guard case .images(let abs, _) = kinds("![x](/net/evil-host/p.png)").first else { return XCTFail() }
+        XCTAssertTrue(abs[0].outsideDocumentTree)
+        XCTAssertTrue(abs[0].needsConsent)
+        // ../ 逃出文档目录同理
+        guard case .images(let up, _) = kinds("![x](../../etc/p.png)").first else { return XCTFail() }
+        XCTAssertTrue(up[0].needsConsent)
+        // 文档目录内的相对路径直接显示
+        guard case .images(let inside, _) = kinds("![x](docs/p.png)").first else { return XCTFail() }
+        XCTAssertFalse(inside[0].needsConsent)
+        // 网络图片一律要点按
+        guard case .images(let remote, _) = kinds("![x](https://example.com/p.png)").first else { return XCTFail() }
+        XCTAssertTrue(remote[0].needsConsent)
+    }
 }

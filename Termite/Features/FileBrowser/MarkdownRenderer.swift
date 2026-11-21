@@ -12,8 +12,12 @@ enum MarkdownRenderer {
         let alt: String
         /// HTML width 属性(pt);nil = 按可用宽度自适应
         let width: CGFloat?
+        /// 本地路径在文档所在目录树(仓库根)之外:与网络图片一样点按才读。
+        /// 文档可以写 /net/某主机/x.png 这类绝对路径,一读就触发自动挂载连到外部主机(变相追踪像素)
+        var outsideDocumentTree = false
 
         var isRemote: Bool { source.hasPrefix("http://") || source.hasPrefix("https://") }
+        var needsConsent: Bool { isRemote || outsideDocumentTree }
     }
 
     struct Block: Identifiable {
@@ -38,11 +42,22 @@ enum MarkdownRenderer {
         var paragraph: [String] = []
         var tableLines: [String] = []
 
+        // 允许直接读图的范围:文档所在 git 仓库根(没有仓库就是文档目录)。纯字符串比较,不碰文件系统
+        let allowedRoot = baseDirectory.map { repositoryRoot(containing: $0) ?? ($0 as NSString).standardizingPath }
         func resolve(_ src: String) -> String {
             if src.hasPrefix("http://") || src.hasPrefix("https://") || src.hasPrefix("/") { return src }
             guard let baseDirectory else { return src }
             let clean = src.hasPrefix("./") ? String(src.dropFirst(2)) : src
             return ((baseDirectory as NSString).appendingPathComponent(clean) as NSString).standardizingPath
+        }
+        func imageRef(_ src: String, alt: String, width: CGFloat?) -> ImageRef {
+            let resolved = resolve(src)
+            var ref = ImageRef(source: resolved, alt: alt, width: width)
+            if !ref.isRemote {
+                let standardized = (resolved as NSString).standardizingPath
+                ref.outsideDocumentTree = allowedRoot.map { !(standardized == $0 || standardized.hasPrefix($0 + "/")) } ?? true
+            }
+            return ref
         }
 
         func inline(_ s: String) -> AttributedString {
@@ -111,14 +126,14 @@ enum MarkdownRenderer {
                     htmlLines.append(lines[i])
                     i += 1
                 }
-                for kind in convertHTML(htmlLines.joined(separator: "\n"), inline: inline, resolve: resolve) {
+                for kind in convertHTML(htmlLines.joined(separator: "\n"), inline: inline, makeRef: imageRef) {
                     add(kind)
                 }
                 continue
             }
 
             // 整行只有图片(可带外层链接):渲染成图;夹在文字里的图片仍按 alt 文本处理
-            if let images = imageOnlyLine(trimmed, resolve: resolve) {
+            if let images = imageOnlyLine(trimmed, makeRef: imageRef) {
                 flushParagraph()
                 flushTable()
                 add(.images(images, centered: false))
@@ -175,6 +190,20 @@ enum MarkdownRenderer {
         flushParagraph()
         flushTable()
         return blocks
+    }
+
+    /// 向上找 .git(最多 12 层);README 里 ../docs/x.png 这类引用落在仓库内都算文档树
+    static func repositoryRoot(containing directory: String) -> String? {
+        var current = (directory as NSString).standardizingPath
+        for _ in 0..<12 {
+            if FileManager.default.fileExists(atPath: (current as NSString).appendingPathComponent(".git")) {
+                return current
+            }
+            let parent = (current as NSString).deletingLastPathComponent
+            if parent == current || parent.isEmpty { return nil }
+            current = parent
+        }
+        return nil
     }
 
     // MARK: - 表格
@@ -236,7 +265,7 @@ enum MarkdownRenderer {
         pattern: #"!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)"#)
 
     /// 一行里除了图片(以及包住图片的链接)别无他物时返回图片列表
-    static func imageOnlyLine(_ line: String, resolve: (String) -> String) -> [ImageRef]? {
+    static func imageOnlyLine(_ line: String, makeRef: (String, String, CGFloat?) -> ImageRef) -> [ImageRef]? {
         let range = NSRange(line.startIndex..., in: line)
         let matches = markdownImage.matches(in: line, range: range)
         guard !matches.isEmpty else { return nil }
@@ -246,7 +275,7 @@ enum MarkdownRenderer {
         guard rest.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
         return matches.compactMap { match in
             guard let alt = Range(match.range(at: 1), in: line), let src = Range(match.range(at: 2), in: line) else { return nil }
-            return ImageRef(source: resolve(String(line[src])), alt: String(line[alt]), width: nil)
+            return makeRef(String(line[src]), String(line[alt]), nil)
         }
     }
 
@@ -261,7 +290,7 @@ enum MarkdownRenderer {
     /// README 头部的 HTML:居中的 logo、<h1> 标题、<a> 链接行、<img> 截图。
     /// 不追求完整 HTML,只把常见写法转成对应的块,剩余标签剥掉保留文字
     static func convertHTML(_ html: String, inline: (String) -> AttributedString,
-                            resolve: (String) -> String) -> [Kind] {
+                            makeRef: (String, String, CGFloat?) -> ImageRef) -> [Kind] {
         var text = html.replacingOccurrences(of: #"<!--[\s\S]*?-->"#, with: "", options: .regularExpression)
         let centered = text.range(of: #"align\s*=\s*["']?center"#, options: [.regularExpression, .caseInsensitive]) != nil
         var kinds: [Kind] = []
@@ -310,7 +339,7 @@ enum MarkdownRenderer {
                     guard tag.lowercased().hasPrefix("<img"),
                           let src = attribute("src", in: tag) else { continue }
                     let width = attribute("width", in: tag).flatMap { Double($0) }.map { CGFloat($0) }
-                    pendingImages.append(ImageRef(source: resolve(src), alt: attribute("alt", in: tag) ?? "", width: width))
+                    pendingImages.append(makeRef(src, attribute("alt", in: tag) ?? "", width))
                 }
                 line = imgRegex.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: ns.length), withTemplate: "")
             }
@@ -514,9 +543,10 @@ private struct MarkdownImageView: View {
         Group {
             if let loaded {
                 Image(nsImage: loaded).resizable().scaledToFit()
-            } else if image.isRemote && !remoteRequested {
+            } else if image.needsConsent && !remoteRequested {
                 Button { remoteRequested = true } label: {
-                    placeholder(String(localized: "点按加载网络图片"), symbol: "network")
+                    placeholder(image.isRemote ? String(localized: "点按加载网络图片") : String(localized: "点按加载文档目录外的图片"),
+                                symbol: image.isRemote ? "network" : "folder.badge.questionmark")
                 }
                 .buttonStyle(.plain)
                 .help(image.source)
@@ -532,8 +562,8 @@ private struct MarkdownImageView: View {
     }
 
     private func load() async {
+        guard !image.needsConsent || remoteRequested else { return }
         if image.isRemote {
-            guard remoteRequested else { return }
             loaded = await Self.fetchRemote(image.source)
         } else {
             loaded = await Self.readLocal(image.source)
