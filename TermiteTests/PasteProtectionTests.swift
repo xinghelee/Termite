@@ -96,4 +96,15 @@ final class CompactTitleTests: XCTestCase {
         XCTAssertEqual(TerminalSession.compactTitle("vim README.md"), "vim README.md")
         XCTAssertEqual(TerminalSession.compactTitle("htop"), "htop")
     }
+
+    func testProgramNameFromCommandLine() {
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "claude"), "claude")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "vim README.md"), "vim")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "FOO=1 BAR=2 npm run dev"), "npm")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "sudo -E htop"), "htop")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "npx -y @anthropic-ai/claude-code"), "claude-code")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "npx claude@latest"), "claude")
+        XCTAssertEqual(TerminalSession.programName(fromCommandLine: "/usr/local/bin/python3 app.py"), "python3")
+        XCTAssertNil(TerminalSession.programName(fromCommandLine: "   "))
+    }
 }

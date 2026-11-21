@@ -1386,10 +1386,16 @@ private struct TerminalTabChip: View {
                         if !focused { commitRename() } // 点别处失焦即提交
                     }
             } else {
+                // 程序小图标:每个标签有个锚点,多开 agent / 编辑器 / dev server 时扫一眼就分得清
+                Image(systemName: ProgramIcon.symbol(for: focusedSession?.runningProgram))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .frame(width: 14)
                 Text(title)
                     .font(.system(size: 13))
                     .lineLimit(1)
-                    .frame(maxWidth: 180)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 240)
             }
             if paneCount > 1 {
                 Text("\(paneCount)")
@@ -1648,5 +1654,36 @@ private struct RemoteControlOverlay: View {
         .transition(.opacity)
         .accessibilityIdentifier("pane.remote-control-overlay")
         .accessibilityLabel(Text("\(device) 正在操作,点一下夺回控制"))
+    }
+}
+
+/// 前台程序 → SF Symbol:只认常见几类,其余运行中的程序用通用终端图标
+enum ProgramIcon {
+    static func symbol(for program: String?) -> String {
+        guard let program = program?.lowercased() else { return "terminal" }
+        switch program {
+        case "claude", "codex", "gemini", "aider", "opencode", "amp", "cursor-agent", "qwen", "goose":
+            return "sparkle"
+        case "vim", "nvim", "vi", "nano", "emacs", "hx", "helix", "micro":
+            return "pencil.line"
+        case "node", "npm", "pnpm", "yarn", "bun", "deno", "vite", "next", "tsx":
+            return "shippingbox"
+        case "python", "python3", "ipython", "uv", "pip", "pip3", "poetry":
+            return "chevron.left.forwardslash.chevron.right"
+        case "ssh", "mosh", "et", "telnet":
+            return "network"
+        case "git", "lazygit", "tig", "gh":
+            return "arrow.trianglehead.branch"
+        case "docker", "podman", "kubectl", "k9s":
+            return "cube"
+        case "make", "cargo", "swift", "xcodebuild", "go", "gradle", "mvn", "cmake", "ninja":
+            return "hammer"
+        case "top", "htop", "btop", "glances":
+            return "gauge.with.dots.needle.33percent"
+        case "less", "more", "man", "bat":
+            return "doc.text"
+        default:
+            return "apple.terminal.on.rectangle"
+        }
     }
 }

@@ -116,15 +116,60 @@ final class TerminalSession: Identifiable {
         manager?.layoutChangedSoon()
     }
 
-    /// 标签 chip / 标题胶囊显示名:自定义名 > OSC 标题(压缩为最后一段目录)> cwd 目录名 > shell 名
-    var displayTitle: String {
-        if let customName { return customName }
-        if !title.isEmpty { return Self.compactTitle(title) }
+    /// 正在前台跑的程序名(取自 OSC 133 报告的命令行首个真实命令,如 claude / vim / npm);
+    /// 回到提示符即清空。没有 shell 集成时恒为 nil,标题退回旧规则
+    private(set) var runningProgram: String?
+    /// 本条命令运行期间程序自己设过窗口标题(Claude Code 会把任务主题写进去):
+    /// 有它就用它,比程序名更能区分同目录的多个 agent
+    @ObservationIgnored private var programSetTitle = false
+
+    /// 标题里的目录段:cwd 最后一段;家目录显示 ~
+    private var directoryLabel: String? {
         if let dir = workingDirectory {
             let short = (dir as NSString).abbreviatingWithTildeInPath
             return short == "~" ? "~" : (short as NSString).lastPathComponent
         }
-        return shellName
+        if !title.isEmpty { return Self.compactTitle(title) }
+        return nil
+    }
+
+    /// 标签 chip / 菜单栏 / 通知的显示名:
+    /// 自定义名 > 「目录 › 程序(或程序设的标题)」> OSC 标题(压缩为最后一段目录)> cwd 目录名 > shell 名
+    var displayTitle: String {
+        if let customName { return customName }
+        if let program = runningProgram {
+            let detail = programSetTitle && !title.isEmpty ? Self.compactTitle(title) : program
+            if let dir = directoryLabel, dir != detail { return dir + " › " + detail }
+            return detail
+        }
+        if !title.isEmpty { return Self.compactTitle(title) }
+        return directoryLabel ?? shellName
+    }
+
+    /// 从命令行取程序名:跳过 VAR=值、sudo/env/time 等前缀,npx/bunx 取被启动的包;
+    /// 路径只留最后一段。纯逻辑,便于单测
+    nonisolated static func programName(fromCommandLine line: String) -> String? {
+        let wrappers: Set<String> = ["sudo", "env", "time", "nohup", "exec", "command", "builtin", "nice", "caffeinate"]
+        let launchers: Set<String> = ["npx", "bunx", "pnpx"]
+        var tokens = line.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)[...]
+        while let first = tokens.first {
+            if first.contains("="), !first.hasPrefix("="), !first.hasPrefix("-") {
+                tokens = tokens.dropFirst(); continue   // FOO=bar cmd
+            }
+            if wrappers.contains(first) || first.hasPrefix("-") {
+                tokens = tokens.dropFirst(); continue   // sudo -E cmd
+            }
+            if launchers.contains(first), tokens.count > 1 {
+                tokens = tokens.dropFirst(); continue   // npx claude
+            }
+            break
+        }
+        guard var name = tokens.first else { return nil }
+        name = (name as NSString).lastPathComponent
+        // npx @anthropic-ai/claude-code 之类:取包名最后一段
+        if let at = name.lastIndex(of: "@"), at != name.startIndex { name = String(name[..<at]) }
+        name = name.trimmingCharacters(in: CharacterSet(charactersIn: "'\"()"))
+        return name.isEmpty ? nil : name
     }
 
     /// shell 默认标题形如 "user@host:/full/path" 或纯路径 → 只留最后一段目录;
@@ -796,6 +841,8 @@ final class TerminalSession: Identifiable {
         case .promptStart:
             inlineTUIActive = false
             runningCommand = false
+            runningProgram = nil
+            programSetTitle = false
             recordCommandMark()
             // 回到提示符 = 没有程序在管光标了:把上一条命令(vim/fzf/nvim)留下的
             // DECSCUSR 形状交还用户偏好,不让一枚不闪的死方块赖在提示符上
@@ -816,12 +863,16 @@ final class TerminalSession: Identifiable {
             // 命令行文本 = 提示符行..输出起始行(含提示符前缀,原样展示)
             let textStart = pendingPromptRow ?? max(outputRow - 1, siLower)
             pendingCommandText = extractText(from: textStart, to: outputRow)
+            runningProgram = Self.programName(fromCommandLine: CommandHistoryStore.stripPrompt(pendingCommandText))
+            programSetTitle = false
         case .commandEnd(let code):
             inlineTUIActive = false
             let duration = commandStartedAt.map { Date().timeIntervalSince($0) }
             commandStartedAt = nil
             commandRunningSince = nil
             runningCommand = false
+            runningProgram = nil
+            programSetTitle = false
             longRunningCommand = false
             longRunningFlip?.cancel()
             longRunningFlip = nil
@@ -1405,6 +1456,8 @@ extension TerminalSession: @preconcurrency LocalProcessTerminalViewDelegate {
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
         self.title = title
+        // 命令运行期间改的标题来自程序本身(shell 的 precmd 标题在提示符阶段才设)
+        if runningCommand { programSetTitle = true }
     }
 
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
