@@ -16,6 +16,8 @@ struct TerminalTabsView: View {
     @State private var chipFrames: [UUID: CGRect] = [:]
     @State private var draggingChip: UUID?
     @State private var dragOffset: CGFloat = 0
+    /// 按下 chip 之前选中的标签(拖标签进 pane 分屏的落点宿主)
+    @State private var tabBeforePress: PaneTab.ID?
     /// 越线换位的累计补偿:视觉偏移 = 指针 ΔX − 已换位宽度,换位瞬间零跳变
     @State private var dragSwapShift: CGFloat = 0
     private static let chipTrackSpace = "chipTrack"
@@ -234,9 +236,13 @@ struct TerminalTabsView: View {
                                 isSelected: tab.id == sessionManager.selectedTabID,
                                 hasActivity: hasActivity(tab),
                                 hasAttention: hasAttention(tab),
-                                select: { sessionManager.selectTab(tab.id) },
+                                select: {
+                                    // 按下即选中;先记住原来的标签,拖出标签栏时切回它当落点
+                                    tabBeforePress = sessionManager.selectedTabID
+                                    sessionManager.selectTab(tab.id)
+                                },
                                 close: { sessionManager.requestCloseTab(tab) },
-                                dragChanged: { chipDragChanged(tab, deltaX: $0) },
+                                dragChanged: { chipDragChanged(tab, delta: $0, windowPoint: $1) },
                                 dragEnded: { chipDragEnded(tab) }
                             )
                             .id(tab.id)
@@ -317,16 +323,31 @@ struct TerminalTabsView: View {
 
     /// chip 拖排(事件层上报窗口坐标 ΔX,方向与轨道一致):chip 钉在指针下,
     /// 越过邻居中线即换位;越线判定仍用轨道坐标系的 frame 快照,ΔX 是纯相对量,两系通用
-    private func chipDragChanged(_ tab: PaneTab, deltaX: CGFloat) {
+    private func chipDragChanged(_ tab: PaneTab, delta: CGPoint, windowPoint: CGPoint) {
+        // 纵向拖离标签栏 = 拖进 pane 分屏:chip 归位,终端区切回原标签显示落点预览
+        if sessionManager.tabSplitDrag == nil, abs(delta.y) > 36, sessionManager.tabs.count > 1 {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { dragOffset = 0 }
+            sessionManager.beginTabSplitDrag(source: tab.id, host: tabBeforePress)
+        }
+        if sessionManager.tabSplitDrag != nil {
+            sessionManager.updateTabSplitDrag(windowPoint: windowPoint)
+            return
+        }
         if draggingChip != tab.id {
             draggingChip = tab.id
             dragSwapShift = 0
         }
-        dragOffset = deltaX - dragSwapShift
+        dragOffset = delta.x - dragSwapShift
         swapIfCrossedNeighbor(tab)
     }
 
     private func chipDragEnded(_ tab: PaneTab) {
+        if sessionManager.tabSplitDrag != nil {
+            sessionManager.endTabSplitDrag()
+            draggingChip = nil
+            dragOffset = 0
+            return
+        }
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
             dragOffset = 0
         }
@@ -1314,8 +1335,8 @@ private struct TerminalTabChip: View {
     var hasAttention = false
     let select: () -> Void
     let close: () -> Void
-    /// 拖排回调(窗口坐标 ΔX):事件层直连父级的重排状态机
-    let dragChanged: (CGFloat) -> Void
+    /// 拖动回调(相对按下点的位移 + 窗口内左上原点坐标):横向重排,纵向拖出即进 pane 分屏
+    let dragChanged: (CGPoint, CGPoint) -> Void
     let dragEnded: () -> Void
 
     @Environment(SessionManager.self) private var sessionManager
@@ -1445,7 +1466,8 @@ private struct TerminalTabChip: View {
                 PressDragLayer(
                     onPress: select,
                     onDoubleClick: { tab.isRenaming = true },
-                    onDragChanged: { dragChanged($0.x) },
+                    onDragChanged: { _ in },
+                    onDragLocation: { dragChanged($0, $1) },
                     onDragEnded: dragEnded
                 )
                 .padding(.trailing, (isHovering || isSelected) ? 30 : 0)
@@ -1483,6 +1505,8 @@ struct PressDragLayer: NSViewRepresentable {
     let onPress: () -> Void
     let onDoubleClick: () -> Void
     var onDragChanged: (CGPoint) -> Void = { _ in }
+    /// 位移 + 窗口内左上原点坐标(与 SwiftUI .global 同系),需要命中测试的拖动用
+    var onDragLocation: ((CGPoint, CGPoint) -> Void)?
     var onDragEnded: () -> Void = {}
 
     func makeNSView(context: Context) -> MouseView {
@@ -1499,6 +1523,7 @@ struct PressDragLayer: NSViewRepresentable {
         view.onPress = onPress
         view.onDoubleClick = onDoubleClick
         view.onDragChanged = onDragChanged
+        view.onDragLocation = onDragLocation
         view.onDragEnded = onDragEnded
     }
 
@@ -1506,6 +1531,7 @@ struct PressDragLayer: NSViewRepresentable {
         var onPress: (() -> Void)?
         var onDoubleClick: (() -> Void)?
         var onDragChanged: ((CGPoint) -> Void)?
+        var onDragLocation: ((CGPoint, CGPoint) -> Void)?
         var onDragEnded: (() -> Void)?
         private var downPoint: CGPoint = .zero
         private var dragging = false
@@ -1536,6 +1562,10 @@ struct PressDragLayer: NSViewRepresentable {
             if !dragging, abs(delta.x) < 4, abs(delta.y) < 4 { return }
             dragging = true
             onDragChanged?(delta)
+            if let onDragLocation {
+                let height = window?.contentView?.bounds.height ?? 0
+                onDragLocation(delta, CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y))
+            }
         }
 
         override func mouseUp(with event: NSEvent) {
@@ -1558,6 +1588,27 @@ struct TerminalPaneView: View {
     /// 输出哨兵命中横幅的显隐(4 秒自动收起,下一次命中续期)
     @State private var watchBannerVisible = false
     @State private var watchBannerHide: Task<Void, Never>?
+
+    /// 拖标签进来时的落点预览:高亮将被新标签占据的那一半
+    private func dropPreview(_ edge: PaneDropEdge) -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let rect: CGRect = switch edge {
+            case .left: CGRect(x: 0, y: 0, width: w / 2, height: h)
+            case .right: CGRect(x: w / 2, y: 0, width: w / 2, height: h)
+            case .top: CGRect(x: 0, y: 0, width: w, height: h / 2)
+            case .bottom: CGRect(x: 0, y: h / 2, width: w, height: h / 2)
+            }
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(ThemeStore.shared.current.accentColor.opacity(0.18))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.7), lineWidth: 2)
+                )
+                .frame(width: rect.width - 8, height: rect.height - 8)
+                .position(x: rect.midX, y: rect.midY)
+        }
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1631,6 +1682,17 @@ struct TerminalPaneView: View {
                 .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { watchBannerVisible = false } }
             }
         }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            sessionManager.paneFrames[session.id] = frame
+        }
+        .overlay {
+            if let drag = sessionManager.tabSplitDrag, drag.target == session.id {
+                dropPreview(drag.edge)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: sessionManager.tabSplitDrag?.edge)
         .onChange(of: session.watchHit) { _, hit in
             guard hit != nil else { return }
             withAnimation(.easeOut(duration: 0.18)) { watchBannerVisible = true }

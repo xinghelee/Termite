@@ -97,6 +97,24 @@ indirect enum PaneNode: Identifiable, Equatable {
         return settingRatio(branch: branch.id, ratio: branch.ratio + delta)
     }
 
+    /// 把某个叶子换成「该叶子 + 另一棵子树」的分支:拖标签到 pane 边缘时,整个标签贴到那一侧
+    func inserting(_ subtree: PaneNode, at target: UUID, edge: PaneDropEdge, branchID: UUID = UUID()) -> PaneNode {
+        switch self {
+        case .leaf(let sid):
+            guard sid == target else { return self }
+            switch edge {
+            case .left: return .branch(id: branchID, axis: .horizontal, ratio: 0.5, first: subtree, second: self)
+            case .right: return .branch(id: branchID, axis: .horizontal, ratio: 0.5, first: self, second: subtree)
+            case .top: return .branch(id: branchID, axis: .vertical, ratio: 0.5, first: subtree, second: self)
+            case .bottom: return .branch(id: branchID, axis: .vertical, ratio: 0.5, first: self, second: subtree)
+            }
+        case .branch(let id, let ax, let r, let a, let b):
+            return .branch(id: id, axis: ax, ratio: r,
+                           first: a.inserting(subtree, at: target, edge: edge, branchID: branchID),
+                           second: b.inserting(subtree, at: target, edge: edge, branchID: branchID))
+        }
+    }
+
     /// 找到某叶子的相邻叶子(关闭后把焦点交给它)
     func neighborLeaf(of target: UUID) -> UUID? {
         let leaves = leafIDs()
@@ -179,6 +197,20 @@ indirect enum PaneNode: Identifiable, Equatable {
 /// 分屏焦点导航方向
 enum PaneDirection {
     case left, right, up, down
+}
+
+/// 拖标签进 pane 时的落点边
+enum PaneDropEdge: Equatable {
+    case left, right, top, bottom
+
+    /// 点在 rect 里离哪条边最近(按归一化距离,长宽不同的 pane 也公平)
+    static func nearest(to point: CGPoint, in rect: CGRect) -> PaneDropEdge {
+        guard rect.width > 0, rect.height > 0 else { return .right }
+        let x = (point.x - rect.minX) / rect.width
+        let y = (point.y - rect.minY) / rect.height
+        let distances: [(PaneDropEdge, CGFloat)] = [(.left, x), (.right, 1 - x), (.top, y), (.bottom, 1 - y)]
+        return distances.min { $0.1 < $1.1 }!.0
+    }
 }
 
 /// 标签页:一棵分屏树 + 当前聚焦的 pane

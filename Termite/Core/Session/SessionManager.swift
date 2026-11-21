@@ -536,6 +536,63 @@ final class SessionManager {
         persistOpenTabs()
     }
 
+    // MARK: - 拖标签进 pane 分屏
+
+    /// 每个 pane 在窗口里的位置(SwiftUI 全局坐标,左上原点);拖标签分屏时命中测试用
+    @ObservationIgnored var paneFrames: [UUID: CGRect] = [:]
+    /// 拖标签分屏进行中:被拖的标签与预览落点(pane 视图据此画半边高亮)
+    var tabSplitDrag: TabSplitDrag?
+
+    struct TabSplitDrag: Equatable {
+        let sourceTabID: PaneTab.ID
+        /// 拖动前选中的标签:进入分屏模式后终端区切回它,落点在它的 pane 上
+        let hostTabID: PaneTab.ID
+        var target: UUID?
+        var edge: PaneDropEdge = .right
+    }
+
+    /// 标签被拖离标签栏:切回原先的标签作为落点宿主。没有别的标签可并入时不进入
+    func beginTabSplitDrag(source: PaneTab.ID, host: PaneTab.ID?) {
+        guard let host, host != source, tabs.contains(where: { $0.id == host }) else { return }
+        tabSplitDrag = TabSplitDrag(sourceTabID: source, hostTabID: host)
+        selectedTabID = host
+    }
+
+    /// 拖动中:windowPoint 为窗口内左上原点坐标
+    func updateTabSplitDrag(windowPoint: CGPoint) {
+        guard var drag = tabSplitDrag, let host = tabs.first(where: { $0.id == drag.hostTabID }) else { return }
+        let hit = host.root.leafIDs().first { paneFrames[$0]?.contains(windowPoint) == true }
+        drag.target = hit
+        if let hit, let frame = paneFrames[hit] {
+            drag.edge = PaneDropEdge.nearest(to: windowPoint, in: frame)
+        }
+        if drag != tabSplitDrag { tabSplitDrag = drag }
+    }
+
+    /// 松手:落在 pane 上就把被拖标签整棵树并进去;落空则还原,回到被拖的标签
+    func endTabSplitDrag() {
+        guard let drag = tabSplitDrag else { return }
+        tabSplitDrag = nil
+        guard let source = tabs.first(where: { $0.id == drag.sourceTabID }),
+              let host = tabs.first(where: { $0.id == drag.hostTabID }),
+              let target = drag.target else {
+            selectTab(drag.sourceTabID)
+            return
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            host.maximizedID = nil
+            host.isCarousel = false
+            host.root = host.root.inserting(source.root, at: target, edge: drag.edge)
+            host.focusedID = source.focusedID
+            tabs.removeAll { $0.id == source.id }
+            selectedTabID = host.id
+        }
+        session(source.focusedID)?.focusTerminal()
+        rememberSpaceTab()
+        persistOpenTabs()
+        layoutChangedSoon()
+    }
+
     /// 点击某个 pane 聚焦它
     func focusPane(_ sessionID: UUID) {
         guard let tab = tabs.first(where: { $0.root.leafIDs().contains(sessionID) }) else { return }

@@ -160,3 +160,24 @@ final class PaneKeyboardResizeTests: XCTestCase {
         XCTAssertEqual(ratio(root.resizing(leaf: a, direction: .down)!, branch)!, PaneNode.ratioRange.upperBound, accuracy: 0.0001)
     }
 }
+
+final class TabDropSplitTests: XCTestCase {
+    func testNearestEdge() {
+        let rect = CGRect(x: 100, y: 100, width: 400, height: 200)
+        XCTAssertEqual(PaneDropEdge.nearest(to: CGPoint(x: 120, y: 200), in: rect), .left)
+        XCTAssertEqual(PaneDropEdge.nearest(to: CGPoint(x: 480, y: 200), in: rect), .right)
+        XCTAssertEqual(PaneDropEdge.nearest(to: CGPoint(x: 300, y: 110), in: rect), .top)
+        XCTAssertEqual(PaneDropEdge.nearest(to: CGPoint(x: 300, y: 290), in: rect), .bottom)
+    }
+
+    func testInsertingSubtreeAtEdge() {
+        let host = UUID(), x = UUID(), y = UUID()
+        let subtree = PaneNode.branch(id: UUID(), axis: .vertical, ratio: 0.5, first: .leaf(x), second: .leaf(y))
+        let left = PaneNode.leaf(host).inserting(subtree, at: host, edge: .left)
+        XCTAssertEqual(left.leafIDs(), [x, y, host])
+        let bottom = PaneNode.leaf(host).inserting(subtree, at: host, edge: .bottom)
+        XCTAssertEqual(bottom.leafIDs(), [host, x, y])
+        guard case .branch(_, let axis, _, _, _) = bottom else { return XCTFail() }
+        XCTAssertEqual(axis, .vertical)
+    }
+}

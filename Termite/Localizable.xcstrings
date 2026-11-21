@@ -1508,6 +1508,46 @@
         }
       }
     },
+    "分隔条上移": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Divider Up"
+          }
+        }
+      }
+    },
+    "分隔条下移": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Divider Down"
+          }
+        }
+      }
+    },
+    "分隔条右移": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Divider Right"
+          }
+        }
+      }
+    },
+    "分隔条左移": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Divider Left"
+          }
+        }
+      }
+    },
     "切换到该项目": {
       "localizations": {
         "en": {
@@ -1901,6 +1941,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore last session’s tabs on launch (working directories)"
+          }
+        }
+      }
+    },
+    "命中「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matched “%@”"
           }
         }
       }
@@ -2383,6 +2433,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "如:error, Build succeeded, /fail(ed|ure)/": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. error, Build succeeded, /fail(ed|ure)/"
           }
         }
       }
@@ -2986,6 +3046,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save the whole tabs-and-splits layout as a template you can restore in one click."
+          }
+        }
+      }
+    },
+    "拖动调整大小,双击均分(⌃⌥⌘ 方向键微调)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to resize, double-click to equalize (⌃⌥⌘ arrows to nudge)"
           }
         }
       }
@@ -4201,6 +4271,36 @@
         }
       }
     },
+    "监听输出…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch Output…"
+          }
+        }
+      }
+    },
+    "监听输出(%lld 条)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch Output (%lld)…"
+          }
+        }
+      }
+    },
+    "监听这个分屏的输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch This Pane’s Output"
+          }
+        }
+      }
+    },
     "目录与仓库同级 · 分屏名=分支名": {
       "localizations": {
         "en": {
@@ -5013,6 +5113,22 @@
         }
       }
     },
+    "输出命中「%@」· %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "输出命中「%1$@」· %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output matched “%@” · %@"
+          }
+        }
+      }
+    },
     "输出对比": {
       "localizations": {
         "en": {
@@ -5029,6 +5145,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Output was trimmed from scrollback and can’t be shown"
+          }
+        }
+      }
+    },
+    "输出里出现这些内容就提醒你。多个用逗号分隔,/…/ 写正则,不区分大小写。留空即停止监听。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get notified when the output contains any of these. Separate with commas, wrap regex in /…/, case-insensitive. Leave empty to stop watching."
           }
         }
       }
