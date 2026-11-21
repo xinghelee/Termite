@@ -45,20 +45,22 @@ enum MarkdownRenderer {
         var tableLines: [String] = []
 
         // 允许直接读图的范围:文档所在 git 仓库根(没有仓库就是文档目录)。纯字符串比较,不碰文件系统
-        let allowedRoot = baseDirectory.map { repositoryRoot(containing: $0) ?? ($0 as NSString).standardizingPath }
+        let allowedRoot = baseDirectory.map { repositoryRoot(containing: $0) ?? lexicalPath($0) }
         func resolve(_ src: String) -> String {
             if src.hasPrefix("http://") || src.hasPrefix("https://") || src.hasPrefix("/") { return src }
             guard let baseDirectory else { return src }
             let clean = src.hasPrefix("./") ? String(src.dropFirst(2)) : src
-            return ((baseDirectory as NSString).appendingPathComponent(clean) as NSString).standardizingPath
+            return lexicalPath((baseDirectory as NSString).appendingPathComponent(clean))
         }
         func imageRef(_ src: String, alt: String, width: CGFloat?) -> ImageRef {
             let resolved = resolve(src)
             var ref = ImageRef(source: resolved, alt: alt, width: width)
             ref.documentRoot = allowedRoot
             if !ref.isRemote {
-                let standardized = (resolved as NSString).standardizingPath
-                ref.outsideDocumentTree = allowedRoot.map { !(standardized == $0 || standardized.hasPrefix($0 + "/")) } ?? true
+                // 文档写的绝对路径一律需要点按;相对路径按字面落点判断是否仍在文档树内
+                let normalized = lexicalPath(resolved)
+                ref.outsideDocumentTree = src.hasPrefix("/")
+                    || (allowedRoot.map { !(normalized == $0 || normalized.hasPrefix($0 + "/")) } ?? true)
             }
             return ref
         }
@@ -195,6 +197,25 @@ enum MarkdownRenderer {
         return blocks
     }
 
+    /// 纯字符串规范化:去掉 . 与多余斜杠、按字面消解 ..,**不碰文件系统**。
+    /// NSString.standardizingPath 对绝对路径会解析 .. 与 /private 前缀(会 stat),
+    /// 文档里写的 /net/某主机/../x 在解析阶段就能触发自动挂载,所以文档来的路径一律只走这里
+    nonisolated static func lexicalPath(_ path: String) -> String {
+        let absolute = path.hasPrefix("/")
+        var parts: [Substring] = []
+        for component in path.split(separator: "/") {
+            switch component {
+            case ".": continue
+            case "..":
+                if let last = parts.last, last != ".." { parts.removeLast() }
+                else if !absolute { parts.append(component) }
+            default: parts.append(component)
+            }
+        }
+        let joined = parts.joined(separator: "/")
+        return absolute ? "/" + joined : (joined.isEmpty ? "." : joined)
+    }
+
     /// 在文档树内逐级解析真实路径:从树根出发每一级只 lstat「已确认在树内的真实目录」的直接子项,
     /// 遇到符号链接先按字符串算出目标,出树即拒绝——全程不去 stat 树外任何路径
     /// (否则目录里一个指向 /net/某主机 的符号链接就能触发自动挂载外连)。返回 nil = 不安全或不存在
@@ -202,9 +223,9 @@ enum MarkdownRenderer {
         let realRoot = URL(fileURLWithPath: root).resolvingSymlinksInPath().path
         func inside(_ p: String) -> Bool { p == realRoot || p.hasPrefix(realRoot + "/") }
         func relativeComponents(_ p: String) -> [String]? {
-            let standardized = (p as NSString).standardizingPath
+            let standardized = lexicalPath(p)
             if standardized == root || standardized == realRoot { return [] }
-            for base in [realRoot, (root as NSString).standardizingPath] where standardized.hasPrefix(base + "/") {
+            for base in [realRoot, lexicalPath(root)] where standardized.hasPrefix(base + "/") {
                 return String(standardized.dropFirst(base.count + 1)).split(separator: "/").map(String.init)
             }
             return nil
@@ -228,7 +249,7 @@ enum MarkdownRenderer {
                 guard hops <= 16,
                       let target = try? FileManager.default.destinationOfSymbolicLink(atPath: next) else { return nil }
                 let joined = target.hasPrefix("/") ? target : current + "/" + target
-                let standardized = (joined as NSString).standardizingPath
+                let standardized = lexicalPath(joined)
                 guard inside(standardized), let rest = relativeComponents(standardized) else { return nil }
                 remaining = rest + remaining
                 current = realRoot
@@ -241,7 +262,8 @@ enum MarkdownRenderer {
 
     /// 向上找 .git(最多 12 层);README 里 ../docs/x.png 这类引用落在仓库内都算文档树
     static func repositoryRoot(containing directory: String) -> String? {
-        var current = (directory as NSString).standardizingPath
+        // directory 是用户自己打开的文档所在目录,不是文档内容给的路径;仍按字面规范化
+        var current = lexicalPath(directory)
         for _ in 0..<12 {
             if FileManager.default.fileExists(atPath: (current as NSString).appendingPathComponent(".git")) {
                 return current

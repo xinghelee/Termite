@@ -97,4 +97,14 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertNil(MarkdownRenderer.confinedRealPath(root + "/docs/missing.png", root: root))
         XCTAssertNil(MarkdownRenderer.confinedRealPath("/net/evil/p.png", root: root))
     }
+
+    func testLexicalPathNeverNeedsFilesystem() {
+        XCTAssertEqual(MarkdownRenderer.lexicalPath("/repo/./docs//a/../b.png"), "/repo/docs/b.png")
+        XCTAssertEqual(MarkdownRenderer.lexicalPath("/net/evil/../x.png"), "/net/x.png")
+        XCTAssertEqual(MarkdownRenderer.lexicalPath("/../../x"), "/x")
+        XCTAssertEqual(MarkdownRenderer.lexicalPath("../a/./b"), "../a/b")
+        // 文档里写的绝对路径,即便字面落在树内也要点按
+        guard case .images(let abs, _) = kinds("![x](/repo/docs/p.png)").first else { return XCTFail() }
+        XCTAssertTrue(abs[0].needsConsent)
+    }
 }
