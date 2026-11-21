@@ -827,7 +827,7 @@ private struct ProjectRow: View {
         HStack(spacing: 8) {
             // Finder 式裸图标:固定宽度对齐成列,活动态用强调色
             Image(systemName: "folder.fill")
-                .font(.system(size: 13))
+                .font(.system(size: 14))
                 .foregroundStyle(projectColor?.opacity(isActive ? 1 : 0.8) ?? (isActive ? theme.accentColor : Color.secondary))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 1.5) {
@@ -854,7 +854,7 @@ private struct ProjectRow: View {
                 } else {
                     HStack(spacing: 5) {
                         Text(project.name)
-                            .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                            .font(.system(size: 13.5, weight: isActive ? .semibold : .medium))
                             .lineLimit(1)
                         // 单行后路径只在悬停提示里:同名项目(两个仓库都叫 ios)带上上级目录区分
                         if let parent = duplicateDisambiguator {
@@ -885,8 +885,8 @@ private struct ProjectRow: View {
             }
         }
         .padding(.horizontal, 8)
-        // 单行 ≈30pt(原名字 + 路径双行 ≈40pt):同一屏多放三成项目;路径挪到悬停提示
-        .padding(.vertical, 6)
+        // 单行 ≈34pt(原名字 + 路径双行 ≈40pt;压到 28pt 时选中胶囊太扁,用户嫌窄);路径挪到悬停提示
+        .padding(.vertical, 8.5)
         .help((project.path as NSString).abbreviatingWithTildeInPath)
         // 选中态与标题栏的选中标签同一块材质(浮起 + 顶部高光),
         // 强调色只留在文件夹图标与状态点上——全窗「选中 = 浮起」是一条规则
