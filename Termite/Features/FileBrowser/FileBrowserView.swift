@@ -438,7 +438,7 @@ private struct FilePreviewScreen: View {
             let text = String(decoding: data.prefix(cap), as: UTF8.self)
             let capNote = data.count > cap ? String(localized: "文件较大,仅预览前 512 KB") : nil
             if asMarkdown {
-                return (.markdown(MarkdownRenderer.parse(text, theme: theme)), capNote)
+                return (.markdown(MarkdownRenderer.parse(text, theme: theme, baseDirectory: (path as NSString).deletingLastPathComponent)), capNote)
             }
             let ext = (path as NSString).pathExtension
             let highlighted = CodeHighlighter.highlight(text, fileExtension: ext, theme: theme)

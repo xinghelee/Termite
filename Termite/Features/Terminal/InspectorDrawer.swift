@@ -125,10 +125,7 @@ struct InspectorDrawer: View {
             FileBrowserView(session: session) { close() }
                 .id(session.id)
         case .theme:
-            VStack(spacing: 0) {
-                ThemePanelView()
-                Spacer(minLength: 0)
-            }
+            ThemePanelView()
             // 配色色卡固定 312pt 宽,抽屉被拖得更窄时撑住,不裁切
             .preference(key: InspectorMinWidthKey.self, value: 312)
         }

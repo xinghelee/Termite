@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 主题配色面板(标题栏主题按钮的 popover):
+/// 主题配色面板(右侧检查器抽屉的「配色」页):
 /// 内置主题以色卡网格展示 —— 底色 + 前景字样 + ANSI 色点,点卡片即时切换全局配色。
+/// 在抽屉里铺满高度与宽度;弹出框时代的 440pt 高度上限会让高窗口里也得滚动
 struct ThemePanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -12,13 +13,13 @@ struct ThemePanelView: View {
                 ThemePanelGrid()
                     .padding(.bottom, 2)
             }
-            .frame(maxHeight: 440)
+            .frame(maxHeight: .infinity)
             Text("对所有已打开的终端即时生效")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
         .padding(12)
-        .frame(width: 312)
+        .frame(minWidth: 312, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

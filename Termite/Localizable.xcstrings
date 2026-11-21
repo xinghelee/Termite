@@ -2147,6 +2147,16 @@
         }
       }
     },
+    "图片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
+          }
+        }
+      }
+    },
     "在 Finder 中打开": {
       "localizations": {
         "en": {
@@ -5115,16 +5125,16 @@
     },
     "输出命中「%@」· %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "输出命中「%1$@」· %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Output matched “%@” · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "输出命中「%1$@」· %2$@"
           }
         }
       }
