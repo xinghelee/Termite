@@ -105,8 +105,14 @@ struct TerminalTabsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // 不铺底:分屏卡片直接浮在 chrome 带上(透明模式=毛玻璃,不透明=窗口底色即 chrome 带色),
-        // 与标题栏、侧边栏是同一块面 —— 浅色下白卡浮在灰玻璃上,而不是白卡贴白底
+        // 右侧面板(标题栏 + 卡片空隙)铺不透明 chrome 带色,只让侧边栏保留毛玻璃:
+        // 卡片浮在稳定的实色底上,不被壁纸透色干扰。不透明模式下窗口底色本就是它,无需再铺
+        .background {
+            if translucentChrome {
+                Color(nsColor: ThemeStore.shared.current.sidebarNSColor)
+                    .ignoresSafeArea(edges: .top)
+            }
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
         // 「在新 Worktree 中分屏」居中模态(遮罩点击即取消)
         .overlay {
