@@ -32,13 +32,14 @@ struct TerminalTabsView: View {
     var body: some View {
         @Bindable var manager = sessionManager
         VStack(spacing: 0) {
-            // 标题栏与终端区同色,一条发丝线划出结构边界
-            Rectangle()
-                .fill(ThemeStore.shared.current.borderColor)
-                .frame(height: 1)
             if sessionManager.visibleTabs.isEmpty {
+                // 欢迎页仍是一整块内容面:发丝线划出与标题栏的结构边界
+                Rectangle()
+                    .fill(ThemeStore.shared.current.borderColor)
+                    .frame(height: 1)
                 // 真空窗口或空工作区(白纸)都回欢迎面板
                 emptyState
+                    .background(ThemeStore.shared.current.chromeBackground)
             } else if let tab = sessionManager.selectedTab {
                 if tab.isBroadcasting {
                     broadcastBanner
@@ -104,7 +105,8 @@ struct TerminalTabsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ThemeStore.shared.current.chromeBackground)
+        // 不铺底:分屏卡片直接浮在 chrome 带上(透明模式=毛玻璃,不透明=窗口底色即 chrome 带色),
+        // 与标题栏、侧边栏是同一块面 —— 浅色下白卡浮在灰玻璃上,而不是白卡贴白底
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
         // 「在新 Worktree 中分屏」居中模态(遮罩点击即取消)
         .overlay {
@@ -866,8 +868,8 @@ private struct PaneLeafView: View {
             .background(
                 PaneCard.shape
                     .fill(Color(nsColor: ThemeStore.shared.current.backgroundNSColor))
-                    .shadow(color: .black.opacity(lifted ? 0.28 : 0.12),
-                            radius: lifted ? 9 : 3, y: lifted ? 3 : 1)
+                    .shadow(color: .black.opacity(cardShadowOpacity),
+                            radius: lifted ? 12 : 3, y: lifted ? 4 : 1)
             )
             .animation(.easeOut(duration: 0.2), value: lifted)
             .overlay(alignment: .bottom) {
@@ -934,6 +936,19 @@ private struct PaneLeafView: View {
     /// 分屏时聚焦的卡片浮起
     private var lifted: Bool { showsFocus && isFocused }
 
+    /// 投影浓度分明暗两套:浅色下黑影稍重就脏(发灰发糊),只要一层很淡的大半径漫影
+    private var cardShadowOpacity: Double {
+        let dark = ThemeStore.shared.current.isDark
+        return lifted ? (dark ? 0.45 : 0.10) : (dark ? 0.25 : 0.05)
+    }
+
+    /// 卡片轮廓发丝线:中性色,浮起的那张更清晰一点(不用强调色描圈 —— 「选中 = 浮起」)
+    private var cardEdgeColor: Color {
+        let dark = ThemeStore.shared.current.isDark
+        let base: NSColor = dark ? .white : .black
+        return Color(nsColor: base.withAlphaComponent(lifted ? (dark ? 0.16 : 0.10) : (dark ? 0.07 : 0.06)))
+    }
+
     @ViewBuilder private var borderOverlay: some View {
         if broadcasting {
             // 广播时所有 pane 橙色边框
@@ -948,14 +963,10 @@ private struct PaneLeafView: View {
                     border.opacity(phase)
                 } animation: { _ in .easeInOut(duration: 0.8) }
                 .allowsHitTesting(false)
-        } else if lifted {
-            Self.borderShape
-                .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.45), lineWidth: 1)
-                .allowsHitTesting(false)
         } else {
-            // 卡片发丝边:深色主题里阴影看不清,靠它勾出轮廓
             Self.borderShape
-                .strokeBorder(ThemeStore.shared.current.borderColor, lineWidth: 1)
+                .strokeBorder(cardEdgeColor, lineWidth: 0.5)
+                .animation(.easeOut(duration: 0.2), value: lifted)
                 .allowsHitTesting(false)
         }
     }
