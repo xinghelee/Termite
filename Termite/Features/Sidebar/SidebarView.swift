@@ -26,13 +26,8 @@ struct SidebarView: View {
         }
         // 触控板在侧边栏上横扫切换工作区(Arc 手势)
         .background(SpaceSwipeCatcher())
-        // 右缘发丝线:与标题栏下方的结构线呼应,划清侧边栏与终端区
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(theme.current.borderColor)
-                .frame(width: 1)
-                .ignoresSafeArea()
-        }
+        // 不画右缘发丝线:终端区是浮在 chrome 带上的卡片,侧边栏与卡片之间的空隙就是边界;
+        // 一条贯穿到窗口顶的竖线会把标题栏 + 侧边栏这一整块面切成两半
         // 侧边栏任意空白处右键即可新建/删除工作区(项目行/小点各有更近的菜单,不冲突)
         .contextMenu {
             Button("新建工作区…") { SpacePrompt.create() }

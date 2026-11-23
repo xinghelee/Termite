@@ -1645,10 +1645,11 @@ struct TerminalPaneView: View {
             // 四边都留出内距:终端是 NSView(Metal),不吃 SwiftUI 的圆角裁切,
             // 必须整个落在卡片圆角之内(r=10 的角需 ≥3pt 内缩)
             TerminalHostView(terminalView: session.terminalView)
-                .padding(.leading, 8)
-                .padding(.top, 4)
-                .padding(.trailing, 4)
-                .padding(.bottom, 4)
+                // 文字离卡片边要有呼吸感:顶 4pt 时首行贴着圆角边,像被挤进去的
+                .padding(.leading, 10)
+                .padding(.top, 8)
+                .padding(.trailing, 6)
+                .padding(.bottom, 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(PaneCard.shape.fill(Color(nsColor: ThemeStore.shared.current.backgroundNSColor)))
 

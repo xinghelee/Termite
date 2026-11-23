@@ -38,18 +38,23 @@ struct StatusBarView: View {
             }
             .font(.system(size: 11, design: .monospaced))
             .lineLimit(1)
-            .padding(.horizontal, 14)
-            .frame(height: 28)
+            .padding(.horizontal, 12)
+            .frame(height: 26)
+            // 与分屏卡片同一套语言:同底色、同圆角、发丝边 + 淡投影,左右与卡片边缘对齐
             .background(
-                Capsule()
-                    .fill(theme.elevatedBackground)
-                    .overlay(Capsule().stroke(theme.borderColor, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.22), radius: 7, y: 2)
+                PaneCard.shape
+                    .fill(Color(nsColor: theme.backgroundNSColor))
+                    .overlay(
+                        PaneCard.shape.strokeBorder(
+                            Color(nsColor: (theme.isDark ? NSColor.white : NSColor.black)
+                                .withAlphaComponent(theme.isDark ? 0.07 : 0.06)),
+                            lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(theme.isDark ? 0.25 : 0.05), radius: 3, y: 1)
             )
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+        .padding(.horizontal, PaneCard.gap)
+        .padding(.bottom, PaneCard.gap)
         .sheet(item: $structuredTarget) { record in
             StructuredOutputView(session: session, record: record) {
                 structuredTarget = nil
