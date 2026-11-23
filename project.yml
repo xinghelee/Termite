@@ -61,8 +61,8 @@ targets:
       path: Termite/Info.plist
       properties:
         CFBundleDisplayName: Termite
-        CFBundleShortVersionString: "2.3.1"
-        CFBundleVersion: "43"
+        CFBundleShortVersionString: "2.3.2"
+        CFBundleVersion: "44"
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHighResolutionCapable: true
         # 内置 Nerd Font(Resources/Fonts)进程内注册,app 启动时由 AppKit 自动加载
