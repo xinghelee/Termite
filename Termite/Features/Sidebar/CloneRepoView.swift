@@ -13,7 +13,8 @@ struct RepoReference: Equatable {
         if text.hasPrefix("git clone ") { text = String(text.dropFirst("git clone ".count)).trimmingCharacters(in: .whitespaces) }
         if text.hasPrefix("gh repo clone ") { text = String(text.dropFirst("gh repo clone ".count)).trimmingCharacters(in: .whitespaces) }
         while text.hasSuffix("/") { text.removeLast() }
-        guard !text.isEmpty, !text.contains(" ") else { return nil }
+        // 以 - 开头会被 git 当成选项(--upload-pack=… 可执行命令),一律拒
+        guard !text.isEmpty, !text.contains(" "), !text.hasPrefix("-") else { return nil }
 
         // GitHub 网页地址 / 不带协议的 github.com/…:只取 owner/repo 两段
         var githubPath: String?
@@ -36,9 +37,11 @@ struct RepoReference: Equatable {
         }
 
         // 其余 git 地址原样交给 git:https://…、ssh://…、git@host:owner/repo
-        guard text.contains("://") || text.range(of: #"^[\w.-]+@[\w.-]+:"#, options: .regularExpression) != nil else {
-            return nil
-        }
+        // 只放行 https/http/ssh/git 协议与 scp 式 user@host:path;ext:: 等可执行命令的传输一律不认
+        let lower = text.lowercased()
+        let allowedScheme = ["https://", "http://", "ssh://", "git://"].contains { lower.hasPrefix($0) }
+        let scpStyle = text.range(of: #"^[\w.-]+@[\w.-]+:[^:]"#, options: .regularExpression) != nil
+        guard allowedScheme || scpStyle else { return nil }
         let last = text.split(whereSeparator: { $0 == "/" || $0 == ":" }).last.map(String.init) ?? ""
         let repo = Self.stripGit(last)
         guard Self.isValidSegment(repo) else { return nil }
@@ -84,7 +87,7 @@ final class RepoCloneJob {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["clone", "--progress", ref.url, target]
+        process.arguments = ["clone", "--progress", "--", ref.url, target]
         process.currentDirectoryURL = URL(fileURLWithPath: (target as NSString).deletingLastPathComponent)
         var env = ProcessInfo.processInfo.environment
         env["GIT_TERMINAL_PROMPT"] = "0"

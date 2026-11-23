@@ -39,5 +39,9 @@ final class RepoReferenceTests: XCTestCase {
         XCTAssertNil(RepoReference("owner/../etc"))
         XCTAssertNil(RepoReference("/Users/me/repo"))
         XCTAssertNil(RepoReference("a b/c"))
+        XCTAssertNil(RepoReference("--upload-pack=touch${IFS}x://h/r"))
+        XCTAssertNil(RepoReference("-oProxyCommand=x@host:r"))
+        XCTAssertNil(RepoReference("ext::sh${IFS}-c${IFS}x://a/b"))
+        XCTAssertNil(RepoReference("file:///etc/repo"))
     }
 }
