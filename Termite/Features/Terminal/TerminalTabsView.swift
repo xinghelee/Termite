@@ -747,8 +747,8 @@ private struct PaneTreeView: View {
     let onResize: (UUID, Double) -> Void
     @Environment(SessionManager.self) private var sessionManager
 
-    /// 分隔条命中区厚度(可见线仍是 1pt)
-    private static let dividerThickness: CGFloat = 7
+    /// 分隔条占位 = 卡片空隙:卡片之间、卡片与窗口边、卡片与状态栏全是同一个间距
+    private static let dividerThickness: CGFloat = PaneCard.gap
     private static let space = "paneTree"
 
     var body: some View {
@@ -1324,7 +1324,7 @@ enum PaneCard {
     static let gap: CGFloat = 6
 }
 
-/// 可拖拽分隔条:7pt 命中区(即卡片空隙),悬停/拖动才显示强调线,悬停变宽度光标,拖动回报在整棵树坐标系中的位置
+/// 可拖拽分隔条:占位即卡片空隙(6pt),命中区两侧各外扩 3pt,悬停/拖动才显示强调线,悬停变宽度光标,拖动回报在整棵树坐标系中的位置
 private struct PaneDivider: View {
     let axis: SplitAxis
     /// 整棵分屏树的坐标系名(扁平布局,所有分隔条共用)
@@ -1339,8 +1339,9 @@ private struct PaneDivider: View {
 
     var body: some View {
         ZStack {
+            // 命中区向两侧卡片各借 3pt:空隙只有 6pt,不加宽不好抓
             Color.clear
-                .contentShape(Rectangle())
+                .contentShape(Rectangle().inset(by: -3))
             Rectangle()
                 // 卡片之间的空隙本身就是分隔:平时不画线,悬停/拖动才亮
                 .fill(
