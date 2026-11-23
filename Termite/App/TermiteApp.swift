@@ -173,6 +173,10 @@ struct TerminalCommands: Commands {
             Button("端口管理…") {
                 SessionManager.shared.portsPresented = true
             }
+
+            Button("从 GitHub 克隆仓库…") {
+                SessionManager.shared.cloneRepoPresented = true
+            }
         }
 
         CommandGroup(replacing: .newItem) {

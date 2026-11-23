@@ -1,6 +1,286 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "正在连接…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting…"
+          }
+        }
+      }
+    },
+    "下载中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading"
+          }
+        }
+      }
+    },
+    "解析差异": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolving deltas"
+          }
+        }
+      }
+    },
+    "检出文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking out files"
+          }
+        }
+      }
+    },
+    "远端打包中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote is packing"
+          }
+        }
+      }
+    },
+    "克隆中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloning"
+          }
+        }
+      }
+    },
+    "git clone 失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "git clone failed"
+          }
+        }
+      }
+    },
+    "仓库不存在,或是私有仓库需要授权。私有仓库请先在终端里配置好 SSH key(或运行 gh auth login 后 gh auth setup-git),再用 git@github.com:owner/repo 形式的地址。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The repository doesn't exist, or it's private and needs authorization. For private repos, set up an SSH key in the terminal first (or run gh auth login, then gh auth setup-git), and use an address like git@github.com:owner/repo."
+          }
+        }
+      }
+    },
+    "SSH 认证失败:请确认 SSH key 已添加到 GitHub 并已加载到 ssh-agent。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH authentication failed: make sure your SSH key is added to GitHub and loaded into ssh-agent."
+          }
+        }
+      }
+    },
+    "克隆仓库": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone Repository"
+          }
+        }
+      }
+    },
+    "仓库地址": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repository"
+          }
+        }
+      }
+    },
+    "owner/repo 或 GitHub 链接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "owner/repo or GitHub link"
+          }
+        }
+      }
+    },
+    "存放位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location"
+          }
+        }
+      }
+    },
+    "更改…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change…"
+          }
+        }
+      }
+    },
+    "取消克隆": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Clone"
+          }
+        }
+      }
+    },
+    "添加到侧边栏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Sidebar"
+          }
+        }
+      }
+    },
+    "克隆": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone"
+          }
+        }
+      }
+    },
+    "认不出这个地址。支持 owner/repo、GitHub 链接、https 或 git@ 地址。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unrecognized address. Use owner/repo, a GitHub link, or an https or git@ address."
+          }
+        }
+      }
+    },
+    "该位置已有同名文件夹且不是 git 仓库,请换个存放位置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A folder with this name already exists here and isn't a git repository. Choose another location."
+          }
+        }
+      }
+    },
+    "该仓库已在本地,将直接添加到侧边栏。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This repository is already on disk; it will be added to the sidebar as is."
+          }
+        }
+      }
+    },
+    "克隆完成后自动固定到侧边栏并进入该目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once cloned, it's pinned to the sidebar and opened."
+          }
+        }
+      }
+    },
+    "选择克隆到哪个文件夹下": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the folder to clone into"
+          }
+        }
+      }
+    },
+    "添加项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Project"
+          }
+        }
+      }
+    },
+    "添加本地文件夹…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Local Folder…"
+          }
+        }
+      }
+    },
+    "从 GitHub 克隆…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone from GitHub…"
+          }
+        }
+      }
+    },
+    "从 GitHub 克隆仓库…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone from GitHub…"
+          }
+        }
+      }
+    },
+    "从 GitHub 克隆仓库": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone Repository from GitHub"
+          }
+        }
+      }
+    },
+    "点「项目」旁的 + 选择文件夹或从 GitHub 克隆,也可以把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click + next to Projects to pick a folder or clone from GitHub, or drop a folder here. It opens in that directory; afterwards a single click switches to it."
+          }
+        }
+      }
+    },
     "": {},
     " ": {},
     ":%@": {},
@@ -4056,16 +4336,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rendered Preview"
-          }
-        }
-      }
-    },
-    "点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Click + next to Projects to pick a folder, or drop one here. It opens in that directory; afterwards a single click switches to it."
           }
         }
       }

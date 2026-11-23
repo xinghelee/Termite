@@ -105,6 +105,15 @@ struct MainWindowView: View {
             }
         }
         .sheet(isPresented: Binding(
+            get: { manager.cloneRepoPresented },
+            set: { manager.cloneRepoPresented = $0 }
+        )) {
+            CloneRepoView {
+                manager.cloneRepoPresented = false
+            }
+            .environment(manager)
+        }
+        .sheet(isPresented: Binding(
             get: { manager.portsPresented },
             set: { manager.portsPresented = $0 }
         )) {

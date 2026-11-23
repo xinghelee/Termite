@@ -100,6 +100,9 @@ struct CommandPaletteView: View {
             PaletteCommand(id: "ports", title: String(localized: "端口管理(谁占了 3000)"), icon: "network") {
                 m.portsPresented = true
             },
+            PaletteCommand(id: "clone-repo", title: String(localized: "从 GitHub 克隆仓库"), icon: "arrow.down.circle") {
+                m.cloneRepoPresented = true
+            },
             PaletteCommand(id: "quick-terminal", title: String(localized: "下拉终端"), subtitle: QuickTerminalHotkey.current.label, icon: "rectangle.topthird.inset.filled") {
                 QuickTerminalController.shared.toggle()
             },

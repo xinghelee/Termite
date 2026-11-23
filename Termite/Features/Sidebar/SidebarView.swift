@@ -353,8 +353,8 @@ private struct ProjectListPage: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.current.secondaryText)
             Spacer(minLength: 0)
-            PanelIconButton(symbol: "plus", help: String(localized: "添加项目文件夹")) {
-                pickFolder()
+            PanelIconButton(symbol: "plus", help: String(localized: "添加项目")) {
+                showAddMenu()
             }
         }
         .padding(.leading, 8)
@@ -366,7 +366,7 @@ private struct ProjectListPage: View {
             Text("还没有项目")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-            Text("点「项目」旁的 + 选择文件夹,或把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。")
+            Text("点「项目」旁的 + 选择文件夹或从 GitHub 克隆,也可以把文件夹拖到这里。添加后直接进入该目录,之后点一下即可切换。")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
         }
@@ -381,6 +381,18 @@ private struct ProjectListPage: View {
         }
         guard let cwd = sessionManager.selected?.workingDirectory else { return false }
         return cwd == project.path || cwd.hasPrefix(project.path + "/")
+    }
+
+    /// + 的两条路:本地文件夹 / 从 GitHub 克隆。弹在指针处,和右键菜单同一手感
+    private func showAddMenu() {
+        let menu = NSMenu()
+        menu.addItem(ClosureMenuItem(title: String(localized: "添加本地文件夹…"), symbol: "folder") {
+            pickFolder()
+        })
+        menu.addItem(ClosureMenuItem(title: String(localized: "从 GitHub 克隆…"), symbol: "arrow.down.circle") {
+            sessionManager.cloneRepoPresented = true
+        })
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     private func pickFolder() {
@@ -953,4 +965,20 @@ private struct ProjectRow: View {
         // 路径下面挂一行手势提示:改名与排序都没有常驻按钮,靠 tooltip 让人知道有这回事
         .help(project.path + "\n" + String(localized: "双击重命名 · 拖动调整顺序"))
     }
+}
+
+/// 带闭包的菜单项(NSMenu 原生 target/action 需要 @objc 对象,这里自己当 target)
+final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(title: String, symbol: String? = nil, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+        if let symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func fire() { handler() }
 }

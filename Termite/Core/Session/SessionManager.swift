@@ -83,6 +83,8 @@ final class SessionManager {
     var dailyReportPresented = false
     /// 端口管理弹层
     var portsPresented = false
+    /// 克隆仓库弹层
+    var cloneRepoPresented = false
 
     /// 窗口已关闭:置位后不再孵新会话(SwiftUI 关窗后仍可能重新求值该窗口的视图树)
     private(set) var isRetired = false
