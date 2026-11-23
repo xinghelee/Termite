@@ -46,11 +46,13 @@ struct TerminalTabsView: View {
                 HStack(spacing: 0) {
                     if tab.isCarousel, tab.root.leafIDs().count > 1 {
                         PaneCarouselView(tab: tab)
+                            .padding(.vertical, PaneCard.gap)
                     } else if let maximizedID = tab.maximizedID,
                        let maximized = sessionManager.session(maximizedID) {
                         // ⇧⌘↩ 最大化:只渲染该 pane,右上角挂还原提示
                         TerminalPaneView(session: maximized)
                             .id(maximizedID)
+                            .padding(PaneCard.gap)
                             .overlay(alignment: .topTrailing) {
                                 Button {
                                     sessionManager.toggleMaximizePane()
@@ -78,6 +80,7 @@ struct TerminalTabsView: View {
                             sessionManager.layoutChangedSoon()
                         }
                     )
+                    .padding(PaneCard.gap)
                     }
                     // 右侧检查器抽屉:顶部分段条选面板,整条随标题栏开关进出
                     if let session = sessionManager.selected, let panel = sessionManager.activeSidePanel {
@@ -755,6 +758,7 @@ private struct PaneTreeView: View {
                     leafView(leaf.id)
                         .frame(width: leaf.rect.width, height: leaf.rect.height)
                         .position(x: leaf.rect.midX, y: leaf.rect.midY)
+                        .zIndex(leaf.id == focusedID ? 1 : 0)
                         .transition(insertionTransition)
                 }
                 ForEach(frames.dividers) { slot in
@@ -815,10 +819,10 @@ private struct PaneTreeView: View {
         ZStack(alignment: .topLeading) {
             if let rect = target {
                 let accent = ThemeStore.shared.current.accentColor
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                PaneCard.shape
                     .fill(accent.opacity(0.18))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        PaneCard.shape
                             .strokeBorder(accent.opacity(0.7), lineWidth: 2)
                     )
                     .frame(width: max(0, rect.width - 8), height: max(0, rect.height - 8))
@@ -857,6 +861,15 @@ private struct PaneLeafView: View {
             }
             TerminalPaneView(session: session)
         }
+            .clipShape(PaneCard.shape)
+            // 悬浮卡片:聚焦的那张浮起(阴影加深),其余贴着 chrome 底色
+            .background(
+                PaneCard.shape
+                    .fill(Color(nsColor: ThemeStore.shared.current.backgroundNSColor))
+                    .shadow(color: .black.opacity(lifted ? 0.28 : 0.12),
+                            radius: lifted ? 9 : 3, y: lifted ? 3 : 1)
+            )
+            .animation(.easeOut(duration: 0.2), value: lifted)
             .overlay(alignment: .bottom) {
                 if session.composerDraft != nil {
                     CommandComposerView(session: session)
@@ -916,7 +929,10 @@ private struct PaneLeafView: View {
     /// pane 状态边框的形状:圆角跟窗口/卡片一个语言,方角在深色主题里太硬。
     /// strokeBorder 而非 stroke:stroke 的线骑在边界上,半条在视图外,
     /// pane 贴窗口边时右/底缘会被裁没
-    private static let borderShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+    private static let borderShape = PaneCard.shape
+
+    /// 分屏时聚焦的卡片浮起
+    private var lifted: Bool { showsFocus && isFocused }
 
     @ViewBuilder private var borderOverlay: some View {
         if broadcasting {
@@ -932,9 +948,14 @@ private struct PaneLeafView: View {
                     border.opacity(phase)
                 } animation: { _ in .easeInOut(duration: 0.8) }
                 .allowsHitTesting(false)
-        } else if showsFocus, isFocused {
+        } else if lifted {
             Self.borderShape
-                .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.55), lineWidth: 1.5)
+                .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.45), lineWidth: 1)
+                .allowsHitTesting(false)
+        } else {
+            // 卡片发丝边:深色主题里阴影看不清,靠它勾出轮廓
+            Self.borderShape
+                .strokeBorder(ThemeStore.shared.current.borderColor, lineWidth: 1)
                 .allowsHitTesting(false)
         }
     }
@@ -1285,7 +1306,14 @@ private struct QuickReplyPopover: View {
     }
 }
 
-/// 可拖拽分隔条:1pt 可见线 + 7pt 命中区,悬停变宽度光标,拖动回报在整棵树坐标系中的位置
+/// 分屏卡片的统一几何:圆角、卡片与窗口边/彼此之间的空隙
+enum PaneCard {
+    static let cornerRadius: CGFloat = 10
+    static let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    static let gap: CGFloat = 6
+}
+
+/// 可拖拽分隔条:7pt 命中区(即卡片空隙),悬停/拖动才显示强调线,悬停变宽度光标,拖动回报在整棵树坐标系中的位置
 private struct PaneDivider: View {
     let axis: SplitAxis
     /// 整棵分屏树的坐标系名(扁平布局,所有分隔条共用)
@@ -1303,10 +1331,11 @@ private struct PaneDivider: View {
             Color.clear
                 .contentShape(Rectangle())
             Rectangle()
+                // 卡片之间的空隙本身就是分隔:平时不画线,悬停/拖动才亮
                 .fill(
                     dragging || hovering
                         ? ThemeStore.shared.current.accentColor.opacity(0.6)
-                        : ThemeStore.shared.current.borderColor
+                        : Color.clear
                 )
                 .frame(
                     width: axis == .horizontal ? (dragging || hovering ? 3 : 1) : nil,
@@ -1602,11 +1631,15 @@ struct TerminalPaneView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            // 四边都留出内距:终端是 NSView(Metal),不吃 SwiftUI 的圆角裁切,
+            // 必须整个落在卡片圆角之内(r=10 的角需 ≥3pt 内缩)
             TerminalHostView(terminalView: session.terminalView)
                 .padding(.leading, 8)
                 .padding(.top, 4)
+                .padding(.trailing, 4)
+                .padding(.bottom, 4)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: ThemeStore.shared.current.backgroundNSColor))
+                .background(PaneCard.shape.fill(Color(nsColor: ThemeStore.shared.current.backgroundNSColor)))
 
             if isSearchActive {
                 HStack {
