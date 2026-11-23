@@ -391,12 +391,35 @@ final class SessionManager {
     /// ⌘D / ⌘⇧D / 右键:在当前聚焦 pane 上再分出一个 pane(继承 cwd)。每次都新增,支持嵌套。
     func splitFocused(axis: SplitAxis) {
         guard let tab = selectedTab, let current = selected else { return }
-        tab.maximizedID = nil
         let secondary = makeSession(directory: inheritedDirectory())
         sessions.append(secondary)
-        tab.root = tab.root.splitting(leaf: current.id, into: secondary.id, axis: axis, branchID: UUID())
-        tab.focusedID = secondary.id
+        paneInsertEdge = axis == .horizontal ? .right : .bottom
+        Self.animatePaneLayout {
+            tab.maximizedID = nil
+            tab.root = tab.root.splitting(leaf: current.id, into: secondary.id, axis: axis, branchID: UUID())
+            tab.focusedID = secondary.id
+        }
         persistOpenTabs()
+    }
+
+    // MARK: - 分屏布局动画
+
+    /// 最近一次新增 pane 所在的边:新 pane 的入场方向(从分割线那侧滑入)
+    @ObservationIgnored var paneInsertEdge: PaneDropEdge = .right
+
+    static let paneLayoutAnimation = Animation.spring(response: 0.32, dampingFraction: 0.86)
+
+    /// 分屏树的结构/比例变化都走这里:spring 动画 + 动画期间冻结终端行列,结束只 resize 一次。
+    /// 系统开了「减弱动态效果」就直接跳
+    static func animatePaneLayout(_ changes: () -> Void) {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            changes()
+            return
+        }
+        PaneResizeGate.hold()
+        withAnimation(paneLayoutAnimation, completionCriteria: .logicallyComplete, changes) {
+            PaneResizeGate.release()
+        }
     }
 
     /// 右键「在新 Worktree 中分屏」:新建分支或检出已有分支,分屏进入,分屏名=分支名。
@@ -408,13 +431,16 @@ final class SessionManager {
             do {
                 let path = try await WorktreeService.add(near: cwd, target: target)
                 guard let tab = self.selectedTab, self.session(current.id) != nil else { return }
-                tab.maximizedID = nil
                 let secondary = self.makeSession(directory: path)
                 secondary.customName = target.branchName
                 self.sessions.append(secondary)
-                tab.root = tab.root.splitting(leaf: current.id, into: secondary.id,
-                                              axis: axis, branchID: UUID())
-                tab.focusedID = secondary.id
+                self.paneInsertEdge = axis == .horizontal ? .right : .bottom
+                Self.animatePaneLayout {
+                    tab.maximizedID = nil
+                    tab.root = tab.root.splitting(leaf: current.id, into: secondary.id,
+                                                  axis: axis, branchID: UUID())
+                    tab.focusedID = secondary.id
+                }
                 self.persistOpenTabs()
             } catch {
                 Self.presentWorktreeFailure(String(localized: "Worktree 创建失败"), error)
@@ -467,7 +493,7 @@ final class SessionManager {
     func resizeFocusedPane(_ direction: PaneDirection) {
         guard let tab = selectedTab, !tab.isCarousel, tab.maximizedID == nil,
               let resized = tab.root.resizing(leaf: tab.focusedID, direction: direction) else { return }
-        withAnimation(.easeOut(duration: 0.12)) { tab.root = resized }
+        Self.animatePaneLayout { tab.root = resized }
         layoutChangedSoon()
     }
 
@@ -579,7 +605,8 @@ final class SessionManager {
             selectTab(drag.sourceTabID)
             return
         }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+        paneInsertEdge = drag.edge
+        Self.animatePaneLayout {
             host.maximizedID = nil
             host.isCarousel = false
             host.root = host.root.inserting(source.root, at: target, edge: drag.edge)
@@ -634,8 +661,10 @@ final class SessionManager {
         if tab.maximizedID == session.id { tab.maximizedID = nil }
         let neighbor = tab.root.neighborLeaf(of: session.id)
         if let newRoot = tab.root.removing(leaf: session.id) {
-            tab.root = newRoot
-            if tab.focusedID == session.id { tab.focusedID = neighbor ?? newRoot.firstLeaf }
+            Self.animatePaneLayout {
+                tab.root = newRoot
+                if tab.focusedID == session.id { tab.focusedID = neighbor ?? newRoot.firstLeaf }
+            }
             // 键盘焦点交接:firstResponder 还挂在刚拆掉的视图上,不接手就死键盘。
             // 简单布局以前能自愈是运气——树塌缩恰好让幸存视图重挂窗触发
             // viewDidMoveToWindow 抢焦点;复杂布局邻居不搬家,谁也不接

@@ -49,11 +49,30 @@ struct TerminalHostView: NSViewRepresentable {
 /// 终端宿主容器:知道自己伺候哪个终端视图,挂窗/布局时主动收养孤儿
 final class TerminalHostContainer: NSView {
     weak var terminalView: TerminalView?
+    private var gateObserver: NSObjectProtocol?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        // 分屏动画期间终端视图可能比容器大(pane 在收窄),裁掉溢出部分
+        clipsToBounds = true
+        gateObserver = NotificationCenter.default.addObserver(
+            forName: PaneResizeGate.releasedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fitTerminal() }
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    deinit {
+        if let gateObserver { NotificationCenter.default.removeObserver(gateObserver) }
+    }
 
     func attachTerminal() {
         guard let terminal = terminalView else { return }
         terminal.frame = bounds
-        terminal.autoresizingMask = [.width, .height]
+        // 尺寸由 fitTerminal 手动管:布局动画期间要冻结,不能交给 autoresizing
+        terminal.autoresizingMask = []
         addSubview(terminal)
     }
 
@@ -62,9 +81,28 @@ final class TerminalHostContainer: NSView {
         reclaimIfOrphaned()
     }
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        fitTerminal()
+    }
+
     override func layout() {
         super.layout()
         reclaimIfOrphaned()
+        fitTerminal()
+    }
+
+    /// 终端视图跟随容器尺寸。分屏动画进行中(PaneResizeGate 持有)且终端已有像样尺寸时,
+    /// 只把它钉在左上角、保持行列不变;放行时再一次性贴合。新挂进来的零尺寸终端照常跟随
+    func fitTerminal() {
+        guard let terminal = terminalView, terminal.superview === self else { return }
+        let size = terminal.frame.size
+        if PaneResizeGate.isHeld, size.width > 40, size.height > 40 {
+            let pinned = NSPoint(x: 0, y: bounds.height - size.height)
+            if terminal.frame.origin != pinned { terminal.setFrameOrigin(pinned) }
+        } else if terminal.frame != bounds {
+            terminal.frame = bounds
+        }
     }
 
     private func reclaimIfOrphaned() {

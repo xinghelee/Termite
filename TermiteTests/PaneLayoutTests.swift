@@ -181,3 +181,42 @@ final class TabDropSplitTests: XCTestCase {
         XCTAssertEqual(axis, .vertical)
     }
 }
+
+final class PaneLayoutFramesTests: XCTestCase {
+
+    func testHorizontalSplitReservesDivider() {
+        let a = UUID(), b = UUID(), branch = UUID()
+        let root = PaneNode.leaf(a).splitting(leaf: a, into: b, axis: .horizontal, branchID: branch)
+        let frames = root.layoutFrames(in: CGRect(x: 0, y: 0, width: 207, height: 100), dividerThickness: 7)
+        XCTAssertEqual(frames.leaves.map(\.id), [a, b])
+        XCTAssertEqual(frames.rect(of: a), CGRect(x: 0, y: 0, width: 100, height: 100))
+        XCTAssertEqual(frames.rect(of: b), CGRect(x: 107, y: 0, width: 100, height: 100))
+        XCTAssertEqual(frames.dividers.first?.rect, CGRect(x: 100, y: 0, width: 7, height: 100))
+    }
+
+    func testNestedVerticalSplitStaysInsideParent() {
+        let a = UUID(), b = UUID(), c = UUID()
+        var root = PaneNode.leaf(a).splitting(leaf: a, into: b, axis: .horizontal, branchID: UUID())
+        root = root.splitting(leaf: b, into: c, axis: .vertical, branchID: UUID())
+        let frames = root.layoutFrames(in: CGRect(x: 0, y: 0, width: 207, height: 207), dividerThickness: 7)
+        XCTAssertEqual(frames.rect(of: b), CGRect(x: 107, y: 0, width: 100, height: 100))
+        XCTAssertEqual(frames.rect(of: c), CGRect(x: 107, y: 107, width: 100, height: 100))
+        XCTAssertEqual(frames.dividers.count, 2)
+    }
+
+    func testDividerRatioUsesBranchSpan() {
+        let a = UUID(), b = UUID(), c = UUID(), inner = UUID()
+        var root = PaneNode.leaf(a).splitting(leaf: a, into: b, axis: .horizontal, branchID: UUID())
+        root = root.splitting(leaf: b, into: c, axis: .horizontal, branchID: inner)
+        let frames = root.layoutFrames(in: CGRect(x: 0, y: 0, width: 207, height: 50), dividerThickness: 7)
+        let slot = try! XCTUnwrap(frames.dividers.first { $0.id == inner })
+        // 内层分支从 x=107 起、宽 100,可分配 93;指针在 107+31 → 1/3
+        XCTAssertEqual(slot.ratio(at: CGPoint(x: 138, y: 10))!, 31.0 / 93.0, accuracy: 0.0001)
+    }
+
+    func testDropEdgeHalf() {
+        let rect = CGRect(x: 10, y: 20, width: 100, height: 60)
+        XCTAssertEqual(PaneDropEdge.right.half(of: rect), CGRect(x: 60, y: 20, width: 50, height: 60))
+        XCTAssertEqual(PaneDropEdge.top.half(of: rect), CGRect(x: 10, y: 20, width: 100, height: 30))
+    }
+}

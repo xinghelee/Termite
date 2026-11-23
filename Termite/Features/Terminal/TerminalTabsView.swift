@@ -730,8 +730,9 @@ private struct PaneCarouselView: View {
     }
 }
 
-/// 分屏树递归视图:叶子=一个终端 pane(可点按聚焦、聚焦有强调边框),
-/// 分支=按 ratio 二分,中间分隔条可拖拽调整比例
+/// 分屏树视图(扁平渲染):整棵树先算成像素矩形,叶子与分隔条平铺在同一个 ZStack 里。
+/// 叶子身份稳定(按会话 id),分屏/合并/关闭时旧 pane 的 frame 连续动画、新 pane 淡入滑入;
+/// 动画期间终端行列由 PaneResizeGate 冻结,结束才 resize 一次
 private struct PaneTreeView: View {
     let node: PaneNode
     let focusedID: UUID
@@ -743,67 +744,90 @@ private struct PaneTreeView: View {
 
     /// 分隔条命中区厚度(可见线仍是 1pt)
     private static let dividerThickness: CGFloat = 7
+    private static let space = "paneTree"
 
     var body: some View {
-        switch node {
-        case .leaf(let sid):
-            if let session = sessionManager.session(sid) {
-                PaneLeafView(
-                    session: session,
-                    isFocused: sid == focusedID,
-                    showsFocus: showsFocus,
-                    broadcasting: broadcasting,
-                    onFocus: { onFocus(sid) }
-                )
-                .id(sid)
-            } else {
-                Color.clear
-            }
-        case .branch(let branchID, let axis, let ratio, let first, let second):
-            GeometryReader { geo in
-                let total = (axis == .horizontal ? geo.size.width : geo.size.height) - Self.dividerThickness
-                let firstLength = max(0, total * ratio)
-                let secondLength = max(0, total - firstLength)
-                let layout = axis == .horizontal
-                    ? AnyLayout(HStackLayout(spacing: 0))
-                    : AnyLayout(VStackLayout(spacing: 0))
-                layout {
-                    subtree(first)
-                        .frame(
-                            width: axis == .horizontal ? firstLength : nil,
-                            height: axis == .vertical ? firstLength : nil
-                        )
-                    PaneDivider(axis: axis, onReset: { onResize(branchID, 0.5) }) { location in
-                        let position = axis == .horizontal ? location.x : location.y
-                        guard total > 0 else { return }
-                        onResize(branchID, position / total)
-                    }
-                    .frame(
-                        width: axis == .horizontal ? Self.dividerThickness : nil,
-                        height: axis == .vertical ? Self.dividerThickness : nil
-                    )
-                    subtree(second)
-                        .frame(
-                            width: axis == .horizontal ? secondLength : nil,
-                            height: axis == .vertical ? secondLength : nil
-                        )
+        GeometryReader { geo in
+            let frames = node.layoutFrames(in: CGRect(origin: .zero, size: geo.size),
+                                           dividerThickness: Self.dividerThickness)
+            ZStack(alignment: .topLeading) {
+                ForEach(frames.leaves, id: \.id) { leaf in
+                    leafView(leaf.id)
+                        .frame(width: leaf.rect.width, height: leaf.rect.height)
+                        .position(x: leaf.rect.midX, y: leaf.rect.midY)
+                        .transition(insertionTransition)
                 }
-                .coordinateSpace(name: branchID)
-                // 分隔条经环境拿到所属分支的坐标系名(嵌套分支各自覆盖)
-                .environment(\.paneBranchSpace, branchID)
+                ForEach(frames.dividers) { slot in
+                    PaneDivider(
+                        axis: slot.axis,
+                        coordinateSpace: Self.space,
+                        onReset: { onResize(slot.id, 0.5) },
+                        onDrag: { location in
+                            if let ratio = slot.ratio(at: location) { onResize(slot.id, ratio) }
+                        }
+                    )
+                    .frame(width: slot.rect.width, height: slot.rect.height)
+                    .position(x: slot.rect.midX, y: slot.rect.midY)
+                }
+                dropPreview(in: frames)
             }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+            .coordinateSpace(name: Self.space)
         }
     }
 
-    private func subtree(_ child: PaneNode) -> some View {
-        PaneTreeView(
-            node: child,
-            focusedID: focusedID,
-            showsFocus: showsFocus,
-            broadcasting: broadcasting,
-            onFocus: onFocus,
-            onResize: onResize
+    @ViewBuilder
+    private func leafView(_ sid: UUID) -> some View {
+        if let session = sessionManager.session(sid) {
+            PaneLeafView(
+                session: session,
+                isFocused: sid == focusedID,
+                showsFocus: showsFocus,
+                broadcasting: broadcasting,
+                onFocus: { onFocus(sid) }
+            )
+        } else {
+            Color.clear
+        }
+    }
+
+    /// 新 pane 从分割线一侧滑入并淡入(方向取自最近一次分屏/落点的边)
+    private var insertionTransition: AnyTransition {
+        let distance: CGFloat = 28
+        let offset: CGSize = switch sessionManager.paneInsertEdge {
+        case .left: CGSize(width: -distance, height: 0)
+        case .right: CGSize(width: distance, height: 0)
+        case .top: CGSize(width: 0, height: -distance)
+        case .bottom: CGSize(width: 0, height: distance)
+        }
+        return .asymmetric(
+            insertion: .offset(offset).combined(with: .opacity),
+            removal: .opacity
         )
+    }
+
+    /// 拖标签进来时的落点预览:整棵树只有一个预览框,在 pane 与边之间滑动(不是逐 pane 淡入淡出)
+    @ViewBuilder
+    private func dropPreview(in frames: PaneLayoutFrames) -> some View {
+        let target = sessionManager.tabSplitDrag.flatMap { drag in
+            drag.target.flatMap { frames.rect(of: $0) }.map { drag.edge.half(of: $0) }
+        }
+        ZStack(alignment: .topLeading) {
+            if let rect = target {
+                let accent = ThemeStore.shared.current.accentColor
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(accent.opacity(0.18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(accent.opacity(0.7), lineWidth: 2)
+                    )
+                    .frame(width: max(0, rect.width - 8), height: max(0, rect.height - 8))
+                    .position(x: rect.midX, y: rect.midY)
+                    .transition(.opacity)
+            }
+        }
+        .allowsHitTesting(false)
+        .animation(.spring(response: 0.22, dampingFraction: 0.86), value: target)
     }
 }
 
@@ -1261,12 +1285,14 @@ private struct QuickReplyPopover: View {
     }
 }
 
-/// 可拖拽分隔条:1pt 可见线 + 7pt 命中区,悬停变宽度光标,拖动回报在父分支坐标系中的位置
+/// 可拖拽分隔条:1pt 可见线 + 7pt 命中区,悬停变宽度光标,拖动回报在整棵树坐标系中的位置
 private struct PaneDivider: View {
     let axis: SplitAxis
+    /// 整棵分屏树的坐标系名(扁平布局,所有分隔条共用)
+    let coordinateSpace: String
     /// 双击分隔条:两侧均分
     var onReset: () -> Void = {}
-    /// 拖动中回调:location 为分支容器坐标系中的当前位置
+    /// 拖动中回调:location 为整棵树坐标系中的当前位置
     let onDrag: (CGPoint) -> Void
 
     @State private var hovering = false
@@ -1296,7 +1322,7 @@ private struct PaneDivider: View {
             }
         }
         .gesture(
-            DragGesture(minimumDistance: 1, coordinateSpace: .named(parentSpaceName))
+            DragGesture(minimumDistance: 1, coordinateSpace: .named(coordinateSpace))
                 .onChanged { value in
                     dragging = true
                     onDrag(value.location)
@@ -1304,25 +1330,10 @@ private struct PaneDivider: View {
                 .onEnded { _ in dragging = false }
         )
         .onTapGesture(count: 2) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { onReset() }
+            SessionManager.animatePaneLayout { onReset() }
         }
         .help(String(localized: "拖动调整大小,双击均分(⌃⌥⌘ 方向键微调)"))
         .animation(.easeOut(duration: 0.12), value: hovering)
-    }
-
-    /// 分隔条的 DragGesture 需要在「分支容器」坐标系取位置;由父视图 .coordinateSpace(name: branchID) 提供。
-    /// SwiftUI 无法从子视图直接引用父的 name,这里由父视图在创建时保证唯一层级 —— 用 EnvironmentKey 传递。
-    @Environment(\.paneBranchSpace) private var parentSpaceName
-}
-
-private struct PaneBranchSpaceKey: EnvironmentKey {
-    static let defaultValue: UUID = UUID()
-}
-
-extension EnvironmentValues {
-    var paneBranchSpace: UUID {
-        get { self[PaneBranchSpaceKey.self] }
-        set { self[PaneBranchSpaceKey.self] = newValue }
     }
 }
 
@@ -1589,27 +1600,6 @@ struct TerminalPaneView: View {
     @State private var watchBannerVisible = false
     @State private var watchBannerHide: Task<Void, Never>?
 
-    /// 拖标签进来时的落点预览:高亮将被新标签占据的那一半
-    private func dropPreview(_ edge: PaneDropEdge) -> some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            let rect: CGRect = switch edge {
-            case .left: CGRect(x: 0, y: 0, width: w / 2, height: h)
-            case .right: CGRect(x: w / 2, y: 0, width: w / 2, height: h)
-            case .top: CGRect(x: 0, y: 0, width: w, height: h / 2)
-            case .bottom: CGRect(x: 0, y: h / 2, width: w, height: h / 2)
-            }
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(ThemeStore.shared.current.accentColor.opacity(0.18))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(ThemeStore.shared.current.accentColor.opacity(0.7), lineWidth: 2)
-                )
-                .frame(width: rect.width - 8, height: rect.height - 8)
-                .position(x: rect.midX, y: rect.midY)
-        }
-    }
-
     var body: some View {
         ZStack(alignment: .top) {
             TerminalHostView(terminalView: session.terminalView)
@@ -1685,14 +1675,6 @@ struct TerminalPaneView: View {
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
             sessionManager.paneFrames[session.id] = frame
         }
-        .overlay {
-            if let drag = sessionManager.tabSplitDrag, drag.target == session.id {
-                dropPreview(drag.edge)
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeOut(duration: 0.12), value: sessionManager.tabSplitDrag?.edge)
         .onChange(of: session.watchHit) { _, hit in
             guard hit != nil else { return }
             withAnimation(.easeOut(duration: 0.18)) { watchBannerVisible = true }

@@ -199,6 +199,124 @@ enum PaneDirection {
     case left, right, up, down
 }
 
+// MARK: - 像素布局(扁平化渲染)
+
+/// 一条分隔条的位置:rect 是命中区,span 是所属分支的整块区域(拖动时据此换算 ratio)
+struct PaneDividerSlot: Identifiable, Equatable {
+    let id: UUID
+    let axis: SplitAxis
+    let rect: CGRect
+    let span: CGRect
+    let dividerThickness: CGFloat
+
+    /// 指针在分支轴向上的位置 → 新 ratio(与分支内 first 长度 = (总长 - 分隔条) × ratio 对应)
+    func ratio(at point: CGPoint) -> Double? {
+        let total = (axis == .horizontal ? span.width : span.height) - dividerThickness
+        guard total > 0 else { return nil }
+        let position = axis == .horizontal ? point.x - span.minX : point.y - span.minY
+        return Double(position / total)
+    }
+}
+
+/// 整棵树在像素空间的扁平布局:叶子与分隔条各一张平铺列表。
+/// 扁平渲染让叶子在树重组(分屏/合并/关闭)时保持身份,frame 才能连续动画
+struct PaneLayoutFrames: Equatable {
+    var leaves: [(id: UUID, rect: CGRect)] = []
+    var dividers: [PaneDividerSlot] = []
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.dividers == rhs.dividers
+            && lhs.leaves.map(\.id) == rhs.leaves.map(\.id)
+            && lhs.leaves.map(\.rect) == rhs.leaves.map(\.rect)
+    }
+
+    func rect(of leaf: UUID) -> CGRect? {
+        leaves.first { $0.id == leaf }?.rect
+    }
+}
+
+extension PaneNode {
+    /// 按像素算出每个叶子与分隔条的矩形;分隔条占 dividerThickness,first 侧 = (总长 - 分隔条) × ratio
+    func layoutFrames(in rect: CGRect, dividerThickness: CGFloat) -> PaneLayoutFrames {
+        var frames = PaneLayoutFrames()
+        collectFrames(in: rect, dividerThickness: dividerThickness, into: &frames)
+        return frames
+    }
+
+    private func collectFrames(in rect: CGRect, dividerThickness: CGFloat, into frames: inout PaneLayoutFrames) {
+        switch self {
+        case .leaf(let sid):
+            frames.leaves.append((sid, rect))
+        case .branch(let id, let axis, let ratio, let a, let b):
+            let length = axis == .horizontal ? rect.width : rect.height
+            let total = max(0, length - dividerThickness)
+            let firstLength = max(0, total * ratio)
+            let secondLength = max(0, total - firstLength)
+            let firstRect, dividerRect, secondRect: CGRect
+            if axis == .horizontal {
+                firstRect = CGRect(x: rect.minX, y: rect.minY, width: firstLength, height: rect.height)
+                dividerRect = CGRect(x: rect.minX + firstLength, y: rect.minY, width: dividerThickness, height: rect.height)
+                secondRect = CGRect(x: dividerRect.maxX, y: rect.minY, width: secondLength, height: rect.height)
+            } else {
+                firstRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: firstLength)
+                dividerRect = CGRect(x: rect.minX, y: rect.minY + firstLength, width: rect.width, height: dividerThickness)
+                secondRect = CGRect(x: rect.minX, y: dividerRect.maxY, width: rect.width, height: secondLength)
+            }
+            a.collectFrames(in: firstRect, dividerThickness: dividerThickness, into: &frames)
+            frames.dividers.append(PaneDividerSlot(id: id, axis: axis, rect: dividerRect, span: rect,
+                                                   dividerThickness: dividerThickness))
+            b.collectFrames(in: secondRect, dividerThickness: dividerThickness, into: &frames)
+        }
+    }
+}
+
+extension PaneDropEdge {
+    /// 落在 rect 的这一侧时,新内容将占据的那一半(拖标签的预览框)
+    func half(of rect: CGRect) -> CGRect {
+        switch self {
+        case .left: CGRect(x: rect.minX, y: rect.minY, width: rect.width / 2, height: rect.height)
+        case .right: CGRect(x: rect.midX, y: rect.minY, width: rect.width / 2, height: rect.height)
+        case .top: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height / 2)
+        case .bottom: CGRect(x: rect.minX, y: rect.midY, width: rect.width, height: rect.height / 2)
+        }
+    }
+}
+
+// MARK: - 动画期间冻结终端网格
+
+/// 分屏布局动画期间冻结终端行列:pane 的 frame 每帧在变,但终端视图保持原尺寸
+/// (宿主容器裁切/露底),动画结束只做一次真正的 resize —— 一次 SIGWINCH,
+/// TUI(claude 等)只重绘一次,而不是一秒几十次地闪
+@MainActor
+enum PaneResizeGate {
+    static let releasedNotification = Notification.Name("PaneResizeGate.released")
+
+    private static var holds = 0
+    private static var generation = 0
+
+    static var isHeld: Bool { holds > 0 }
+
+    static func hold() {
+        holds += 1
+        generation += 1
+        let token = generation
+        // 兜底:动画完成回调万一没来(视图被拆等),1 秒后强制放行
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard holds > 0, generation == token else { return }
+            holds = 0
+            NotificationCenter.default.post(name: releasedNotification, object: nil)
+        }
+    }
+
+    static func release() {
+        guard holds > 0 else { return }
+        holds -= 1
+        if holds == 0 {
+            NotificationCenter.default.post(name: releasedNotification, object: nil)
+        }
+    }
+}
+
 /// 拖标签进 pane 时的落点边
 enum PaneDropEdge: Equatable {
     case left, right, top, bottom
