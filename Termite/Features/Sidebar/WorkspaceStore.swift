@@ -24,6 +24,8 @@ final class WorkspaceNode: Codable {
     /// 会话保活:守护进程里的会话 ID + 已消费输出偏移(重启后无缝接回;工作区模板不用)
     var ptyID: UUID?
     var ptyOffset: UInt64?
+    /// 断开时的输入模式转义序列(kitty 键盘协议等),重连回放前恢复
+    var ptyModes: String?
     /// 用户自定义分屏名(重启保留;区分同目录多 agent)
     var paneName: String?
 

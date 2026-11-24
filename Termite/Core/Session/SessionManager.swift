@@ -809,6 +809,7 @@ final class SessionManager {
             let ticket = session(sid)?.persistableReattach
             encoded.ptyID = ticket?.id
             encoded.ptyOffset = ticket?.offset
+            encoded.ptyModes = ticket?.modes
             encoded.paneName = session(sid)?.customName
             if let scrollbackDirectory,
                let text = session(sid)?.scrollbackSnapshot() {
@@ -879,7 +880,7 @@ final class SessionManager {
 
     private func reattachTicket(_ node: WorkspaceNode) -> PtyReattach? {
         guard let ptyID = node.ptyID else { return nil }
-        return PtyReattach(id: ptyID, offset: node.ptyOffset ?? 0)
+        return PtyReattach(id: ptyID, offset: node.ptyOffset ?? 0, modes: node.ptyModes)
     }
 
     private func restoredScrollback(_ node: WorkspaceNode) -> String? {

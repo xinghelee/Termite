@@ -7,6 +7,8 @@ import SwiftTerm
 struct PtyReattach {
     let id: UUID
     let offset: UInt64
+    /// 断开时的输入模式(kitty 键盘协议、括号粘贴…),重连回放前先恢复;见 InputModeTracker
+    var modes: String? = nil
 }
 
 /// 本地终端会话:持有一个 TermiteTerminalView(内嵌 PTY 子进程)。
@@ -87,7 +89,10 @@ final class TerminalSession: Identifiable {
     var usesHostTransport: Bool { hostPtyID != nil }
     /// 落盘票据:活连接用当前会话;回落本地时沿用押着的孤儿票据,下次启动接回真身
     var persistableReattach: PtyReattach? {
-        if let hostPtyID { return PtyReattach(id: hostPtyID, offset: consumedHostOffset) }
+        if let hostPtyID {
+            return PtyReattach(id: hostPtyID, offset: consumedHostOffset,
+                               modes: inputModes.preamble(for: terminalView.getTerminal()))
+        }
         return orphanedReattach
     }
     /// 传输就绪前(保活握手 + CREATE 往返,冷启动拉守护进程可达秒级)的键入
@@ -214,6 +219,7 @@ final class TerminalSession: Identifiable {
     @ObservationIgnored private var siUpper = 0
     @ObservationIgnored private var osc133 = OSC133Scanner()
     @ObservationIgnored private var synchronizedOutputScanner = SynchronizedOutputScanner()
+    @ObservationIgnored private var inputModes = InputModeTracker()
     @ObservationIgnored private var inlineTUIActive = false
     var requiresSharedTUILayout: Bool {
         let terminal = terminalView.getTerminal()
@@ -491,6 +497,13 @@ final class TerminalSession: Identifiable {
         // 新 Terminal 解析器没有旧屏幕状态，单纯从已消费 offset 续传会在空闲 TUI 上得到 0B。
         // 新守护进程从缓冲中最早的完整同步帧连续回放；旧守护进程回落到完整环形历史。
         let replayOffset = info.screenReplayOffset ?? info.headOffset
+        // 回放里没有 TUI 启动时那一次性的模式开关:先把断开时的输入模式灌回新 Terminal
+        //(直接喂解析器,不走 processOutput:不进录制/日志/远程镜像)
+        if let modes = reattach.modes {
+            let bytes = ArraySlice(Array(modes.utf8))
+            inputModes.scan(bytes)
+            terminalView.feed(byteArray: bytes)
+        }
         bindHostCallbacks(reattach.id, since: replayOffset, client: client)
         guard let attached = await client.attach(id: reattach.id, since: replayOffset) else {
             client.unbind(reattach.id)
@@ -797,6 +810,7 @@ final class TerminalSession: Identifiable {
             LaunchTrace.mark("output.first")
         }
         let synchronizedOutputOffset = synchronizedOutputScanner.scan(bytes)
+        inputModes.scan(bytes)
         defer {
             RemoteSessionHub.shared.observeTerminalMode(
                 sessionID: id,
