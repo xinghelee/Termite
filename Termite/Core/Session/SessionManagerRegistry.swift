@@ -274,6 +274,32 @@ final class SessionManagerRegistry {
         return level
     }
 
+    /// 项目级活动(跨窗口,驱动侧边栏点阵):agent 正在产出 > 有命令在跑 > 无。
+    /// 长驻进程(ssh / dev server / 停着的 agent)不算,和标签 chip 的降级规则一致
+    enum ProjectActivity {
+        case none, command, agent
+    }
+
+    func activity(inProject path: String) -> ProjectActivity {
+        var level = ProjectActivity.none
+        for manager in managers {
+            for tab in manager.tabs {
+                let bound = tab.projectPath == path
+                for sid in tab.root.leafIDs() {
+                    guard let session = manager.session(sid), session.runningCommand else { continue }
+                    let cwd = session.workingDirectory
+                    guard bound || cwd == path || cwd?.hasPrefix(path + "/") == true else { continue }
+                    if session.isAgentProgram {
+                        if session.outputBusy { return .agent }
+                    } else if !session.longRunningCommand {
+                        level = .command
+                    }
+                }
+            }
+        }
+        return level
+    }
+
     /// 是否存在带注意力的 pane(菜单/命令面板可用态)
     var hasAttentionSessions: Bool {
         managers.contains { $0.sessions.contains { $0.attention.isActive } }

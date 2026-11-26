@@ -51,6 +51,20 @@ final class TerminalSession: Identifiable {
     /// 命令连续跑超过阈值(ssh / dev server / TUI 这类长驻进程):
     /// 转圈指示降级为静态点,别让菊花永动干扰视线(issue #9)
     private(set) var longRunningCommand = false
+    /// 命令运行期间此刻是否正在刷输出(最近 outputBusyWindow 内有过输出):
+    /// 让长驻 agent 的点阵指示只在它真的在干活时才动
+    private(set) var outputBusy = false
+    @ObservationIgnored private var lastOutputTick = Date.distantPast
+    @ObservationIgnored private var outputBusyTimerArmed = false
+    private static let outputBusyWindow: TimeInterval = 1.5
+    /// 前台程序是不是编码 agent(决定长驻后是否仍给活动指示)
+    var isAgentProgram: Bool {
+        guard let runningProgram else { return false }
+        return Self.agentPrograms.contains(runningProgram.lowercased())
+    }
+    private static let agentPrograms: Set<String> = [
+        "claude", "claude-code", "codex", "gemini", "aider", "opencode", "amp", "goose", "droid", "cursor-agent",
+    ]
     /// 当前命令开始执行的时间(驱动状态栏实时计时)
     private(set) var commandRunningSince: Date?
     /// 是否有可复制的命令输出(驱动菜单可用态)
@@ -821,6 +835,7 @@ final class TerminalSession: Identifiable {
         if !hasUnseenActivity, hasReceivedUserInput, let manager, !manager.isSessionVisible(id) {
             hasUnseenActivity = true
         }
+        noteOutputBusy()
         trackAttentionOutput()
         appendToLog(bytes)
         appendToCast(bytes)
@@ -897,6 +912,7 @@ final class TerminalSession: Identifiable {
             longRunningCommand = false
             longRunningFlip?.cancel()
             longRunningFlip = nil
+            outputBusy = false
             lastExitCode = code
             lastCommandDuration = duration
             recordCommand(code: code, duration: duration)
@@ -912,6 +928,31 @@ final class TerminalSession: Identifiable {
                     probeGitDirty(dir)
                     probeGitIdentity(dir)
                 }
+            }
+        }
+    }
+
+    /// 输出热路径:只记时间戳;观察属性仅在 忙↔闲 翻转时写,不给每个数据块都触发视图刷新
+    private func noteOutputBusy() {
+        guard runningCommand else { return }
+        lastOutputTick = Date()
+        if !outputBusy { outputBusy = true }
+        armOutputBusyTimer(after: Self.outputBusyWindow)
+    }
+
+    /// 同一时刻只挂一个定时器:到点核对距最后一次输出多久,没静够就按剩余时间续挂
+    private func armOutputBusyTimer(after delay: TimeInterval) {
+        guard !outputBusyTimerArmed else { return }
+        outputBusyTimerArmed = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            self.outputBusyTimerArmed = false
+            guard self.outputBusy else { return }
+            let remaining = Self.outputBusyWindow - Date().timeIntervalSince(self.lastOutputTick)
+            if remaining > 0.05 {
+                self.armOutputBusyTimer(after: remaining)
+            } else {
+                self.outputBusy = false
             }
         }
     }

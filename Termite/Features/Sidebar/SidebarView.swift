@@ -263,6 +263,7 @@ private struct ProjectListPage: View {
                         project: project,
                         isActive: isActive(project),
                         attention: SessionManagerRegistry.shared.attention(inProject: project.path),
+                        activity: SessionManagerRegistry.shared.activity(inProject: project.path),
                         open: { sessionManager.openProject(path: project.path) },
                         remove: { remove(project) },
                         dragChanged: { rowDragChanged(project, deltaY: $0) },
@@ -452,6 +453,7 @@ private struct ProjectRows: View {
                 project: project,
                 isActive: isActive(project),
                 attention: SessionManagerRegistry.shared.attention(inProject: project.path),
+                activity: SessionManagerRegistry.shared.activity(inProject: project.path),
                 open: { sessionManager.openProject(path: project.path) },
                 remove: { remove(project) }
             )
@@ -791,6 +793,7 @@ private struct ProjectRow: View {
     let project: Project
     let isActive: Bool
     var attention: SessionManagerRegistry.ProjectAttention = .none
+    var activity: SessionManagerRegistry.ProjectActivity = .none
     let open: () -> Void
     let remove: () -> Void
     /// 纵向拖排回调(窗口坐标 ΔY,向下为正);ProjectRows(List 场景)不接拖排
@@ -874,12 +877,18 @@ private struct ProjectRow: View {
                 }
             }
             Spacer(minLength: 0)
-            // 注意力提醒点盖过活动态点:等待输入橙点 > 命令完成强调色点 > 当前项目点
+            // 注意力提醒点盖过活动态点:等待输入橙点 > 运行中点阵 > 命令完成强调色点 > 当前项目点
             if attention == .needsInput {
                 Circle()
                     .fill(Color.orange)
                     .frame(width: 7, height: 7)
                     .help("该项目有分屏在等待输入(⌘J 跳转)")
+            } else if activity != .none {
+                // 项目里有东西在跑:agent 正在产出荡开,普通命令绕圈(与标签 chip 同一套点阵)
+                DotMatrixIndicator(pattern: activity == .agent ? .ripple : .orbit, tint: rowAccent, side: 11)
+                    .help(activity == .agent
+                          ? String(localized: "该项目有 agent 正在工作")
+                          : String(localized: "该项目有命令在运行"))
             } else if attention == .finished {
                 Circle()
                     .fill(rowAccent)

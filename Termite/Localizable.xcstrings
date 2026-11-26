@@ -5323,6 +5323,26 @@
         }
       }
     },
+    "该项目有 agent 正在工作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An agent is working in this project"
+          }
+        }
+      }
+    },
+    "该项目有命令在运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A command is running in this project"
+          }
+        }
+      }
+    },
     "该项目有命令已完成": {
       "localizations": {
         "en": {

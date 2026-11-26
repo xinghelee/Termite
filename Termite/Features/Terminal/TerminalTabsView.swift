@@ -1421,25 +1421,16 @@ private struct TerminalTabChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            // 圆点只承载例外状态:分屏等待输入橙点、命令在跑转菊花、后台新输出强调色点、
+            // 圆点只承载例外状态:分屏等待输入橙点、命令在跑走点阵、后台新输出强调色点、
             // 进程退出红点;空闲是常态,不显示指示,避免整排绿点噪音
             if hasAttention {
                 Circle()
                     .fill(Color.orange)
                     .frame(width: 7, height: 7)
                     .help("有分屏在等待输入")
-            } else if focusedSession?.runningCommand == true {
-                if focusedSession?.longRunningCommand == true {
-                    // ssh / dev server 这类长驻进程:菊花永动太吵,降级为静态绿点
-                    Circle()
-                        .fill(Color.green.opacity(0.8))
-                        .frame(width: 6, height: 6)
-                        .help("长时间运行中")
-                } else {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .frame(width: 8, height: 8)
-                }
+            } else if let running = focusedSession, running.runningCommand {
+                // 点阵:命令在跑绕圈,长驻 agent 只在刷输出时荡开,其余长驻进程静态绿点
+                SessionRunIndicator(session: running, side: 10)
             } else if hasActivity, !isSelected {
                 Circle()
                     .fill(ThemeStore.shared.current.accentColor)

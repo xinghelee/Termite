@@ -89,12 +89,8 @@ struct StatusBarView: View {
         if session.runningCommand {
             separatorDot
             HStack(spacing: 4) {
-                if session.longRunningCommand {
-                    // 长驻进程(ssh / dev server):静态绿点替代永动菊花,经过时间照常走
-                    Circle().fill(Color.green.opacity(0.8)).frame(width: 6, height: 6)
-                } else {
-                    ProgressView().controlSize(.mini)
-                }
+                // 与标签 chip 同一套指示;经过时间照常走
+                SessionRunIndicator(session: session, side: 11)
                 Text(runningText(now: now))
             }
             .foregroundStyle(.secondary)
